@@ -1496,11 +1496,36 @@ def scenario(text_a, text_b, opt, db, sel):
         v_, w_ = back_of(b['units'][j], {})
         back.append(v_)
         back_who.append(w_)
+    # 死掉幾隻之後還剩多少輸出（2026-11-15 使用者：照比例扣「很怪」）：防守方自己挑誰死，
+    # 護衛裡輸出最低的先死、角色最後；每隻模型的輸出＝那一組模型單獨打的傷害 ÷ 隻數
+    per_model = []
+    for jj, j in enumerate(tg):
+        y = b['units'][j]
+        who = back_who[jj]
+        if who is None:
+            per_model.append([])
+            continue
+        tu = target_of(a['units'][who])
+        w_ = tu['wounds'] or 1
+        body_m, lead_m = [], []
+        for g in y['groups']:
+            yv = dict(y, groups=[g])
+            o = unit_damage(yv, tu, True, opt) / w_ + (0 if melee else unit_damage(yv, tu, False, opt) / w_)
+            (lead_m if g['src'] in y.get('leaders', ()) else body_m).extend([o / max(1, g['count'])] * int(g['count']))
+        per_model.append(sorted(body_m) + sorted(lead_m))
+    def rem_frac(jj, dn):
+        pm = per_model[jj]
+        tot_o = sum(pm)
+        if not pm or tot_o <= 0:
+            return max(0.0, 1 - dn / max(1, tgts[jj]['models']))
+        k = int(dn)
+        removed = sum(pm[:k]) + (dn - k) * (pm[k] if k < len(pm) else 0)
+        return max(0.0, 1 - removed / tot_o)
     def value(asg):
         tot = 0.0
         for j in range(len(tg)):
             v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-            tot += (pw * worth[j] + 0.01 * v if wipe else v) - (1 - df) * back[j]
+            tot += (pw * worth[j] + 0.01 * v if wipe else v) - rem_frac(j, dn) * back[j]
         return tot
     # 先貪心：傷害大的武器先放，每把放到「多打死最多分」的目標；再一把一把試著換目標，直到沒有更好
     order = sorted(range(len(items)), key=lambda k: -max(shot(items[k], j)['exp'] for j in range(len(tg))))
@@ -1541,7 +1566,7 @@ def scenario(text_a, text_b, opt, db, sel):
     res_t = []
     for j in range(len(tg)):
         v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), back=round((1 - df) * back[j]), back_full=round(back[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
+        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), back=round(rem_frac(j, dn) * back[j]), back_full=round(back[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
@@ -1551,7 +1576,7 @@ def scenario(text_a, text_b, opt, db, sel):
     alt = []
     for j in range(len(tg)):
         v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
-        bk = (1 - df) * back[j] + sum(back[k] for k in range(len(tg)) if k != j)      # 沒打的目標全力反打
+        bk = rem_frac(j, dn) * back[j] + sum(back[k] for k in range(len(tg)) if k != j)      # 沒打的目標全力反打
         alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models'], back=round(bk), net=round(v - bk)))
     tot_pts = sum(t['value'] for t in res_t)
     tot_back = sum(t['back'] for t in res_t)
@@ -1565,7 +1590,7 @@ def scenario(text_a, text_b, opt, db, sel):
             out['save_once'] = dict(names=sorted({n for k, n in once}), total=sub['total'], targets=sub['targets'])
     # 反打時我方可以用的防守（2026-11-15 使用者「要加」）：防守戰略（擋一隊的反打）和 Kaptaris（整個近戰階段，代替攻擊招）
     dfs = []
-    rem = [1 - _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[3] for j in range(len(tg))]
+    rem = [rem_frac(j, _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[2]) for j in range(len(tg))]
     for r in a.get('_rules', []):
         if r['kind'] != '戰略' or not r['tags'] or any(t['side'] != 'def' for t in r['tags']):
             continue
