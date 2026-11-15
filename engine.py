@@ -22,6 +22,18 @@ def rd(n):
         return list(csv.DictReader(f, delimiter='|'))
 
 
+def rd_safe(n):
+    """Wahapedia 有些檔的欄位裡有換行（Stratagems.csv 的 legend），csv 模組會切錯；改用「每筆以 |換行 結尾」來切。"""
+    try:
+        with open(os.path.join(DATA, n + '.csv'), encoding='utf-8-sig') as f:
+            t = f.read()
+    except OSError:
+        return []
+    recs = [r.split('|') for r in re.split(r'\|\r?\n', t) if r.strip()]
+    h = recs[0] if recs else []
+    return [dict(zip(h, r)) for r in recs[1:] if len(r) >= len(h) - 1]
+
+
 def norm(s):
     s = re.sub(r'<[^>]+>', '', s or '')
     s = s.replace('‑', '-').replace('‐', '-').replace('–', '-').replace('—', '-').replace('’', "'").replace('‘', "'")
@@ -137,6 +149,38 @@ class DB:
             ZH_WARGEAR.update(self.zh_wargear)
         except OSError:
             self.zh_wargear = {}
+        self.load_detachments()
+
+    def load_detachments(self):
+        """分隊（Detachments）和它的規則、戰略。只留下 tags.py 讀得懂、會影響傷害的；其他的只計數。2026-11-15。"""
+        self.dets, self.det_rules = {}, {}
+        for r in rd_safe('Detachments'):
+            if r.get('id') and r.get('name'):
+                self.dets.setdefault(r['faction_id'], []).append(dict(id=r['id'], name=r['name']))
+        def add(det_id, rid, kind, name, cp, text, need):
+            ts = tagger.tag_ability(name, text)
+            box = self.det_rules.setdefault(det_id, dict(rules=[], unread=0))
+            if ts:
+                box['rules'].append(dict(id=rid, kind=kind, name=name, cp=cp, tags=ts, need=need))
+            else:
+                box['unread'] += 1
+        for r in rd_safe('Detachment_abilities'):
+            d = re.sub(r'<[^>]+>', ' ', r.get('description') or '')
+            d = re.sub(r'\b(?:a|each) model from your army\b', 'a model in this unit', d, flags=re.I)
+            d = re.sub(r'\bunits from your army\b', 'this unit', d, flags=re.I)
+            add(r.get('detachment_id') or '', r.get('id', ''), '規則', r.get('name', ''), '', d, [])
+        for r in rd_safe('Stratagems'):
+            if 'boarding actions' in (r.get('type') or '').lower():
+                continue
+            raw = re.sub(r'<br\s*/?>', '\n', r.get('description') or '')
+            tgt = re.search(r'TARGET:(.*?)(?:EFFECT:|$)', re.sub(r'<(?!/?span)[^>]+>', ' ', raw), re.S)
+            need = sorted({k for k in DET_TYPE_KW if tgt and re.search(r'\b' + k + r'\b', re.sub(r'<[^>]+>', ' ', tgt[1]), re.I)})
+            d = re.sub(r'<[^>]+>', ' ', raw)
+            m = re.search(r'EFFECT:\s*(.*?)(?:RESTRICTIONS:|$)', d, re.S)
+            e = re.sub(r'\byour unit\b', 'this unit', m[1] if m else d, flags=re.I)
+            e = re.sub(r'(?:^|(?<=\. ))\s*until the end of the (?:phase|turn|battle round),\s*', '', e, flags=re.I)
+            add(r.get('detachment_id') or ('core' if not r.get('faction_id') else ''), r.get('id', ''), '戰略', r.get('name', '').title(),
+                r.get('cp_cost', ''), e.strip(), need)
 
     def sheets_named(self, name):
         """這個名字（英文或中文）對得上的所有資料卡。中文名可能對到兩個陣營的同名單位。"""
@@ -407,6 +451,9 @@ def parse_list(text, db):
             cur['role'] = 'leader' if lead else 'bodyguard'
         elif re.match(r'(enhancement|强化|強化)', body.lower()):
             cur['extra'].append(body)
+    out['fid'] = fid
+    low = norm(text)
+    out['det_auto'] = [d['id'] for d in db.dets.get(fid, []) if norm(d['name']) in low]
     built = [build_unit(u, db, out) for u in raw]
     # 合併領袖和護衛
     done = set()
@@ -431,6 +478,7 @@ def parse_list(text, db):
     return out
 
 
+DET_TYPE_KW = ('INFANTRY', 'VEHICLE', 'MONSTER', 'MOUNTED', 'CHARACTER', 'WALKER', 'TERMINATOR', 'BATTLELINE', 'BEAST', 'SWARM', 'FLY', 'PSYKER', 'TITANIC')
 ZH_UNKNOWN = set()
 ZH_GUESSED = set()                                       # (資料卡, 中文, 英文)：拆字推測的
 ZH_WARGEAR = {}                                          # DB() 載入時填
@@ -645,6 +693,39 @@ def resolve(lst, over):
         u['dfx'] = [t for t in act if t['side'] == 'def' and (t['leading'] or t.get('unitwide') or t.get('granted') or t['src'] in u['body'])]
 
 
+def apply_dets(lst, over, db):
+    """分隊規則和戰略：使用者勾哪個分隊、哪條規則／戰略才算。勾了的戰略當作「每個符合條件的單位都用了」（看假設用了會差多少）。
+    over 的 key：'D|分隊id' 選分隊（預設＝軍表裡讀到的分隊名）、'R|分隊id|規則id|第幾條' 勾規則或戰略（預設不勾）。"""
+    groups = [dict(id=d['id'], name=d['name']) for d in db.dets.get(lst.get('fid'), [])]
+    if db.det_rules.get('core', {}).get('rules'):
+        groups.append(dict(id='core', name='通用戰略（Core）'))
+    out = []
+    for d in groups:
+        auto = d['id'] in lst.get('det_auto', [])
+        on = bool(over.get('D|' + d['id'], auto))
+        box = db.det_rules.get(d['id'], dict(rules=[], unread=0))
+        item = dict(id=d['id'], name=d['name'], key='D|' + d['id'], on=on, auto=auto, rules=[], unread=box['unread'], n=len(box['rules']))
+        if on:
+            for r in box['rules']:
+                for k, t in enumerate(r['tags']):
+                    key = f"R|{d['id']}|{r['id']}|{k}"
+                    ron = bool(over.get(key, False))
+                    item['rules'].append(dict(key=key, kind=r['kind'], name=r['name'], cp=r['cp'], label=t['label'], need=r['need'], on=ron))
+                    if not ron:
+                        continue
+                    tt = dict(t, src=r['name'], granted=True, situ=False)
+                    for u in lst['units']:
+                        if not all(n in u['kw'] for n in r['need']):
+                            continue
+                        if tt['side'] == 'att':
+                            for g in u['groups']:
+                                g['fx'] = g.get('fx', []) + [tt]
+                        else:
+                            u['dfx'] = u.get('dfx', []) + [tt]
+        out.append(item)
+    lst['dets'] = out
+
+
 def target_of(u):
     m = u['main']
     return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()),
@@ -735,11 +816,13 @@ def compare(text_a, text_b, opt, db):
     over = opt.get('abil') or {}
     resolve(a, over.get('a') or {})
     resolve(b, over.get('b') or {})
+    apply_dets(a, over.get('a') or {}, db)
+    apply_dets(b, over.get('b') or {}, db)
     ab, ba = matrix(a, b, opt), matrix(b, a, opt)
 
     def side(l):
         us = [describe(u) for u in l['units']]
-        return dict(name=l['name'], faction=l['faction'], points=l['points'], units=us, unknown=l['unknown'], notes=l['notes'],
+        return dict(name=l['name'], faction=l['faction'], points=l['points'], units=us, unknown=l['unknown'], notes=l['notes'], dets=l.get('dets', []),
                     oc=sum(u['OC'] for u in us), wounds=sum(u['wounds'] for u in us), models=sum(u['models'] for u in us))
     return dict(a=side(a), b=side(b), ab=ab, ba=ba, sum_ab=summary(a, b, ab), sum_ba=summary(b, a, ba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated)
 

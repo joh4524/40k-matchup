@@ -4,7 +4,7 @@
   const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
   const CODE = ['engine.py', 'tags.py', 'manual.py', 'zh_glossary.py'];
   const DATA = ['Last_update', 'Factions', 'Datasheets', 'Datasheets_models', 'Datasheets_wargear', 'Datasheets_abilities', 'Datasheets_keywords',
-    'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json']);
+    'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities', 'Detachments', 'Detachment_abilities', 'Stratagems'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json']);
   let ready = null;
 
   async function boot(status) {

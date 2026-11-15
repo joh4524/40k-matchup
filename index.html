@@ -118,6 +118,12 @@ function sideCard(s,cls,tag,sum,other,sk){
   const ab=s.units.filter(u=>u.abil.length), nab=ab.reduce((n,u)=>n+u.abil.length,0);
   if(nab) h+=`<details${window['open_'+sk]?' open':''} data-ab="${sk}"><summary>單位能力（讀到 ${nab} 條，打勾的有算進去）</summary>${ab.map(u=>`<div style="margin:6px 0"><b>${esc(u.name)}</b>${u.abil.map(x=>`<br><label style="${x.avail?'':'opacity:.5'}"><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''} ${x.avail?'':'disabled'}> ${esc(x.name)}：<small>${esc(x.label)}${x.avail?'':'（'+esc(x.why||'不適用')+'）'}</small></label>`).join('')}</div>`).join('')}<small>只讀得懂固定句型的能力（自己攻擊時、被打時的加減和重骰）。沒列出來的能力就是沒算。</small></details>`;
   else h+=`<p class="mute" style="margin:6px 0 0">這張表的單位沒有讀到會影響傷害的固定句型能力。</p>`;
+  const dets=s.dets||[], don=dets.filter(d=>d.on);
+  if(dets.length) h+=`<details${window['dopen_'+sk]?' open':''} data-dt="${sk}"><summary>分隊規則和戰略（${don.length?don.map(d=>esc(d.name)).join('、'):'還沒選分隊'}）</summary>
+  <div style="margin:6px 0"><small>${dets.some(d=>d.auto)?'已照軍表裡的分隊名自動勾選，可以改。':'軍表是中文或沒讀到分隊名，請自己勾用了哪幾個分隊（可多選）。'}括號是讀得懂的規則／戰略條數。</small>
+  <div class="opts" style="gap:2px 14px;margin-top:4px">${dets.map(d=>`<label style="white-space:normal"><input type="checkbox" data-side="${sk}" data-key="${esc(d.key)}" ${d.on?'checked':''}> ${esc(d.name)} <small>(${d.n})</small></label>`).join('')}</div></div>
+  ${don.map(d=>`<div style="margin:10px 0 6px"><b>${esc(d.name)}</b>${d.rules.length?d.rules.map(x=>`<br><label><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''}> ${x.kind==='戰略'?'戰略 '+esc(x.cp)+'CP':'規則'}｜${esc(x.name)}：<small>${esc(x.label)}${x.need.length?'（限 '+x.need.join('/')+'）':''}</small></label>`).join(''):'<br><small class="mute">沒有讀得懂、會影響傷害的規則或戰略</small>'}<br><small class="mute">另有 ${d.unread} 條讀不懂或跟傷害無關，沒列出來</small></div>`).join('')}
+  <small>規則和戰略預設都不算，勾了才算。勾戰略＝假設每個符合條件的單位都用了它，用來看「用了會差多少」。標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項。</small></details>`;
   h+=`<details><summary>每個單位最賺的目標</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th style="max-width:none">射擊最賺</th><th>殺分</th><th style="max-width:none">近戰最賺</th><th>殺分</th></tr></thead><tbody>${sum.best.map(x=>`<tr><td class="r">${esc(x.unit)}</td><td>${esc(x.shoot)}</td><td>${x.shoot_pts}</td><td>${esc(x.melee)}</td><td>${x.melee_pts}</td></tr>`).join('')}</tbody></table></div></details>`;
   return h+'</div>';
 }
@@ -181,6 +187,7 @@ function render(){
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
   document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
+  document.querySelectorAll('details[data-dt]').forEach(d=>d.ontoggle=()=>{window['dopen_'+d.dataset.dt]=d.open});
   document.querySelectorAll('button[data-pv]').forEach(b=>b.onclick=()=>{pv=b.dataset.pv;render()});
   document.querySelectorAll('.tsort button').forEach(b=>b.onclick=()=>{tsort=b.dataset.s;render()});
 }
