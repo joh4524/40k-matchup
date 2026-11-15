@@ -1393,6 +1393,16 @@ def scenario(text_a, text_b, opt, db, sel):
     melee = bool(sel.get('melee'))
     atk = [i for i in sel.get('att', []) if 0 <= i < len(a['units'])]
     tg = [j for j in sel.get('tgt', []) if 0 <= j < len(b['units'])]
+    KAT = '000008391'
+    kat_on = any(d.get('army') and d['on'] and d['id'] == 'army' + KAT for d in a.get('dets', []))
+    if opt.get('_kaptaris'):                            # 這個近戰階段改用 Kaptaris（防守），就不能用攻擊的 Ka'tah
+        kt = army.ARMY[KAT]['rules'][1]['tags'][0]
+        for i in atk:
+            u = a['units'][i]
+            if KAT in u.get('fab', ()):
+                for g in u['groups']:
+                    g['fx'] = [t for t in g.get('fx', []) if t.get('pick') != 'katah']
+                u['dfx'] = [t for t in u.get('dfx', []) if t.get('name') != 'Kaptaris'] + [dict(kt, src='Kaptaris', granted=True, situ=False)]
     if not atk or not tg:
         return dict(error='至少要選一隊出手、一個目標')
     tgts = [target_of(b['units'][j]) for j in tg]
@@ -1457,18 +1467,24 @@ def scenario(text_a, text_b, opt, db, sel):
     worth = [pts[k] + 2 * buff[k] for k in range(len(tg))]
     # 對面反打（2026-11-15 使用者：「你要看我打完對面反打我的狀況」）：每個目標剩下的部分（照死掉的血算比例）打回來，
     # 挑我方出手單位裡它打最痛的那隊。近戰：同一個近戰階段打回來（只算近戰）；射擊：對面下一回合射擊＋近戰。
-    back = []
-    for j in tg:
-        y = b['units'][j]
-        best_b = 0.0
+    def back_of(y, mine):
+        """對面這隊（滿編）打回來，挑我方出手單位裡打最痛的：(殺我幾分, 打誰)"""
+        best_b, who = 0.0, None
         for i in atk:
-            tu = target_of(a['units'][i])
+            mu = mine.get(i, a['units'][i])
+            tu = target_of(mu)
             w_ = tu['wounds'] or 1
             f = min(1.0, unit_damage(y, tu, True, opt) / w_)
             if not melee:
                 f = min(1.0, f + unit_damage(y, tu, False, opt) / w_)
-            best_b = max(best_b, f * a['units'][i]['points'])
-        back.append(best_b)
+            if f * mu['points'] > best_b:
+                best_b, who = f * mu['points'], i
+        return best_b, who
+    back, back_who = [], []
+    for j in tg:
+        v_, w_ = back_of(b['units'][j], {})
+        back.append(v_)
+        back_who.append(w_)
     def value(asg):
         tot = 0.0
         for j in range(len(tg)):
@@ -1536,6 +1552,32 @@ def scenario(text_a, text_b, opt, db, sel):
         sub = scenario(text_a, text_b, dict(opt, abil=dict(over, a=ab), _noonce=True), db, sel)
         if not sub.get('error'):
             out['save_once'] = dict(names=sorted({n for k, n in once}), total=sub['total'], targets=sub['targets'])
+    # 反打時我方可以用的防守（2026-11-15 使用者「要加」）：防守戰略（擋一隊的反打）和 Kaptaris（整個近戰階段，代替攻擊招）
+    dfs = []
+    rem = [1 - _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[3] for j in range(len(tg))]
+    for r in a.get('_rules', []):
+        if r['kind'] != '戰略' or not r['tags'] or any(t['side'] != 'def' for t in r['tags']):
+            continue
+        if not any(t['scope'] in ('all', 'melee' if melee else 'ranged') or not melee for t in r['tags']):
+            continue
+        best = None
+        for i in atk:
+            if not _fits(a['units'][i], r):
+                continue
+            mu = _variant(a['units'][i], add=[dict(t, src=r['name'], granted=True, situ=False) for t in r['tags']], db=db)
+            for j in range(len(tg)):
+                nb, _w = back_of(b['units'][tg[j]], {i: mu})
+                red = rem[j] * (back[j] - nb)
+                if red > 0.5 and (best is None or red > best[0]):
+                    best = (red, i, j)
+        if best:
+            dfs.append(dict(name=r['name'], kind=r['kind'], cp=r.get('cp', ''), save=round(best[0]), unit=lab(a, atk[0] if best[1] is None else best[1]), vs=lab(b, tg[best[2]])))
+    dfs.sort(key=lambda x: -x['save'])
+    out['defense'] = dfs
+    if melee and kat_on and not opt.get('_kaptaris') and any(KAT in a['units'][i].get('fab', ()) for i in atk):
+        kp = scenario(text_a, text_b, dict(opt, _kaptaris=True, _noonce=True), db, sel)
+        if not kp.get('error'):
+            out['kaptaris'] = dict(total=kp['total'], back=kp['back'], net=kp['net'], plan=kp['plan'])
     has_char = [j for j in range(len(tg)) if any(g[2] for g in tgts[j]['wgroups'])]
     out['char_note'] = bool(has_char)
     return out

@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611152024"></script>
+<script src="browser.js?v=202611152026"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -224,6 +224,7 @@ function testCard(){
   if(SR&&!SR.error){
     h+=`<div class="card"><h2>建議分法（${SR.goal==='wipe'?'確保滅隊':'平均打死最多分'}）：平均打死 ${SR.total} 分，對面反打殺我 ${SR.back} 分，淨賺 <b>${SR.net}</b> 分</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
     <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th><th>它反打殺我<br><small>剩下的部分／滿編</small></th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}${t.buff?`<br><small>角色能力：這隊每輪多殺 ${t.buff} 分</small>`:''}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td><td data-l="它反打殺我">${t.back} <small>／${t.back_full}</small></td></tr>`).join('')}</tbody></table></div>
+    ${SR.kaptaris||(SR.defense&&SR.defense.length)?`<h2 style="margin-top:10px">反打時我方的防守</h2><ul>${SR.kaptaris?`<li>改用 <b>Kaptaris</b>（這個近戰階段被打 -1 命中，不能同時用攻擊的 Ka'tah）：打死 ${SR.kaptaris.total}、被反打 ${SR.kaptaris.back}、淨賺 <b>${SR.kaptaris.net}</b>（用攻擊招是淨賺 ${SR.net}）→ ${SR.kaptaris.net>SR.net?'<b>這場用 Kaptaris 比較好</b>':'還是用攻擊招比較好'}</li>`:''}${(SR.defense||[]).map(d=>`<li>${esc(d.name)}（${esc(d.cp)}CP）：用在 ${esc(d.unit)}、擋 ${esc(d.vs)} 的反打，少被殺 <b>${d.save}</b> 分${d.cp?'，每 CP '+Math.round(d.save/(+d.cp||1)):''}</li>`).join('')}</ul>`:''}
     ${SR.save_once?`<p class="note" style="margin:8px 0 0">這次用了每場一次的：<b>${SR.save_once.names.map(esc).join('、')}</b>。省下來不用的話：平均打死 ${SR.save_once.total} 分（${SR.save_once.targets.map(t=>`${esc(t.name)} 全滅 ${pct(t.p_wipe)}%`).join('；')}）。</p>`:''}
     <h2 style="margin-top:10px">對照：全部集火同一個目標</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">全部打</th><th>全滅機率</th><th>平均死幾隻</th><th>平均打死的分數</th><th>對面反打</th><th>淨賺</th></tr></thead><tbody>${SR.focus.map(f=>`<tr><td class="r" data-l="全部打"><span>${esc(f.name)}</span></td><td data-l="全滅機率"><b>${pct(f.p_wipe)}%</b></td><td data-l="平均死幾隻">${f.dead} / ${f.models}</td><td data-l="打死的分數">${f.value}</td><td data-l="對面反打">${f.back}</td><td data-l="淨賺"><b>${f.net}</b></td></tr>`).join('')}</tbody></table></div>
     <p class="mute" style="margin:6px 0 0">反打：每個目標剩下的部分（照死掉的比例扣）打回來，挑我方出手單位裡它打最痛的那隊。近戰＝同一個近戰階段打回來；射擊＝對面下一回合射擊加近戰。沒被打的目標全力反打。程式找的是「淨賺」最多的分法。</p>
