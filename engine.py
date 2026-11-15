@@ -1437,14 +1437,14 @@ def scenario(text_a, text_b, opt, db, sel):
                     asg[k] = old
         if not moved:
             break
-    res_t = []
-    for j in range(len(tg)):
-        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-        res_t.append(dict(name=lab(b, tg[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
     def lab(lst, i):                                    # 同名的單位加編號
         nm = lst['units'][i]['name']
         same = [k for k, u in enumerate(lst['units']) if u['name'] == nm]
         return nm + (f' #{same.index(i) + 1}' if len(same) > 1 else '')
+    res_t = []
+    for j in range(len(tg)):
+        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
+        res_t.append(dict(name=lab(b, tg[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
