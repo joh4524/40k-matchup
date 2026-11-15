@@ -40,6 +40,23 @@ ul{margin:4px 0;padding-left:20px}
 td.chg{outline:2px solid var(--ink);outline-offset:-2px}
 td.c small{display:block;font-size:10px;color:#111}
 .note{background:var(--bg);border-radius:8px;padding:6px 10px;margin:0 0 12px}
+#tip{position:fixed;left:8px;right:8px;bottom:8px;background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 12px;font-size:14px;display:none;z-index:9;box-shadow:0 4px 16px #0004}
+td.c{cursor:pointer}
+/* 手機（2026-11-15）：第一欄變窄、表格字小一點；「該先打誰」改成一列一張小卡，不用左右滑 */
+@media (max-width:600px){
+  main{padding:10px}
+  .card{padding:10px}
+  th.r,td.r{min-width:92px;max-width:110px;font-size:11px}
+  thead th{min-width:46px;font-size:10px}
+  th,td{padding:3px 4px}
+  button{padding:8px 14px}
+  table.thr,table.thr tbody{display:block;width:100%}
+  table.thr thead{display:none}
+  table.thr tr{display:block;border:1px solid var(--line);border-radius:8px;margin:0 0 8px;padding:4px 0}
+  table.thr td{display:flex;justify-content:space-between;gap:12px;border:0;text-align:right!important;position:static;max-width:none;min-width:0;background:none;padding:2px 8px}
+  table.thr td::before{content:attr(data-l);color:var(--mute);text-align:left;white-space:nowrap}
+  table.thr td.r{font-weight:600;font-size:13px}
+}
 </style>
 </head>
 <body>
@@ -60,6 +77,7 @@ td.c small{display:block;font-size:10px;color:#111}
   </div>
   <div id="msg" class="err"></div>
 </div>
+<div id="tip" onclick="this.style.display='none'"></div>
 <div id="trout"></div>
 <div id="out"></div>
 <p class="mute" style="font-size:12px">
@@ -82,7 +100,7 @@ function matrix(title,cls,att,def,m,pm){
   def.units.forEach(u=>h+=`<th>${esc(u.name)}<br><small>${u.points} 分</small></th>`);
   h+='</tr></thead><tbody>';
   att.units.forEach((u,i)=>{h+=`<tr><td class="r">${esc(u.name)} <small>${u.points}</small></td>`;
-    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
+    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
   return h+'</tbody></table></div></div>';
 }
 function sideCard(s,cls,tag,sum,other,sk){
@@ -105,11 +123,11 @@ function sideCard(s,cls,tag,sum,other,sk){
 }
 function threatCard(tag,cls,foeTag,list){
   const rows=list.map((t,i)=>({...t,i})).sort((x,y)=>y[tsort]-x[tsort]||y.threat-x.threat);
-  let h=`<div class="card"><h2 class="${cls}">${tag} 該先打誰（${foeTag} 的威脅）</h2><div class="scroll"><table><thead><tr><th>#</th><th class="r">${foeTag} 的單位</th><th>威脅<br><small>一輪殺我幾分</small></th><th>射擊</th><th>近戰</th><th style="max-width:none;min-width:150px">一輪能帶走我的</th><th style="max-width:none;min-width:170px">打掉它要派</th><th>要花<br><small>火力（分）</small></th><th>優先<br><small>分數</small></th></tr></thead><tbody>`;
+  let h=`<div class="card"><h2 class="${cls}">${tag} 該先打誰（${foeTag} 的威脅）</h2><div class="scroll"><table class="thr"><thead><tr><th>#</th><th class="r">${foeTag} 的單位</th><th>威脅<br><small>一輪殺我幾分</small></th><th>射擊</th><th>近戰</th><th style="max-width:none;min-width:150px">一輪能帶走我的</th><th style="max-width:none;min-width:170px">打掉它要派</th><th>要花<br><small>火力（分）</small></th><th>優先<br><small>分數</small></th></tr></thead><tbody>`;
   rows.forEach((t,n)=>{
     const kills=t.kills.length?t.kills.map(k=>`${esc(k.unit)} <small>${pct(k.pct)}%</small>`).join('<br>'):'<span class="mute">沒有</span>';
     const used=t.can?t.used.map(k=>`${esc(k.unit)} <small>${pct(k.pct)}%</small>`).join('<br>'):`<span class="warn">全軍一輪打不掉<br>最多 ${pct(t.max_pct)}%</span>`;
-    h+=`<tr><td>${n+1}</td><td class="r">${esc(t.unit)} <small>${t.points}</small></td><td><b>${t.threat}</b></td><td>${t.shoot}</td><td>${t.melee}</td><td style="text-align:left">${kills}</td><td style="text-align:left">${used}</td><td>${t.cost||'-'}</td><td><b>${t.score}</b></td></tr>`});
+    h+=`<tr><td data-l="排名">${n+1}</td><td class="r" data-l="${foeTag}"><span>${esc(t.unit)} <small>${t.points}</small></span></td><td data-l="威脅（一輪殺我幾分）"><b>${t.threat}</b></td><td data-l="射擊">${t.shoot}</td><td data-l="近戰">${t.melee}</td><td data-l="一輪能帶走我的" style="text-align:left"><span>${kills}</span></td><td data-l="打掉它要派" style="text-align:left"><span>${used}</span></td><td data-l="要花火力（分）">${t.cost||'-'}</td><td data-l="優先分數"><b>${t.score}</b></td></tr>`});
   return h+'</tbody></table></div></div>';
 }
 function changed(m,pm){let n=0;m.forEach((r,i)=>r.forEach((c,j)=>{if(pct(val(c))!==pct(val(pm[i][j])))n++}));return n}
@@ -120,7 +138,7 @@ function render(){
   let note='';
   if(ok){const x=changed(R.ab,pab),y=changed(R.ba,pba);
     note=`<div class="note">${x+y?`跟上一次比：「A 打 B」有 <b>${x}</b> 格變了、「B 打 A」有 <b>${y}</b> 格變了（粗框的格子，▲▼ 是變了幾個百分點）。`:'跟上一次比：沒有任何格子改變。可能是這個能力對這些目標沒作用，或它的條件沒成立（標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項）。'}</div>`}
-  const seg=`<div class="card"><div class="opts seg"><span>表格顯示：</span>${[['both','射擊＋近戰'],['shoot','只看射擊'],['melee','只看近戰']].map(([k,t])=>`<button data-m="${k}" class="${mode===k?'on':''}">${t}</button>`).join('')}<small>格子＝平均一輪殺掉目標幾 %（滑過或長按看射擊／近戰各多少）</small></div></div>`;
+  const seg=`<div class="card"><div class="opts seg"><span>表格顯示：</span>${[['both','射擊＋近戰'],['shoot','只看射擊'],['melee','只看近戰']].map(([k,t])=>`<button data-m="${k}" class="${mode===k?'on':''}">${t}</button>`).join('')}<small>格子＝平均一輪殺掉目標幾 %（點一下格子看射擊／近戰各多少）</small></div></div>`;
   $('out').innerHTML=`<div class="grid">${sideCard(R.a,'la','A',R.sum_ab,R.b,'a')}${sideCard(R.b,'lb','B',R.sum_ba,R.a,'b')}</div>
   <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
   <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>
@@ -129,6 +147,7 @@ function render(){
   ${seg}${note}
   ${matrix('A 打 B','la',R.a,R.b,R.ab,pab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba)}`;
   $('upd').textContent='（更新到 '+R.data_updated+'）';
+  document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',4000)});
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
   document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
