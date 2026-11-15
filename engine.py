@@ -335,7 +335,7 @@ def unit_damage(att, tgt, melee, opt):
 
 # ---------- 讀軍表 ----------
 SECTION = re.compile(r"^[A-Z][A-Z '&/-]+$")
-HEAD = re.compile(r'^(.+?) \(?([\d,]+) (?:points?|点|點)\)?$', re.I)        # App 設成中文時是「点」
+HEAD = re.compile(r'^(.+?) ?[(（]?([\d,]+) ?(?:points?|pts|点|點)[)）]?$', re.I)  # App 設成中文時是「点」；新版 App 是「(180点)」沒空格、也有全形括號
 CJK_SECTION = re.compile(r'^[一-鿿]+$')                                   # 中文版的分類標題：角色、战线、其他数据表…
 ITEM = re.compile(r'^(\d+)x (.+)$')
 
@@ -436,11 +436,15 @@ ZH_WARGEAR = {}                                          # DB() 載入時填
 
 def match_weapon(name, sheet):
     if CJK.search(name):
-        en = zh_glossary.WEAPONS.get(name.strip()) or ZH_WARGEAR.get(name.strip())
-        if not en:
+        ens = [e for e in (zh_glossary.WEAPONS.get(name.strip()), ZH_WARGEAR.get(name.strip())) if e]
+        if not ens:
             ZH_UNKNOWN.add((sheet['name'], name.strip()))
             return None
-        name = en
+        for en in ens[:-1]:                              # 同一個中文名在不同單位可能是不同武器（导弹发射器）：先試對得到這張資料卡的
+            hit = match_weapon(en, sheet)
+            if hit:
+                return hit
+        name = ens[-1]
     n = norm(name)
     bases = {}
     for w in sheet['weapons']:
@@ -453,10 +457,15 @@ def match_weapon(name, sheet):
 
 
 def match_model(name, sheet):
+    if CJK.search(name):
+        name = getattr(zh_glossary, 'MODELS', {}).get(name.strip(), name)
     n = norm(name).rstrip('s')
+    for m in sheet['models']:                            # 先找完全同名（Scout 和 Scout Sergeant 要分得開）
+        if norm(m['name']).rstrip('s') == n:
+            return m
     for m in sheet['models']:
         mn = norm(m['name']).rstrip('s')
-        if mn == n or mn in n or n in mn:
+        if mn in n or n in mn:
             return m
     return None
 
