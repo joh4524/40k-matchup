@@ -27,7 +27,8 @@ SITU = re.compile(r"objective marker|\border\b|closest eligible|starting strengt
 EXCL = re.compile(r"\(excluding ([A-Z][A-Z\- ]+?(?:,? (?:and|or) [A-Z][A-Z\- ]+?)*)(?: units?)?\s*\)")
 TKW = re.compile(r"targets (?:an? |one or more )?(?:enemy )?(?:unit that can )?((?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*)(?:,? (?:or|and) (?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*))*)")
 NAMES = dict(hit='命中', wound='造傷', rr_hit='命中重骰', rr_wound='造傷重骰', ap='AP', dmg='傷害', attacks='攻擊數', strength='S',
-             crit_hit='爆擊命中', inv='無敵保護', fnp='FNP', half='傷害減半', cover='算有掩體')
+             crit_hit='爆擊命中', inv='無敵保護', fnp='FNP', half='傷害減半', cover='算有掩體',
+             crit_wound='爆擊造傷', skill='BS/WS 提升', sv='保護提升', sv3='保護提升（最多到 3+）')
 
 
 def clean(t):
@@ -102,7 +103,7 @@ def label(t):
             parts.append(f'[{v}]')
         elif k in ('rr_hit', 'rr_wound'):
             parts.append(NAMES[k] + ('（只重骰 1）' if v == '1' else ''))
-        elif k in ('inv', 'fnp', 'crit_hit'):
+        elif k in ('inv', 'fnp', 'crit_hit', 'crit_wound'):
             parts.append(f'{NAMES[k]} {v}+')
         elif k in ('half', 'cover'):
             parts.append(NAMES[k])

@@ -116,3 +116,21 @@ ENH = {
     'Augury Uplink': [T('Augury Uplink', 'def', [('fnp', 5)], on=True)],
     'Genalchemic Warding': [T('Genalchemic Warding', 'def', [('fnp', 5)], on=True, unitwide=False)],
 }
+
+
+# ---------- 其他陣營：rules/陣營代號.py（2026-11-16 起由 Sonnet 照 rules/GUIDE.md 手動標記，主 bot 抽查）----------
+def _load_rules():
+    import glob, importlib.util, os
+    for path in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules', '*.py'))):
+        name = os.path.basename(path)[:-3]
+        if name.startswith('_'):
+            continue
+        spec = importlib.util.spec_from_file_location('rules_' + name, path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        ARMY.update(getattr(mod, 'ARMY', {}))
+        DET.update(getattr(mod, 'DET', {}))
+        ENH.update(getattr(mod, 'ENH', {}))
+
+
+_load_rules()

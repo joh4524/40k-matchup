@@ -26,6 +26,16 @@
       if (!r.ok) throw new Error('下載不到 ' + url);
       py.FS.writeFile(path, new Uint8Array(await r.arrayBuffer()));
     }));
+    // 各陣營手動標記的規則（rules/*.py，清單在 rules/index.json，bump.sh 產生）
+    py.FS.mkdirTree('/app/rules');
+    const ri = await fetch('rules/index.json?v=' + V);
+    if (ri.ok) {
+      await Promise.all((await ri.json()).map(async f => {
+        const r = await fetch('rules/' + f + '?v=' + V);
+        if (!r.ok) throw new Error('下載不到 rules/' + f);
+        py.FS.writeFile('/app/rules/' + f, new Uint8Array(await r.arrayBuffer()));
+      }));
+    }
     py.runPython(`
 import sys, json
 sys.path.insert(0, '/app')

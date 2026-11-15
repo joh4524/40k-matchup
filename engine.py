@@ -376,7 +376,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     """一把武器（一個模型拿的一把）對目標造成的期望傷數（已考慮保護、FNP、傷害不溢出、勾選的能力）"""
     tkw, ranged = tgt['kw'], not w['melee']
     kw = w['kw']
-    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, ign=0, mw=0, rr1=0)
+    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, crit_wound=6, ign=0, mw=0, rr1=0, skill=0)
     for t in fx:
         if applies(t, w, tgt, opt, 0, aT):
             for k, v in t['effs']:
@@ -386,12 +386,12 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
                         kw[kk] = kw.get(kk, []) + vv if kk == 'anti' else vv
                 elif k in ('rr_hit', 'rr_wound'):
                     am[k] = 'all' if 'all' in (v, am[k]) else '1'
-                elif k == 'crit_hit':
+                elif k in ('crit_hit', 'crit_wound'):
                     am[k] = min(am[k], v)
                 else:
                     am[k] += v
     s = mean(w['S']) + am['strength']
-    dm = dict(hit=0, wound=0, ap=0, dmg=0, half=False, cover=False, inv=tgt['inv'], fnp=tgt['fnp'])
+    dm = dict(hit=0, wound=0, ap=0, dmg=0, half=False, cover=False, inv=tgt['inv'], fnp=tgt['fnp'], sv=0, sv3=0)
     for t in tgt.get('dfx', ()):
         if applies(t, w, tgt, opt, s):
             for k, v in t['effs']:
@@ -413,6 +413,8 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
         a += mean(kw['RAPID FIRE'][0])
     # 命中
     sk = num(w['skill'])
+    if sk and am['skill']:                             # 「BS／WS 提升 1」是改數值，不是命中修正（不受 ±1 上限）
+        sk = max(2, sk - am['skill'])
     if 'TORRENT' in kw or not sk:
         crit_h, norm_h = 0.0, a
     else:
@@ -436,7 +438,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     thr = 2 if s >= 2 * t else 3 if s > t else 4 if s == t else 6 if s * 2 <= t else 5
     wmod = (1 if (w['melee'] and opt.get('charge') and 'LANCE' in kw) else 0) + am['wound'] + dm['wound']
     wmod = max(0 if am['ign'] else -1, min(1, wmod))
-    crit_y = min([y for x, y in kw.get('anti', []) if kwmatch(x, tkw)] + [6])
+    crit_y = min([y for x, y in kw.get('anti', []) if kwmatch(x, tkw)] + [6, am['crit_wound']])
     p_crit = (7 - crit_y) / 6
     p_norm = sum(1 for r in range(2, crit_y) if r + wmod >= thr) / 6
     rr = 'all' if 'TWIN-LINKED' in kw else am['rr_wound']
@@ -449,7 +451,12 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     else:
         norm_w += crit_w
     # 保護
-    need = tgt['Sv'] + max(0, abs(num(w['AP'])) + am['ap'] + dm['ap'])
+    sv = tgt['Sv']
+    if dm['sv']:                                         # 「保護提升 1」：改 Sv 數值
+        sv = max(2, sv - dm['sv'])
+    if dm['sv3']:                                        # 同上，但最多到 3+（例如星界軍的 Take Cover!）
+        sv = max(min(sv, 3), sv - dm['sv3'])
+    need = sv + max(0, abs(num(w['AP'])) + am['ap'] + dm['ap'])
     if dm['inv']:
         need = min(need, dm['inv'])
     p_fail = min(1.0, max(1 / 6, (need - 1) / 6))
@@ -1023,13 +1030,14 @@ def apply_dets(lst, over, db):
                                rules=[dict(r, fab=abid) for r in spec['rules']], unread=0))
     for d in db.dets.get(lst.get('fid'), []):
         box = db.det_rules.get(d['id'], dict(rules=[], unread=0, total=0))
-        if d['name'] in army.DET:
-            rules = army.DET[d['name']]
+        hand = army.DET.get(d['id'], army.DET.get(d['name']))   # rules/*.py 用分隊 id 當 key（有兩個陣營的分隊同名），army.py 的禁軍用名字
+        if hand is not None:
+            rules = hand
             unread = max(0, box['total'] - len(rules))
         else:
             rules = [dict(name=r['name'], kind=r['kind'], cp=r['cp'], tags=r['tags'], need=r['need'], on=False) for r in box['rules']]
             unread = box['unread']
-        groups.append(dict(id=d['id'], name=d['name'], rules=rules, unread=unread, hand=d['name'] in army.DET))
+        groups.append(dict(id=d['id'], name=d['name'], rules=rules, unread=unread, hand=hand is not None))
     core = db.det_rules.get('core', {})
     if core.get('rules'):
         groups.append(dict(id='core', name='通用戰略（Core）', rules=[dict(name=r['name'], kind=r['kind'], cp=r['cp'], tags=r['tags'], need=r['need'], on=False)
