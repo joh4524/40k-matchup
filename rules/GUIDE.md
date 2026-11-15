@@ -86,6 +86,7 @@ ENH = {    # 強化：key = 強化英文名（照原文，不含括號）
 | 4+ invulnerable save | `('inv', 4)` |
 | Feel No Pain 5+ | `('fnp', 5)` |
 | Benefit of Cover | `('cover', 1)` |
+| Stealth（第十一版 Stealth 等於掩體：攻擊方 BS 變差 1）| `('cover', 1)`；同時有 Benefit of Cover 和 Stealth 也只寫一個 `('cover', 1)`（不重複算）|
 | improve the Save by 1 | `('sv', 1)`；寫「不能好過 3+」的用 `('sv3', 1)` |
 
 ### 不要標記（直接跳過，不寫成 R）
@@ -98,7 +99,7 @@ ENH = {    # 強化：key = 強化英文名（照原文，不含括號）
 - 效果有兩段（例：「+1 命中；如果在目標點上，再 +1 造傷」）→ 分成兩個 R：無條件的 on=True，有條件的 on=False。
 - 「選一個敵人／被標記的那一隊」才有效 → on=False，why 寫「只打被選的那一隊」。
 - 戰略同時有攻擊和防守效果 → 同一個 R 放兩個 T。
-- 規則只給特定單位種類（REGIMENT、SQUADRON、某資料卡名）→ 用 need／names 限定。關鍵字要用資料卡上真的有的大寫英文。
+- 規則只給特定單位種類（REGIMENT、SQUADRON、某資料卡名）→ 用 need／names 限定。關鍵字要用資料卡上真的有的大寫英文：原文最前面有「這個陣營資料卡上的所有關鍵字」清單，從那裡挑（例：原文寫 Tempestus，關鍵字其實是 MILITARUM TEMPESTUS）。need 是「全部都要有」；原文寫「A 或 B」的單位，就只用其中共同的關鍵字，或乾脆不限，並在 why 說明。
 - Favoured ka'tah 這類「用了某招才有」→ on=False，why 寫清楚。
 - 數字要照原文：寫 +1 就是 1，不要自己估更大的值。
 

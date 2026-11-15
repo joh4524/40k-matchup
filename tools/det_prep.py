@@ -10,6 +10,10 @@ fac = {r['id']: r['name'] for r in engine.rd('Factions')}
 if fid not in fac:
     sys.exit(f'沒有這個陣營代號：{fid}。可用：' + ', '.join(f'{k}={v}' for k, v in fac.items()))
 print(f'# 陣營 {fid} = {fac[fid]}\n')
+db = engine.DB()
+kws = sorted(set().union(*[s['kw'] for s in db.sheets.values() if s['faction'] == fid] or [set()]))
+print('## 這個陣營資料卡上的所有關鍵字（need／need_not／model_kw 只能用這些，或 MONSTER／VEHICLE／CHARACTER／INFANTRY 這類通用的）')
+print('、'.join(kws) + '\n')
 ab = [r for r in engine.rd_safe('Abilities') if r.get('faction_id') == fid]
 print('## 軍隊規則（ARMY 的 key 用這裡的 id）')
 for r in ab:
