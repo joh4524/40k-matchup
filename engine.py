@@ -458,9 +458,60 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     exp = ev * eff_damage(w['D'], bonus, tgt['W'], dm['fnp'], -dm['dmg'], dm['half'])
     if detail == 'rr1':                                 # 給「重骰一顆」用：每次攻擊的命中率、每次攻擊要骰幾顆造傷、每顆造傷成功率
         return exp, a, (crit_h + norm_h) / a if a else 0, to_wound / a if a else 0, p_crit + p_norm
+    if detail == 'sv':                                  # 給 05.04「保護骰從小到大分配」用：要擲幾顆保護骰、致命傷幾發、幾點以下擋不住
+        return norm_w, mortal, min(7, max(2, need)), a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
     if detail:
         return exp, ev, a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
     return exp
+
+
+def pool_shots(w, tgt, opt, fx, aT, cnt, keys, scale=1.0):
+    """核心規則 05.04（第十一版）：同一批相同的攻擊，保護骰一起擲，防守方從最小的點數開始一顆一顆分給目前接傷的模型。
+    所以小點數（誰都擋不住的）先落在前面的模型上，後面的角色拿到的是大點數。
+    回傳 [(發數, {保護: 每發打穿機率})…]：先是「每一組都擋不住」的點數（含 DEVASTATING 的致命傷），
+    再來是「有的組擋得住、有的擋不住」的點數，一個點數一段、由小到大。每一組的總打穿數跟原本一樣。
+    近似：每一段當成獨立的 n 次嘗試（沒算同一批骰子之間的負相關）。所有組保護一樣時，跟原本的算法完全相同。"""
+    info = {k: weapon_damage(w, dict(tgt, Sv=k[0], inv=k[1]), opt, fx, aT, detail='sv') for k in keys}
+    nsave, mortal, _, a, kd = next(iter(info.values()))
+    nsave, mortal = nsave * cnt * scale, mortal * cnt * scale
+    need = {k: v[2] for k, v in info.items()}
+    ev = {k: mortal + nsave * (need[k] - 1) / 6 for k in keys}
+    top = max(ev.values()) if ev else 0
+    if top <= 0:
+        return [], kd, a
+    trials = max(a * cnt * scale, top)
+    lo, hi = min(need.values()), max(need.values())
+    subs = [(trials, {k: (mortal + nsave * (lo - 1) / 6) / trials for k in keys})]
+    for v in range(lo, hi):
+        subs.append((trials, {k: (nsave / 6 / trials if need[k] > v else 0.0) for k in keys}))
+    return subs, kd, a
+
+
+def alloc_orders(body, lead, cap=48):
+    """防守方可以宣告的接傷順序（05.03：非 CHARACTER 的組先、CHARACTER 的組後，兩邊各自的順序防守方自己挑）。
+    保護骰從小到大分配（05.04）之後，角色之間誰排後面也有差，所以角色的順序也要試。組合太多時角色只試三種排法（原順序、保護好的排後面、保護好的排前面）；非角色的順序照舊全部試。"""
+    bp = list(itertools.permutations(body)) if body else [()]
+    lp = list(itertools.permutations(lead)) if lead else [()]
+    if len(bp) * len(lp) > cap:
+        sv = lambda k: min(k[1], k[2] or 7)                 # 越後面拿到的骰子越大：保護好的排後面通常最划算
+        lp = list(dict.fromkeys([tuple(lead), tuple(sorted(lead, key=lambda k: -sv(k))), tuple(sorted(lead, key=sv))]))
+    return [list(b) + list(l) for b in bp for l in lp]
+
+
+def merge_pools(pools):
+    """同一種攻擊（每發機率、傷害分布都一樣）不管來自哪幾個模型、拆成幾份，都是同一批一起擲保護骰（05.04）：發數加在一起。
+    pools：[(subs, kd, …其他)]，回傳同樣格式（其他欄位取第一個）。"""
+    out, idx = [], {}
+    for pl in pools:
+        subs, kd = pl[0], pl[1]
+        key = (tuple(tuple(sorted((k, round(v, 9)) for k, v in q.items())) for tr, q in subs), tuple(sorted((k, round(v, 9)) for k, v in kd.items())))
+        if key in idx:
+            o = out[idx[key]]
+            o[0] = [(t0 + t1, q) for (t0, q), (t1, _) in zip(o[0], subs)]
+        else:
+            idx[key] = len(out)
+            out.append([list(subs)] + list(pl[1:]))
+    return [tuple(o) for o in out]
 
 
 def rr1_equiv(w, tgt, opt, fx, aT, cnt):
@@ -572,26 +623,21 @@ def alloc_best(tgt, used, opt, hi=False):
         groups[k] = groups.get(k, 0) + c
     body = [k for k in groups if not k[3]]
     lead = [k for k in groups if k[3]]
-    saves = {(k[1], k[2]) for k in groups}
+    saves = sorted({(k[1], k[2]) for k in groups})
     shots = []
     for w, c, fx, aT in used:
-        ev, a, kd = {}, 0, None
-        for sv, inv in saves:
-            exp, e, a, kd = weapon_damage(w, dict(tgt, Sv=sv, inv=inv), opt, fx, aT, detail=True)
-            ev[(sv, inv)] = e * c
-        top = max(ev.values())
-        if top <= 0:
-            continue
-        trials = max(a * c, top)
-        shots.append((trials, {k: v / trials for k, v in ev.items()}, kd, sum(k * p for k, p in kd.items())))
+        subs, kd, a = pool_shots(w, tgt, opt, fx, aT, c, saves)
+        if subs:
+            shots.append((subs, kd, sum(k * p for k, p in kd.items())))
+    shots = merge_pools(shots)
     if not shots:
         return 0.0
     best = 0.0
-    for att in (sorted(shots, key=lambda s: -s[3]), sorted(shots, key=lambda s: s[3])):
+    for att in (sorted(shots, key=lambda s: -s[2]), sorted(shots, key=lambda s: s[2])):
         res = []
-        for order in itertools.permutations(body) if body else [()]:
-            seq = [k for k in list(order) + lead for _ in range(groups[k])]
-            res.append(allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], kd) for tr, q, kd, m in att]))
+        for order in alloc_orders(body, lead):
+            seq = [k for k in order for _ in range(groups[k])]
+            res.append(allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], kd) for subs, kd, m in att for tr, q in subs]))
         best = max(best, (max if hi else min)(res))
     return best
 
@@ -1356,12 +1402,11 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
         if best is None or tot > best[0]:
             best = (tot, p, sv, a, kd)
     tot, p, sv, a, kd = best
-    trials = max(a * cnt, max(v for e, v in sv.values()) * cnt, 1e-9)
+    scale = 1.0
     if extra and a * cnt > 0:                           # 「重骰一顆」換算成多幾次攻擊（Magna Imperator 等），每發機率不變
-        eq = extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0]
-        trials *= 1 + eq / (a * cnt)
-        sv = {k: (e, v * (1 + eq / (a * cnt))) for k, (e, v) in sv.items()}
-    return dict(name=p['name'], trials=trials, q={k: v * cnt / trials for k, (e, v) in sv.items()}, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
+        scale = 1 + extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0] / (a * cnt)
+    subs, kd, a = pool_shots(p, tgt, opt, fx, aT, cnt, sorted(sv), scale)   # 05.04：保護骰從小到大分配
+    return dict(name=p['name'], subs=subs, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
 
 
 def _target_value(tgt, shots, points):
@@ -1377,12 +1422,13 @@ def _target_value(tgt, shots, points):
     body = [k for k in groups if not k[3]]
     lead = [k for k in groups if k[3]]
     tot = tgt['wounds'] or 1
+    shots = [dict(subs=sb, kd=kd, md=md) for sb, kd, md in merge_pools([(s['subs'], s['kd'], s['md']) for s in shots if s['subs']])]
     best = None
     for att in (sorted(shots, key=lambda s: -s['md']), sorted(shots, key=lambda s: s['md'])):
         worst = None
-        for order in itertools.permutations(body) if body else [()]:
-            seq = [k for k in list(order) + lead for _ in range(groups[k])]
-            lost, deadw, pw, dn, deadv = allocate([k[0] for k in seq], [(s['trials'], [s['q'][(k[1], k[2])] for k in seq], s["kd"]) for s in att],
+        for order in alloc_orders(body, lead):
+            seq = [k for k in order for _ in range(groups[k])]
+            lost, deadw, pw, dn, deadv = allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], s["kd"]) for s in att for tr, q in s['subs']],
                                                   stats=True, vals=[k[4] for k in seq])
             # 打死的分數照每隻模型自己的分數算（領袖要真的死了才算他的分數）；打殘沒死的只算一點點，讓程式傾向確保打死
             v = (deadv + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)
