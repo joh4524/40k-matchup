@@ -341,6 +341,7 @@ ITEM = re.compile(r'^(\d+)x (.+)$')
 
 
 def parse_list(text, db):
+    ZH_GUESSED.clear()
     lines = [l.replace('\t', '    ').rstrip() for l in text.replace('\r', '').split('\n')]
     out = dict(name='', faction='', points=0, units=[], unknown=[], notes=[])
     fid = None
@@ -431,15 +432,53 @@ def parse_list(text, db):
 
 
 ZH_UNKNOWN = set()
+ZH_GUESSED = set()                                       # (資料卡, 中文, 英文)：拆字推測的
 ZH_WARGEAR = {}                                          # DB() 載入時填
+_MORPH = sorted(getattr(zh_glossary, 'MORPH', {}).items(), key=lambda kv: -len(kv[0]))
+
+
+def zh_guess(name, cands):
+    """中文名拆成字詞 → 跟 cands（英文名清單）比，回傳明顯最像的一個，沒把握就 None。"""
+    rest, parts, generic = name, [], 0
+    for zh, en in _MORPH:
+        if zh in rest:
+            parts.append(en.split('/')); rest = rest.replace(zh, '｜')
+            generic += zh in ('炮', '枪', '武器')
+    left = len(re.sub(r'[｜·\s]', '', rest))            # 拆不出來的中文字數（專有名詞）
+    if not parts or generic == len(parts):              # 只拆出「炮」「枪」這種太籠統的字，不猜
+        return None
+    scored = []
+    for c in cands:
+        flat = re.sub(r'[^a-z]', '', c.lower()); words = [w for w in re.split(r'[^a-z]+', c.lower()) if w]
+        hit = sum(any(e.replace(' ', '') in flat for e in alts) for alts in parts)
+        pw = [x for alts in parts for e in alts if e.replace(' ', '') in flat for x in e.split()]
+        covered = [w for w in words if any(w.startswith(e[:4]) or e.startswith(w[:4]) for e in pw)]
+        cover = sum(map(len, covered)) / max(1, len(flat))
+        if len(covered) < len(words):                   # 英文有中文沒講到的字：多半是別把武器（爆矢枪≠Inferno boltgun、干扰炮≠splinter cannon）
+            continue
+        scored.append((hit - 0.5 * (len(parts) - hit) + cover - 0.15 * left, c, hit))
+    if not scored:
+        return None
+    scored.sort(reverse=True)
+    best = scored[0]
+    if best[2] < len(parts) or (len(scored) > 1 and best[0] - scored[1][0] < 0.25):
+        return None
+    return best[1]
 
 
 def match_weapon(name, sheet):
     if CJK.search(name):
         ens = [e for e in (zh_glossary.WEAPONS.get(name.strip()), ZH_WARGEAR.get(name.strip())) if e]
         if not ens:
-            ZH_UNKNOWN.add((sheet['name'], name.strip()))
-            return None
+            names = {}
+            for w in sheet['weapons']:
+                names.setdefault(re.sub(r'\s*[-–]\s.*$', '', w['name']).strip(), w['base'])
+            g = zh_guess(name.strip(), list(names))
+            if not g:
+                ZH_UNKNOWN.add((sheet['name'], name.strip()))
+                return None
+            ZH_GUESSED.add((sheet['name'], name.strip(), g))
+            ens = [g]
         for en in ens[:-1]:                              # 同一個中文名在不同單位可能是不同武器（导弹发射器）：先試對得到這張資料卡的
             hit = match_weapon(en, sheet)
             if hit:
@@ -557,6 +596,9 @@ def build_unit(u, db, out):
                     f.write(f'{sheet["name"]}\t{n}\n')
         except OSError:
             pass
+    guessed = sorted((zh, en) for sn, zh, en in ZH_GUESSED if sn == sheet['name'])
+    if guessed:
+        out['notes'].append(f'{u["name"]}：中文武器名用拆字推測對照（請確認） ' + '、'.join(f'{zh}＝{en}' for zh, en in guessed))
     if added:
         out['notes'].append(f'{u["name"]}：軍表沒列、照資料卡預設補上 {", ".join(sorted(set(added)))}')
     main = max(groups, key=lambda g: g['count'])['model']
@@ -702,8 +744,94 @@ def compare(text_a, text_b, opt, db):
     return dict(a=side(a), b=side(b), ab=ab, ba=ba, sum_ab=summary(a, b, ab), sum_ba=summary(b, a, ba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated)
 
 
+# ---------- 英文軍表 → 中文（2026-11-15，使用者「英文軍表翻譯成中文」）----------
+# 單位名用官方點數網站的中文（跟 App 中文版一樣，簡體）；武器和模型名用 zh_glossary／官方點數頁對得到的，對不到的保留英文。
+# 分類標題只翻 App 中文匯出裡看過的寫法，沒看過的不自己編。
+ZH_SECTIONS = {'characters': '角色', 'character': '角色', 'battleline': '战线', 'dedicated transports': '专用运输工具',
+               'other datasheets': '其他数据表', 'attached units': '联合单位'}
+ZH_FACTIONS = {'space marines': '阿斯塔特修会', 'adeptus astartes': '阿斯塔特修会', 'ultramarines': '极限战士',   # App 中文匯出裡看過的
+               'adeptus custodes': '帝皇禁军', 'chaos space marines': '阿斯塔特叛军', 'heretic astartes': '阿斯塔特叛军'}
+ZH_ROLE = {'leader': '领袖', 'bodyguard': '护卫', 'support': '辅助', 'character': '角色'}
+
+
+def _zh_maps(db):
+    if getattr(db, '_zh_rev', None) is None:
+        units = {}
+        try:
+            with open(os.path.join(DATA, 'zh_units.json'), encoding='utf-8') as f:
+                for zh, ens in json.load(f).items():
+                    for en in (ens if isinstance(ens, list) else [ens]):
+                        units.setdefault(norm(en), zh)
+        except OSError:
+            pass
+        items = {}
+        for src in (ZH_WARGEAR, zh_glossary.WEAPONS, getattr(zh_glossary, 'MODELS', {})):
+            for zh, en in src.items():
+                items[norm(en)] = zh
+        db._zh_rev = (units, items)
+    return db._zh_rev
+
+
+def translate_list(text, db):
+    units, items = _zh_maps(db)
+    out, keep_u, keep_i, nu, ni = [], [], [], 0, 0
+    def item_zh(name):
+        n = norm(name)
+        for c in (n, n.rstrip('s'), n + 's'):
+            if c in items:
+                return items[c]
+        return None
+    for l in text.replace('\r', '').split('\n'):
+        st = l.strip()
+        pre = l[:len(l) - len(l.lstrip())]
+        bullet = ''
+        if st[:1] in '•◦+-' and st[1:2] == ' ':
+            bullet, st = st[:2], st[2:].strip()
+        body = st
+        m = HEAD.match(st)
+        if m and not CJK.search(m[1]):
+            name = m[1]
+            zh = units.get(norm(name))
+            if re.fullmatch(r'strike force', name, re.I):
+                zh = '突击'
+            if zh:
+                nu += 1
+            elif re.search(r'[a-z]', name) and int(m[2].replace(',', '')) not in (500, 1000, 2000, 3000):
+                nu += 1; keep_u.append(name)
+            body = f'{zh or name} ({m[2]} 点)'
+        elif norm(st) in ZH_FACTIONS:
+            body = ZH_FACTIONS[norm(st)]
+        elif norm(st) in ZH_SECTIONS:
+            body = ZH_SECTIONS[norm(st)]
+        elif re.fullmatch(r'attached unit ?(\d+)', st, re.I):
+            body = '联合单位' + re.sub(r'\D', '', st)
+        elif re.match(r'attached as:', st, re.I):
+            role = st.split(':', 1)[1].strip()
+            body = '进行联合的单位：' + re.sub(r'[A-Za-z]+', lambda w: ZH_ROLE.get(w[0].lower(), w[0]), role)
+        elif norm(st) == 'warlord':
+            body = '统帅'
+        elif re.match(r'enhancements?:', st, re.I):
+            body = '强化：' + st.split(':', 1)[1].strip()
+        elif norm(st) == 'take and hold':
+            body = '占领与坚守'
+        elif re.match(r'exported with app version', st, re.I):
+            body = re.sub(r'exported with app version:?\s*', '已导出，应用程序版本：', st, flags=re.I)
+            body = re.sub(r',\s*data version:?\s*', '，数据版本：', body, flags=re.I)
+        else:
+            mi = ITEM.match(st)
+            if mi and not CJK.search(mi[2]):
+                zh = item_zh(mi[2]); ni += 1
+                if not zh:
+                    keep_i.append(mi[2])
+                body = f'{mi[1]}x {zh or mi[2]}'
+        out.append(pre + bullet + body)
+    return dict(zh='\n'.join(out), units=nu, units_kept=sorted(set(keep_u)), items=ni, items_kept=sorted(set(keep_i)))
+
+
 def api(req, db):
-    """網頁送來的 {a, b, opt} → 計算結果。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
+    """網頁送來的 {a, b, opt} → 計算結果；{translate: true, a, b} → 兩張表翻成中文。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
+    if req.get('translate'):
+        return {k: translate_list(str(req.get(k, '')), db) for k in ('a', 'b')}
     ro = req.get('opt') or {}
     opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still')}
     ab = ro.get('abil') or {}

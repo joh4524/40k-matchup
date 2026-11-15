@@ -52,6 +52,7 @@ td.c small{display:block;font-size:10px;color:#111}
   </div>
   <div class="opts" style="margin-top:8px">
     <button id="go">計算</button>
+    <button id="tr" type="button" style="background:var(--bg);color:var(--ink);border:1px solid var(--line)">英文軍表翻成中文</button>
     <label><input type="checkbox" id="half"> 半射程內（Rapid Fire、Melta）</label>
     <label><input type="checkbox" id="cover"> 目標有掩體</label>
     <label><input type="checkbox" id="charge"> 近戰是衝鋒（Lance）</label>
@@ -59,6 +60,7 @@ td.c small{display:block;font-size:10px;color:#111}
   </div>
   <div id="msg" class="err"></div>
 </div>
+<div id="trout"></div>
 <div id="out"></div>
 <p class="mute" style="font-size:12px">
 算的是平均值：每個單位打一輪（射擊一次或近戰一次），平均殺掉目標幾 %。只算武器數值和武器關鍵字、無敵保護、Feel No Pain、Stealth。
@@ -158,6 +160,25 @@ async function go(){
   $('go').disabled=false;
 }
 $('go').onclick=go;
+async function tr(){                                       // 英文軍表翻成中文（單位名用官方中文，武器對不到的保留英文）
+  $('msg').textContent='';
+  const a=$('a').value,b=$('b').value;
+  if(!a.trim()&&!b.trim()){$('msg').textContent='先貼英文軍表。';return}
+  $('tr').disabled=true;
+  try{
+    let j;
+    if(window.localCalc){j=await localCalc({translate:true,a,b},t=>$('msg').textContent=t)}
+    else{const r=await fetch('/api/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({translate:true,a,b})});j=await r.json();if(!r.ok)throw new Error(j.error||r.status)}
+    const card=(k,t)=>{const x=j[k];if(!x||!x.zh.trim())return'';
+      const kept=[x.units_kept.length?`單位沒有中文：${x.units_kept.map(esc).join('、')}`:'',x.items_kept.length?`武器／模型保留英文 ${x.items_kept.length}／${x.items} 個`:''].filter(Boolean).join('；');
+      return `<div class="card"><div class="opts"><b>${t}</b><button type="button" data-cp="${k}">複製</button><button type="button" data-put="${k}">放回上面的輸入框</button><small>${kept||'全部都有中文'}</small></div><pre style="white-space:pre-wrap;font:12px/1.4 ui-monospace,monospace;margin:8px 0 0">${esc(x.zh)}</pre></div>`};
+    $('trout').innerHTML=card('a','我方軍表（中文）')+card('b','對方軍表（中文）');
+    document.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(j[b.dataset.cp].zh);b.textContent='已複製'});
+    document.querySelectorAll('[data-put]').forEach(b=>b.onclick=()=>{$(b.dataset.put).value=j[b.dataset.put].zh;b.textContent='已放回'});
+  }catch(e){$('msg').textContent='翻不出來：'+e.message}
+  $('tr').disabled=false;
+}
+$('tr').onclick=tr;
 ['half','cover','charge','still'].forEach(k=>$(k).onchange=()=>{if(R)go()});
 try{$('a').value=localStorage.getItem('mu_a')||'';$('b').value=localStorage.getItem('mu_b')||''}catch(e){}
 </script>

@@ -71,3 +71,28 @@ MODELS = {
     '根除者军士': 'Eradicator Sergeant',
     '根除者': 'Eradicator',
 }
+
+# 2026-11-15 傍晚（使用者要「補常見陣營的中文武器名」）：沒有官方中英對照，逐一列不完，
+# 改成「拆字對照」：把中文武器名拆成常見字詞（爆矢＝bolt、手枪＝pistol…），再跟「這張資料卡上」的英文武器逐一比，
+# 只在一張卡的幾把武器之間挑最像的，而且要明顯勝出才採用；採用的會在網頁註記標「推測」。
+# 值的寫法：「/」分開的是可以互換的英文，空格連起來的是一整個詞組（要整組都在才算）。
+MORPH = {
+    '远古科技': 'archeotech', '手持': 'hand', '爆矢枪': 'boltgun/bolter', '陶钢': 'ceramite', '救赎者': 'redemptor',
+    '装甲': 'armoured', '外壳': 'hull', '盾牌': 'shield', '单分子': 'monomolecular', '大师级': 'master crafted', '特制': 'special issue',
+    '火焰喷射器': 'flamer', '喷火器': 'flamer', '卡宾枪': 'carbine', '霰弹枪': 'shotgun', '自动炮': 'autocannon',
+    '加农炮': 'cannon', '重机枪': 'heavy stubber', '机枪': 'stubber', '发射器': 'launcher', '发射架': 'launcher',
+    '格斗武器': 'combat weapon', '近战武器': 'close combat weapon', '加特林': 'gatling', '迫击炮': 'mortar',
+    '爆矢': 'bolt', '手枪': 'pistol', '步枪': 'rifle', '重型': 'heavy', '双联': 'twin', '动力': 'power',
+    '等离子': 'plasma', '热熔': 'melta', '多管': 'multi', '激光': 'las/laser', '导弹': 'missile', '榴弹': 'grenade',
+    '破片': 'frag', '穿甲': 'krak', '狙击': 'sniper', '突击': 'assault', '战斗': 'combat/battle', '风暴': 'storm',
+    '旋风': 'cyclone', '飓风': 'hurricane', '雷霆': 'thunder', '闪电': 'lightning', '链锯': 'chain', '灵能': 'force/psychic',
+    '法杖': 'stave/staff', '火箭': 'rocket', '焚化': 'incinerator', '巨型': 'macro', '铁雨': 'ironhail',
+    '伊卡洛斯': 'icarus', '死神': 'reaper', '收割者': 'reaper', '幽冥': 'wraith', '光矛': 'lance', '光束': 'beam',
+    '离子': 'ion', '脉冲': 'pulse', '磁轨': 'rail', '轨道': 'rail', '高斯': 'gauss', '特斯拉': 'tesla', '粒子': 'particle',
+    '毁灭者': 'destroyer', '破坏者': 'demolisher', '净化': 'purgation', '辐射': 'radium', '电弧': 'arc', '虚空': 'void',
+    '臂铠': 'gauntlets', '拳套': 'gauntlet', '铁拳': 'fist', '爪': 'claw/claws', '锤': 'hammer', '剑': 'sword',
+    '刃': 'blade', '斧': 'axe', '矛': 'spear', '戟': 'halberd', '鞭': 'whip', '镰': 'scythe', '刀': 'knife',
+    '匕首': 'knife/dagger', '拳': 'fist', '锯': 'saw', '钻': 'drill', '弩': 'crossbow', '弓': 'bow', '盾': 'shield',
+    '炮': 'cannon', '枪': 'gun', '舱': 'pod', '巢': 'pod', '军士': 'sergeant', '冠军': 'champion', '老兵': 'veteran',
+    '武器': 'weapon/weapons', '链': 'chain', '毒': 'toxin/poison', '尖刺': 'spike', '刺': 'stinger/spike',
+}
