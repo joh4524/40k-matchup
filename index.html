@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>軍表對戰計算</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea{width:100%;height:170px;font:12px/1.4 ui-monospace,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+label.t{font-weight:600;display:block;margin-bottom:4px}
+.la{color:var(--a)}.lb{color:var(--b)}
+.opts{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center}
+.opts label{white-space:nowrap}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:0;background:var(--a);color:#fff;font-weight:600}
+.seg button{background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:5px 12px;font-weight:400}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.kpi{display:flex;flex-wrap:wrap;gap:6px 18px;font-variant-numeric:tabular-nums}
+.kpi b{font-size:18px}
+.kpi span{color:var(--mute);font-size:12px;display:block}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:4px 6px;text-align:center}
+th.r,td.r{text-align:left;position:sticky;left:0;background:var(--card);max-width:190px;min-width:130px}
+thead th{font-weight:600;vertical-align:bottom;min-width:64px;max-width:90px;font-size:11px;line-height:1.25}
+td.c{color:#111}
+small,.mute{color:var(--mute)}
+details{margin-top:6px}summary{cursor:pointer}
+ul{margin:4px 0;padding-left:20px}
+.warn{color:var(--warn)}
+.err{color:var(--b);font-weight:600}
+td.chg{outline:2px solid var(--ink);outline-offset:-2px}
+td.c small{display:block;font-size:10px;color:#111}
+.note{background:var(--bg);border-radius:8px;padding:6px 10px;margin:0 0 12px}
+</style>
+</head>
+<body>
+<main>
+<h1>軍表對戰計算 <small>40K 第十一版</small></h1>
+<div class="card">
+  <div class="grid">
+    <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
+    <div><label class="t lb" for="b">對方軍表（B）</label><textarea id="b" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
+  </div>
+  <div class="opts" style="margin-top:8px">
+    <button id="go">計算</button>
+    <label><input type="checkbox" id="half"> 半射程內（Rapid Fire、Melta）</label>
+    <label><input type="checkbox" id="cover"> 目標有掩體</label>
+    <label><input type="checkbox" id="charge"> 近戰是衝鋒（Lance）</label>
+    <label><input type="checkbox" id="still"> 沒移動（Heavy）</label>
+  </div>
+  <div id="msg" class="err"></div>
+</div>
+<div id="out"></div>
+<p class="mute" style="font-size:12px">
+算的是平均值：每個單位打一輪（射擊一次或近戰一次），平均殺掉目標幾 %。只算武器數值和武器關鍵字、無敵保護、Feel No Pain、Stealth。
+<b>不算</b>：單位特殊能力、分隊規則、戰術卡、強化、重骰、射程和視線、能不能打得到。合併單位（領袖＋護衛）用護衛的 T 和保護。
+資料來源：<a href="https://wahapedia.ru/wh40k11ed/the-rules/data-export/" rel="noopener">Wahapedia 資料匯出檔</a>（Powered by Wahapedia）<span id="upd"></span>。中文單位名對照自官方點數網站。
+非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
+</p>
+</main>
+<script src="browser.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+let R=null, mode='both', tsort='score', over={a:{},b:{}}, last={a:'',b:''}, P=null;
+const pct=v=>Math.round(v*100);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function val(c){return mode==='shoot'?c[0]:mode==='melee'?c[1]:1-(1-c[0])*(1-c[1]);}
+function color(v){const h=v>=.5?140:v>=.25?75:v>=.1?45:0;return v<.03?'transparent':`hsl(${h} 70% ${88-v*28}%)`;}
+function matrix(title,cls,att,def,m,pm){
+  let h=`<div class="card"><h2 class="${cls}">${title}</h2><div class="scroll"><table><thead><tr><th class="r">打的單位 ↓　目標 →</th>`;
+  def.units.forEach(u=>h+=`<th>${esc(u.name)}<br><small>${u.points} 分</small></th>`);
+  h+='</tr></thead><tbody>';
+  att.units.forEach((u,i)=>{h+=`<tr><td class="r">${esc(u.name)} <small>${u.points}</small></td>`;
+    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
+  return h+'</tbody></table></div></div>';
+}
+function sideCard(s,cls,tag,sum,other,sk){
+  let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
+  <div class="kpi"><div><b>${s.points}</b><span>分</span></div><div><b>${s.units.length}</b><span>單位</span></div><div><b>${s.models}</b><span>模型</span></div>
+  <div><b>${s.wounds}</b><span>總傷數</span></div><div><b>${s.oc}</b><span>總 OC</span></div>
+  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*</span></div></div>`;
+  if(sum.no_answer.length) h+=`<p><b>${tag} 難處理的對方單位</b>（沒有單位一輪能打掉 25%）：<br>${sum.no_answer.map(x=>`${esc(x.unit)} <small>最多 ${pct(x.best)}%</small>`).join('、')}</p>`;
+  else h+=`<p class="mute">對方每個單位，${tag} 都有單位一輪能打掉 25% 以上。</p>`;
+  if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
+  h+=`<details><summary>單位數值（${s.units.length}）</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th>分</th><th>模型</th><th>M</th><th>T</th><th>Sv</th><th>無敵</th><th>W</th><th>FNP</th><th>OC</th><th style="max-width:none">算進去的武器</th></tr></thead><tbody>`;
+  s.units.forEach(u=>h+=`<tr><td class="r">${esc(u.name)}</td><td>${u.points}</td><td>${u.models}</td><td>${u.M}"</td><td>${u.T}</td><td>${u.Sv}+</td><td>${u.inv?u.inv+'+':'-'}</td><td>${u.W}</td><td>${u.fnp?u.fnp+'+':'-'}</td><td>${u.OC}</td><td style="text-align:left">${u.weapons.map(esc).join('、')}</td></tr>`);
+  h+='</tbody></table></div></details>';
+  if(s.notes.length) h+=`<details><summary class="warn">讀軍表時的註記（${s.notes.length}）</summary><ul>${s.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`;
+  const ab=s.units.filter(u=>u.abil.length), nab=ab.reduce((n,u)=>n+u.abil.length,0);
+  if(nab) h+=`<details${window['open_'+sk]?' open':''} data-ab="${sk}"><summary>單位能力（讀到 ${nab} 條，打勾的有算進去）</summary>${ab.map(u=>`<div style="margin:6px 0"><b>${esc(u.name)}</b>${u.abil.map(x=>`<br><label style="${x.avail?'':'opacity:.5'}"><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''} ${x.avail?'':'disabled'}> ${esc(x.name)}：<small>${esc(x.label)}${x.avail?'':'（'+esc(x.why||'不適用')+'）'}</small></label>`).join('')}</div>`).join('')}<small>只讀得懂固定句型的能力（自己攻擊時、被打時的加減和重骰）。沒列出來的能力就是沒算。</small></details>`;
+  else h+=`<p class="mute" style="margin:6px 0 0">這張表的單位沒有讀到會影響傷害的固定句型能力。</p>`;
+  h+=`<details><summary>每個單位最賺的目標</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th style="max-width:none">射擊最賺</th><th>殺分</th><th style="max-width:none">近戰最賺</th><th>殺分</th></tr></thead><tbody>${sum.best.map(x=>`<tr><td class="r">${esc(x.unit)}</td><td>${esc(x.shoot)}</td><td>${x.shoot_pts}</td><td>${esc(x.melee)}</td><td>${x.melee_pts}</td></tr>`).join('')}</tbody></table></div></details>`;
+  return h+'</div>';
+}
+function threatCard(tag,cls,foeTag,list){
+  const rows=list.map((t,i)=>({...t,i})).sort((x,y)=>y[tsort]-x[tsort]||y.threat-x.threat);
+  let h=`<div class="card"><h2 class="${cls}">${tag} 該先打誰（${foeTag} 的威脅）</h2><div class="scroll"><table><thead><tr><th>#</th><th class="r">${foeTag} 的單位</th><th>威脅<br><small>一輪殺我幾分</small></th><th>射擊</th><th>近戰</th><th style="max-width:none;min-width:150px">一輪能帶走我的</th><th style="max-width:none;min-width:170px">打掉它要派</th><th>要花<br><small>火力（分）</small></th><th>優先<br><small>分數</small></th></tr></thead><tbody>`;
+  rows.forEach((t,n)=>{
+    const kills=t.kills.length?t.kills.map(k=>`${esc(k.unit)} <small>${pct(k.pct)}%</small>`).join('<br>'):'<span class="mute">沒有</span>';
+    const used=t.can?t.used.map(k=>`${esc(k.unit)} <small>${pct(k.pct)}%</small>`).join('<br>'):`<span class="warn">全軍一輪打不掉<br>最多 ${pct(t.max_pct)}%</span>`;
+    h+=`<tr><td>${n+1}</td><td class="r">${esc(t.unit)} <small>${t.points}</small></td><td><b>${t.threat}</b></td><td>${t.shoot}</td><td>${t.melee}</td><td style="text-align:left">${kills}</td><td style="text-align:left">${used}</td><td>${t.cost||'-'}</td><td><b>${t.score}</b></td></tr>`});
+  return h+'</tbody></table></div></div>';
+}
+function changed(m,pm){let n=0;m.forEach((r,i)=>r.forEach((c,j)=>{if(pct(val(c))!==pct(val(pm[i][j])))n++}));return n}
+function render(){
+  if(!R) return;
+  const ok=P&&P.ab.length===R.ab.length&&P.ba.length===R.ba.length&&(P.ab[0]||[]).length===(R.ab[0]||[]).length;
+  const pab=ok?P.ab:null,pba=ok?P.ba:null;
+  let note='';
+  if(ok){const x=changed(R.ab,pab),y=changed(R.ba,pba);
+    note=`<div class="note">${x+y?`跟上一次比：「A 打 B」有 <b>${x}</b> 格變了、「B 打 A」有 <b>${y}</b> 格變了（粗框的格子，▲▼ 是變了幾個百分點）。`:'跟上一次比：沒有任何格子改變。可能是這個能力對這些目標沒作用，或它的條件沒成立（標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項）。'}</div>`}
+  const seg=`<div class="card"><div class="opts seg"><span>表格顯示：</span>${[['both','射擊＋近戰'],['shoot','只看射擊'],['melee','只看近戰']].map(([k,t])=>`<button data-m="${k}" class="${mode===k?'on':''}">${t}</button>`).join('')}<small>格子＝平均一輪殺掉目標幾 %（滑過或長按看射擊／近戰各多少）</small></div></div>`;
+  $('out').innerHTML=`<div class="grid">${sideCard(R.a,'la','A',R.sum_ab,R.b,'a')}${sideCard(R.b,'lb','B',R.sum_ba,R.a,'b')}</div>
+  <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
+  <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>
+  <small>威脅＝它射擊和近戰各打最賺的目標，一輪平均殺幾分。要花＝從打它最痛的單位加起，加到剛好打掉為止的分數。優先分數＝威脅 ÷ 要花 × 100。近戰威脅是假設它衝得到。</small></div></div>
+  ${threatCard('A','la','B',R.thr_a)}${threatCard('B','lb','A',R.thr_b)}
+  ${seg}${note}
+  ${matrix('A 打 B','la',R.a,R.b,R.ab,pab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba)}`;
+  $('upd').textContent='（更新到 '+R.data_updated+'）';
+  document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
+  document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
+  document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
+  document.querySelectorAll('.tsort button').forEach(b=>b.onclick=()=>{tsort=b.dataset.s;render()});
+}
+async function go(){
+  $('msg').textContent='';
+  const a=$('a').value,b=$('b').value;
+  if(!a.trim()||!b.trim()){$('msg').textContent='兩張軍表都要貼。';return}
+  try{localStorage.setItem('mu_a',a);localStorage.setItem('mu_b',b)}catch(e){}
+  const same=a===last.a&&b===last.b&&!!R;
+  if(a!==last.a){over.a={};last.a=a} if(b!==last.b){over.b={};last.b=b}
+  const opt={abil:over};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
+  $('go').disabled=true;
+  try{
+    let j;
+    if(window.localCalc){                      // 公開版：沒有伺服器，browser.js 在瀏覽器裡算
+      j=await localCalc({a,b,opt},t=>$('msg').textContent=t);
+    }else{
+      const r=await fetch('/api/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({a,b,opt})});
+      j=await r.json();
+      if(!r.ok) throw new Error(j.error||r.status);
+    }
+    P=same?R:null; R=j;
+    const miss=[];if(!j.a.units.length)miss.push('A');if(!j.b.units.length)miss.push('B');
+    if(miss.length)$('msg').textContent=miss.join('、')+' 讀不到任何單位。請確認是官方 App 匯出的文字。';
+    render();
+  }catch(e){$('msg').textContent='算不出來：'+e.message}
+  $('go').disabled=false;
+}
+$('go').onclick=go;
+['half','cover','charge','still'].forEach(k=>$(k).onchange=()=>{if(R)go()});
+try{$('a').value=localStorage.getItem('mu_a')||'';$('b').value=localStorage.getItem('mu_b')||''}catch(e){}
+</script>
+</body>
+</html>

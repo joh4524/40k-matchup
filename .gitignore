@@ -1,0 +1,5 @@
+__pycache__/
+*.bak*
+sample_*.txt
+unknown_zh.txt
+_native.json
