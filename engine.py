@@ -912,6 +912,15 @@ def build_unit(u, db, out):
                 if b not in have and not re.search(re.escape(b) + r's?(?:(?! with ).){0,25}replaced', sheet['options']):
                     g['weapons'].append((n * (1 if single else g['count']), profs))
                     added.append(nm)
+    gear_ab = {norm(a['name']): a['name'] for a in sheet['abil_all'] if a.get('type') == 'Wargear'}
+    gear = []                                            # 盾、旗這類「裝備能力」：資料卡上的能力已經照能力算（或不影響傷害），不算「沒讀到」
+    for nm in sorted(set(ignored)):
+        en = getattr(zh_glossary, 'GEAR', {}).get(nm.strip(), nm)
+        if norm(en) in gear_ab:
+            gear.append(nm if en == nm else f'{nm}＝{gear_ab[norm(en)]}')
+            ignored = [x for x in ignored if x != nm]
+    if gear:
+        out['notes'].append(f'{u["name"]}：裝備 {"、".join(gear)} 是資料卡上的裝備能力，照能力算（不影響傷害的就不算）')
     if ignored:
         out['notes'].append(f'{u["name"]}：沒算進去的裝備 {", ".join(sorted(set(ignored)))}')
     zhmiss = sorted({n for sn, n in ZH_UNKNOWN if sn == sheet['name']} & set(ignored))
