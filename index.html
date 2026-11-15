@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611151854"></script>
+<script src="browser.js?v=202611151920"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null;
@@ -100,7 +100,7 @@ function matrix(title,cls,att,def,m,pm){
   def.units.forEach(u=>h+=`<th>${esc(u.name)}<br><small>${u.points} 分</small></th>`);
   h+='</tr></thead><tbody>';
   att.units.forEach((u,i)=>{h+=`<tr><td class="r">${esc(u.name)} <small>${u.points}</small></td>`;
-    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
+    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%${c.length>2&&(pct(c[2])!==pct(c[0])||pct(c[3])!==pct(c[1]))?`（對方模型血量不一樣，這是對方接得好的數字；接得不好會到 射擊 ${pct(c[2])}%　近戰 ${pct(c[3])}%）`:''}">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
   return h+'</tbody></table></div></div>';
 }
 // 每個單位的完整資料（2026-11-15，使用者「你把所有單位的資料都加上」，讓使用者自己驗算）
@@ -210,7 +210,7 @@ function render(){
   ${seg}${note}
   ${matrix('A 打 B','la',R.a,R.b,R.ab,pab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba)}`;
   $('upd').textContent='（更新到 '+R.data_updated+'）';
-  document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',4000)});
+  document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',c.dataset.tip.length>80?9000:4000)});
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
   document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
