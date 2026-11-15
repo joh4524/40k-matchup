@@ -92,7 +92,7 @@ def lost_dist(dexpr, bonus, fnp, reduce=0, half=False):
     return out
 
 
-def allocate(models, shots):
+def allocate(models, shots, stats=False):
     """一隻一隻扣血（2026-11-15 使用者：攻擊方決定哪把先打、防守方決定誰接，受傷的要先接）。
     models：照接傷順序的每隻模型 W。shots：照開火順序 [(發數, 每發沒擋住機率（一個數，或每隻模型各一個）, 掉血分布)]。
     回傳平均掉的血＝死掉模型的血＋還活著那隻受的傷。發數有小數時，最後一發的機率按比例。"""
@@ -129,11 +129,15 @@ def allocate(models, shots):
                         new[j] += hit * pk
                     new[off[i] + r - 1] += hit * max(0.0, miss)
             pr = new
-    left = 0.0
+    left = deadw = 0.0
     for i in range(n):
         rest = sum(models[i + 1:])
         for r in range(1, models[i] + 1):
             left += pr[off[i] + r - 1] * (r + rest)
+            deadw += pr[off[i] + r - 1] * off[i]
+    if stats:                                           # (平均掉的血, 平均死掉模型的血, 全滅機率, 平均死幾隻)
+        deadn = sum(pr[off[i] + r - 1] * i for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * n
+        return tot - left, deadw + pr[dead] * tot, pr[dead], deadn
     return tot - left
 
 
@@ -1310,10 +1314,165 @@ def translate_list(text, db):
     return dict(zh='\n'.join(out), units=nu, units_kept=sorted(set(keep_u)), items=ni, items_kept=sorted(set(keep_i)))
 
 
+# ---------- 單位測試：選幾隊打幾隊，幫你分槍（2026-11-15 使用者：「兩隊終結者…對面是太陽領主和科技技師 我要怎麼分槍」）----------
+def _shot_for(w, fx, aT, tgt, opt, cnt):
+    """一把（或 cnt 把一樣的）武器打 tgt：挑最好的模式，回傳每種保護的 (發數, 每發打穿機率, 掉血分布, 平均 D)"""
+    best = None
+    for p in w:
+        sv = {}
+        a = kd = None
+        for g in {(c[3], c[4]) for c in tgt['wgroups']}:
+            exp, ev, a, kd = weapon_damage(p, dict(tgt, Sv=g[0], inv=g[1]), opt, fx, aT, detail=True)
+            sv[g] = (exp, ev)
+        tot = sum(e for e, v in sv.values())
+        if best is None or tot > best[0]:
+            best = (tot, p, sv, a, kd)
+    tot, p, sv, a, kd = best
+    trials = max(a * cnt, max(v for e, v in sv.values()) * cnt, 1e-9)
+    return dict(name=p['name'], trials=trials, q={k: v * cnt / trials for k, (e, v) in sv.items()}, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
+
+
+def _target_value(tgt, shots, points):
+    """一個目標被這些武器打：(平均打死的分數, 全滅機率, 平均死幾隻)。攻擊方挑開火順序，防守方挑接傷順序（讓死掉的分數最少）"""
+    if not shots:
+        return 0.0, 0.0, 0.0
+    groups = {}
+    for c, wv, ld, sv, inv in tgt['wgroups']:
+        groups[(wv, sv, inv, ld)] = groups.get((wv, sv, inv, ld), 0) + c
+    body = [k for k in groups if not k[3]]
+    lead = [k for k in groups if k[3]]
+    tot = tgt['wounds'] or 1
+    best = None
+    for att in (sorted(shots, key=lambda s: -s['md']), sorted(shots, key=lambda s: s['md'])):
+        worst = None
+        for order in itertools.permutations(body) if body else [()]:
+            seq = [k for k in list(order) + lead for _ in range(groups[k])]
+            lost, deadw, pw, dn = allocate([k[0] for k in seq], [(s['trials'], [s['q'][(k[1], k[2])] for k in seq], s["kd"]) for s in att], stats=True)
+            v = (deadw / tot * points + 0.05 * (lost - deadw) / tot * points, pw, dn)   # 打殘沒死的只算一點點，讓程式傾向確保打死
+            if worst is None or v[0] < worst[0]:
+                worst = v
+        if best is None or worst[0] > best[0]:
+            best = worst
+    return best
+
+
+def scenario(text_a, text_b, opt, db, sel):
+    """sel = {att: [A 的單位序號], tgt: [B 的單位序號], melee: bool}。每把武器分開指定目標，找平均打死分數最多的分法。"""
+    a, b = parse_list(text_a, db), parse_list(text_b, db)
+    over = opt.get('abil') or {}
+    resolve(a, over.get('a') or {})
+    resolve(b, over.get('b') or {})
+    apply_dets(a, over.get('a') or {}, db)
+    apply_dets(b, over.get('b') or {}, db)
+    melee = bool(sel.get('melee'))
+    atk = [i for i in sel.get('att', []) if 0 <= i < len(a['units'])]
+    tg = [j for j in sel.get('tgt', []) if 0 <= j < len(b['units'])]
+    if not atk or not tg:
+        return dict(error='至少要選一隊出手、一個目標')
+    tgts = [target_of(b['units'][j]) for j in tg]
+    pts = [b['units'][j]['points'] for j in tg]
+    items = []                                          # 每把武器一項：(單位序號, 武器模式們, fx, 攻擊方 T)
+    for i in atk:
+        u = a['units'][i]
+        for g in u['groups']:
+            fx = [t for t in g.get('fx', []) if not t.get('pick')]
+            picks = [t for t in g.get('fx', []) if t.get('pick') and t['scope'] in ('all', 'melee' if melee else 'ranged')]
+            ents = [(c, [p for p in ps if p['melee'] == melee]) for c, ps in g['weapons']]
+            ents = [(c, ps) for c, ps in ents if ps]
+            if not melee and not g['big']:              # 一般步兵：有長槍就不算手槍
+                long_ = [(c, ps) for c, ps in ents if not any('PISTOL' in p['kw'] or 'CLOSE-QUARTERS' in p['kw'] for p in ps)]
+                ents = long_ or ents
+            if melee:                                   # 每個模型一把近戰武器：平均對所有目標最強的先分
+                ex = [(c, ps) for c, ps in ents if any('EXTRA ATTACKS' in p['kw'] for p in ps)]
+                rest = sorted((e for e in ents if e not in ex), key=lambda e: -max(weapon_damage(p, t, opt, fx, g['model']['T']) for p in e[1] for t in tgts))
+                left, use = g['count'], []
+                for c, ps in rest:
+                    k = min(c, left)
+                    if k > 0:
+                        use.append((k, ps))
+                    left -= k
+                ents = ex + use
+            for c, ps in ents:
+                fxs = [fx + [t] for t in picks] or [fx]
+                n = int(round(c))
+                step = max(1, -(-n // 10))              # 同一種武器最多拆 10 份
+                while n > 0:
+                    k = min(step, n)
+                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k))
+                    n -= k
+    if not items:
+        return dict(error='選的單位沒有可用的' + ('近戰' if melee else '射擊') + '武器')
+    cache = {}
+    def shot(it, j):
+        key = (id(it), j)
+        if key not in cache:
+            cache[key] = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n']) for f in it['fxs']), key=lambda s: s['exp'])
+        return cache[key]
+    def value(asg):
+        return sum(_target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[0] for j in range(len(tg)))
+    # 先貪心：傷害大的武器先放，每把放到「多打死最多分」的目標；再一把一把試著換目標，直到沒有更好
+    order = sorted(range(len(items)), key=lambda k: -max(shot(items[k], j)['exp'] for j in range(len(tg))))
+    asg = [None] * len(items)
+    for k in order:
+        bestj, bestv = 0, None
+        for j in range(len(tg)):
+            asg[k] = j
+            v = value([x if x is not None else -1 for x in asg])
+            if bestv is None or v > bestv:
+                bestj, bestv = j, v
+        asg[k] = bestj
+    cur = value(asg)
+    for _ in range(6):
+        moved = False
+        for k in range(len(items)):
+            for j in range(len(tg)):
+                if j == asg[k]:
+                    continue
+                old = asg[k]
+                asg[k] = j
+                v = value(asg)
+                if v > cur + 1e-6:
+                    cur, moved = v, True
+                else:
+                    asg[k] = old
+        if not moved:
+            break
+    res_t = []
+    for j in range(len(tg)):
+        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
+        res_t.append(dict(name=lab(b, tg[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
+    def lab(lst, i):                                    # 同名的單位加編號
+        nm = lst['units'][i]['name']
+        same = [k for k, u in enumerate(lst['units']) if u['name'] == nm]
+        return nm + (f' #{same.index(i) + 1}' if len(same) > 1 else '')
+    plan_ = {}
+    for it, j in zip(items, asg):
+        s = shot(it, j)
+        key = (lab(a, it['u']), s['name'], lab(b, tg[j]))
+        plan_[key] = plan_.get(key, 0) + it['n']
+    # 對照：全部集火同一個目標
+    alt = []
+    for j in range(len(tg)):
+        alt.append(dict(name=lab(b, tg[j]), value=round(value([j] * len(items)))))
+    return dict(melee=melee, total=round(cur), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+
+
 def api(req, db):
     """網頁送來的 {a, b, opt} → 計算結果；{translate: true, a, b} → 兩張表翻成中文。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
     if req.get('translate'):
         return {k: translate_list(str(req.get(k, '')), db) for k in ('a', 'b')}
+    if req.get('scenario'):
+        ro = req.get('opt') or {}
+        opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still')}
+        ab = ro.get('abil') or {}
+        opt['abil'] = {sd: {str(k): bool(v) for k, v in (ab.get(sd) or {}).items()} for sd in ('a', 'b')}
+        sc = req['scenario']
+        ta, tb = str(req.get('a', '')), str(req.get('b', ''))
+        if sc.get('rev'):                                # B 出手打 A
+            ta, tb = tb, ta
+            opt['abil'] = dict(a=opt['abil']['b'], b=opt['abil']['a'])
+        return scenario(ta, tb, opt, db,
+                        dict(att=[int(x) for x in sc.get('att', [])], tgt=[int(x) for x in sc.get('tgt', [])], melee=bool(sc.get('melee'))))
     ro = req.get('opt') or {}
     opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values')}
     ab = ro.get('abil') or {}

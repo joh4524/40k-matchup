@@ -81,16 +81,16 @@ td.c{cursor:pointer}
 <div id="trout"></div>
 <div id="out"></div>
 <p class="mute" style="font-size:12px">
-算的是平均值：每個單位打一輪（射擊一次或近戰一次），平均殺掉目標幾 %。只算武器數值和武器關鍵字、無敵保護、Feel No Pain、Stealth。
-<b>不算</b>：單位特殊能力、分隊規則、戰術卡、強化、重骰、射程和視線、能不能打得到。合併單位（領袖＋護衛）用護衛的 T 和保護。
+算的是平均值：每個單位打一輪（射擊一次或近戰一次），平均殺掉目標幾 %。算武器數值和關鍵字、讀得懂的單位能力、軍隊規則、分隊規則、戰略、強化（禁軍是手動整理的，其他陣營自動讀）。
+扣血一隻一隻扣（受傷的先接、角色最後接）。<b>不算</b>：射程、視線、移動、衝鋒骰、士氣。
 資料來源：<a href="https://wahapedia.ru/wh40k11ed/the-rules/data-export/" rel="noopener">Wahapedia 資料匯出檔</a>（Powered by Wahapedia）<span id="upd"></span>。中文單位名對照自官方點數網站。
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611151936"></script>
+<script src="browser.js?v=202611151943"></script>
 <script>
 const $=id=>document.getElementById(id);
-let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null;
+let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[]}, SR=null;
 const pct=v=>Math.round(v*100);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function val(c){return mode==='shoot'?c[0]:mode==='melee'?c[1]:1-(1-c[0])*(1-c[1]);}
@@ -201,6 +201,45 @@ function valuesCard(tag,cls,list){
   list.forEach(v=>{h+=`<tr><td class="r" data-l="選項"><span>${esc(v.name)}<br><small class="mute">${esc(v.det)}${v.on?'｜現在有算':''}</small></span></td><td data-l="種類">${esc(v.kind)}${v.cp?' '+v.cp+'CP':''}</td><td data-l="值"><b>${v.gain}</b></td><td data-l="每 CP">${v.per_cp??'-'}</td><td data-l="最適合的單位" style="text-align:left"><span>${v.units.length?v.units.slice(0,3).map(x=>`${esc(x.unit)} <small>${x.off?'+'+x.off+' 殺':''}${x.off&&x.deff?'、':''}${x.deff?'少被殺 '+x.deff:''}</small>`).join('<br>'):'<span class="mute">這場沒有用處</span>'}</span></td></tr>`});
   return h+`</tbody></table></div><small>戰略＝只用在一個單位，值是用在最適合的那隊；規則＝所有符合的單位一起有，值是加總。射擊：多殺＝那隊射最賺的目標多殺的分數，少被殺＝對面射它最痛的一隊少殺的分數。近戰照「我方衝鋒先打、對面剩下的才打回來」算：多殺的分數，加上因為對面剩得少（或防守招）少被打回來的分數。被對面衝鋒的情況沒算。Ka'tah 每招分開算（每隊每輪只能用一招），Superhuman Focus 是讓同一隊再多用一招。Challenger 戰略要分數落後才能用。條件（目標點上、低於半數等）都當作成立。</small></div>`;
 }
+// 總覽用的精簡版：只有分數和警告
+function sideMini(s,cls,tag,sum){
+  let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
+  <div class="kpi"><div><b>${s.points}</b><span>分</span></div><div><b>${s.units.length}</b><span>單位</span></div><div><b>${s.wounds}</b><span>總傷數</span></div>
+  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*</span></div></div>`;
+  const on=(s.dets||[]).filter(d=>d.on).map(d=>d.name);
+  if(on.length) h+=`<p class="mute" style="margin:6px 0 0">有算：${on.map(esc).join('、')}（到「規則和數據」改）</p>`;
+  if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
+  return h+'</div>';
+}
+// 單位測試（2026-11-15，使用者：「兩隊終結者可以射擊 對面是太陽領主和科技技師 我要怎麼分槍」）
+function testCard(){
+  const me=SC.rev?R.b:R.a, foe=SC.rev?R.a:R.b, mt=SC.rev?'B':'A', ft=SC.rev?'A':'B';
+  const box=(list,k)=>list.units.map((u,i)=>`<label style="white-space:normal;display:block"><input type="checkbox" data-sc="${k}" value="${i}" ${SC[k].includes(i)?'checked':''}> ${esc(u.name)} <small>${u.points}</small></label>`).join('');
+  let h=`<div class="card"><h2>單位測試：選誰出手、打誰，程式幫你分槍</h2>
+  <div class="opts seg" style="margin-bottom:6px"><span>誰出手：</span><button data-scr="0" class="${!SC.rev?'on':''}">A 打 B</button><button data-scr="1" class="${SC.rev?'on':''}">B 打 A</button>
+  <span style="margin-left:10px">階段：</span><button data-scm="0" class="${!SC.melee?'on':''}">射擊</button><button data-scm="1" class="${SC.melee?'on':''}">近戰</button></div>
+  <div class="grid"><div><b class="${SC.rev?'lb':'la'}">${mt} 出手的單位</b>${box(me,'att')}</div><div><b class="${SC.rev?'la':'lb'}">${ft} 的目標</b>${box(foe,'tgt')}</div></div>
+  <p><button id="scgo">幫我分槍</button> <small class="mute">每把武器都可以分開打不同目標。程式找「平均打死的分數」最多的分法：打殘沒死的幾乎不算分，所以會傾向集火確保打死。上面的半射程、掩體、衝鋒、沒移動選項都會套用。</small></p><div id="scmsg" class="err"></div></div>`;
+  if(SR&&!SR.error){
+    h+=`<div class="card"><h2>建議分法：平均打死 ${SR.total} 分</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
+    <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td></tr>`).join('')}</tbody></table></div>
+    <p class="mute" style="margin:8px 0 0">對照：全部集火同一個目標 → ${SR.focus.map(f=>`${esc(f.name)} ${f.value} 分`).join('；')}</p></div>`;
+  }
+  return h;
+}
+async function runTest(){
+  if(!SC.att.length||!SC.tgt.length){$('scmsg').textContent='兩邊都要至少勾一個。';return}
+  const a=$('a').value,b=$('b').value,opt={abil:over};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
+  const req={a,b,opt,scenario:{att:SC.att,tgt:SC.tgt,melee:SC.melee,rev:SC.rev}};
+  $('scgo').disabled=true;
+  try{
+    let j;
+    if(window.localCalc) j=await localCalc(req,t=>$('scmsg').textContent=t);
+    else{const r=await fetch('/api/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});j=await r.json();if(!r.ok)throw new Error(j.error||r.status)}
+    if(j.error){$('scmsg').textContent=j.error;$('scgo').disabled=false;return}
+    SR=j;render();
+  }catch(e){$('scmsg').textContent='算不出來：'+e.message;$('scgo').disabled=false}
+}
 function render(){
   if(!R) return;
   const ok=P&&P.ab.length===R.ab.length&&P.ba.length===R.ba.length&&(P.ab[0]||[]).length===(R.ab[0]||[]).length;
@@ -209,19 +248,29 @@ function render(){
   if(ok){const x=changed(R.ab,pab),y=changed(R.ba,pba);
     note=`<div class="note">${x+y?`跟上一次比：「A 打 B」有 <b>${x}</b> 格變了、「B 打 A」有 <b>${y}</b> 格變了（粗框的格子，▲▼ 是變了幾個百分點）。`:'跟上一次比：沒有任何格子改變。可能是這個能力對這些目標沒作用，或它的條件沒成立（標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項）。'}</div>`}
   const seg=`<div class="card"><div class="opts seg"><span>表格顯示：</span>${[['both','射擊＋近戰'],['shoot','只看射擊'],['melee','只看近戰']].map(([k,t])=>`<button data-m="${k}" class="${mode===k?'on':''}">${t}</button>`).join('')}<small>格子＝平均一輪殺掉目標幾 %（點一下格子看射擊／近戰各多少）</small></div></div>`;
-  $('out').innerHTML=`<div class="grid">${sideCard(R.a,'la','A',R.sum_ab,R.b,'a')}${sideCard(R.b,'lb','B',R.sum_ba,R.a,'b')}</div>
-  <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
+  const tabs=`<div class="card"><div class="opts seg">${[['sum','總覽'],['test','單位測試（分槍）'],['data','規則和數據']].map(([k,t])=>`<button data-v="${k}" class="${view===k?'on':''}">${t}</button>`).join('')}</div></div>`;
+  let body='';
+  if(view==='sum') body=`<div class="grid">${sideMini(R.a,'la','A',R.sum_ab)}${sideMini(R.b,'lb','B',R.sum_ba)}</div>
+  ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
   <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>
   <small>威脅＝它射擊和近戰各打最賺的目標，一輪平均殺幾分。要花＝從打它最痛的單位加起，加到剛好打掉為止的分數。優先分數＝威脅 ÷ 要花 × 100。近戰威脅是假設它衝得到。</small></div></div>
-  ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
-  ${threatCard('A','la','B',R.thr_a)}${threatCard('B','lb','A',R.thr_b)}
+  ${threatCard('A','la','B',R.thr_a)}${threatCard('B','lb','A',R.thr_b)}`;
+  else if(view==='test') body=testCard();
+  else body=`<div class="grid">${sideCard(R.a,'la','A',R.sum_ab,R.b,'a')}${sideCard(R.b,'lb','B',R.sum_ba,R.a,'b')}</div>
+  <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
   ${valuesCard('A','la',R.values&&R.values.a)}${valuesCard('B','lb',R.values&&R.values.b)}
   ${seg}${note}
   ${matrix('A 打 B','la',R.a,R.b,R.ab,pab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba)}`;
+  $('out').innerHTML=tabs+body;
   $('upd').textContent='（更新到 '+R.data_updated+'）';
   document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',c.dataset.tip.length>80?9000:4000)});
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('button[id^="wv_"]').forEach(b=>b.onclick=()=>{window.wantVals=true;go()});
+  document.querySelectorAll('.seg button[data-v]').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
+  document.querySelectorAll('input[data-sc]').forEach(c=>c.onchange=()=>{const k=c.dataset.sc,v=+c.value;SC[k]=c.checked?[...new Set([...SC[k],v])]:SC[k].filter(x=>x!==v);SR=null;render()});
+  document.querySelectorAll('.seg button[data-scm]').forEach(b=>b.onclick=()=>{SC.melee=b.dataset.scm==='1';SR=null;render()});
+  document.querySelectorAll('.seg button[data-scr]').forEach(b=>b.onclick=()=>{const r=b.dataset.scr==='1';if(r!==SC.rev){SC.rev=r;SC.att=[];SC.tgt=[];SR=null}render()});
+  const sb=$('scgo'); if(sb) sb.onclick=runTest;
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
   document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
   document.querySelectorAll('details[data-dt]').forEach(d=>d.ontoggle=()=>{window['dopen_'+d.dataset.dt]=d.open});
@@ -235,6 +284,7 @@ async function go(){
   if(!a.trim()||!b.trim()){$('msg').textContent='兩張軍表都要貼。';return}
   try{localStorage.setItem('mu_a',a);localStorage.setItem('mu_b',b)}catch(e){}
   const same=a===last.a&&b===last.b&&!!R;
+  if(a!==last.a||b!==last.b){SC.att=[];SC.tgt=[]} SR=null;
   if(a!==last.a){over.a={};last.a=a} if(b!==last.b){over.b={};last.b=b}
   const opt={abil:over,values:!!window.wantVals};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
   $('go').disabled=true;
