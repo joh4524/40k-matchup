@@ -453,9 +453,27 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     bonus = (int(mean(kw['MELTA'][0])) if (half and 'MELTA' in kw) else 0) + am['dmg']
     ev = norm_w * p_fail + mortal                      # 平均幾發沒擋住（含 DEVASTATING 的致命傷，一樣不溢傷）
     exp = ev * eff_damage(w['D'], bonus, tgt['W'], dm['fnp'], -dm['dmg'], dm['half'])
+    if detail == 'rr1':                                 # 給「重骰一顆」用：每次攻擊的命中率、每次攻擊要骰幾顆造傷、每顆造傷成功率
+        return exp, a, (crit_h + norm_h) / a if a else 0, to_wound / a if a else 0, p_crit + p_norm
     if detail:
         return exp, ev, a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
     return exp
+
+
+def rr1_equiv(w, tgt, opt, fx, aT, cnt):
+    """「重骰一顆命中、一顆造傷」等於多幾次攻擊（2026-11-15 使用者要求重骰算準一點）：
+    重骰命中的收穫＝至少有一顆沒中的機率 × 一次攻擊的平均傷害；
+    重骰造傷的收穫＝至少有一顆沒造傷的機率 × 一顆造傷骰的平均傷害（換算成攻擊數）。
+    回傳 (相當於多幾次攻擊, 一次攻擊的平均傷害)"""
+    exp, a, ph, wr, pw = weapon_damage(w, tgt, opt, fx, aT, detail='rr1')
+    n = a * cnt
+    if n <= 0 or exp <= 0:
+        return 0.0, 0.0
+    m = wr * n                                           # 要骰的造傷骰數（Lethal 自動成功的不用骰）
+    eq = (1 - min(ph, 1) ** n) if ph < 1 else 0.0       # 至少一顆沒中
+    if m > 0 and pw < 1:
+        eq += (1 - pw ** m) * n / m                      # 至少一顆沒造傷
+    return eq, exp * cnt / n
 
 
 def unit_damage(att, tgt, melee, opt, hi=False):
@@ -502,8 +520,12 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False):
                 rr1 += v if k == 'rr1' else 0
         if mw:
             extra = max(extra, mw * (1 - (7 - tgt['fnp']) / 6 if tgt['fnp'] else 1))
-        if rr1 and entries:
-            extra = max(extra, rr1 * max(d / max(1.0, mean(w['A'])) for d, c, w in entries))
+        if rr1 and entries:                            # 重骰一顆：用在最划算的那把武器上
+            best_rr = 0.0
+            for d, c, w in entries:
+                eq, per = rr1_equiv(w, tgt, opt, fx, g['model']['T'], c)
+                best_rr = max(best_rr, eq * per)
+            extra = max(extra, rr1 / 2 * best_rr)
         if melee:
             chosen_e = [(d, c, w) for d, c, w in entries if 'EXTRA ATTACKS' in w['kw']]
             left = g['count']                          # 每個模型只用一把近戰武器：挑最好的
@@ -1329,9 +1351,10 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
             best = (tot, p, sv, a, kd)
     tot, p, sv, a, kd = best
     trials = max(a * cnt, max(v for e, v in sv.values()) * cnt, 1e-9)
-    if extra and a * cnt > 0:                           # 「重骰一顆」近似成多幾次攻擊（Magna Imperator 等），每發機率不變
-        trials *= 1 + extra / (a * cnt)
-        sv = {k: (e, v * (1 + extra / (a * cnt))) for k, (e, v) in sv.items()}
+    if extra and a * cnt > 0:                           # 「重骰一顆」換算成多幾次攻擊（Magna Imperator 等），每發機率不變
+        eq = extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0]
+        trials *= 1 + eq / (a * cnt)
+        sv = {k: (e, v * (1 + eq / (a * cnt))) for k, (e, v) in sv.items()}
     return dict(name=p['name'], trials=trials, q={k: v * cnt / trials for k, (e, v) in sv.items()}, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
 
 
@@ -1407,7 +1430,10 @@ def scenario(text_a, text_b, opt, db, sel):
                     items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0))
                     n -= k
             if rr1 and len(items) > first and not u.get('_rr1'):    # 一個單位只算一次，加在這組最強的那把
-                bi = max(range(first, len(items)), key=lambda k: max(weapon_damage(p, t, opt, items[k]['fxs'][0], items[k]['aT']) for p in items[k]['ps'] for t in tgts) / items[k]['n'])
+                def rrv(k):                             # 用在「重骰一顆」最划算的那把（整種武器一起算）
+                    tot_n = sum(x['n'] for x in items[first:] if x['ps'] is items[k]['ps'])
+                    return max(e * per for p in items[k]['ps'] for t in tgts for e, per in [rr1_equiv(p, t, opt, items[k]['fxs'][0], items[k]['aT'], tot_n)])
+                bi = max(range(first, len(items)), key=rrv)
                 items[bi]['extra'] = rr1
                 u['_rr1'] = True
     if not items:
