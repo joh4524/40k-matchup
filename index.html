@@ -87,10 +87,10 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611152017"></script>
+<script src="browser.js?v=202611152022"></script>
 <script>
 const $=id=>document.getElementById(id);
-let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[]}, SR=null;
+let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
 const pct=v=>Math.round(v*100);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function val(c){return mode==='shoot'?c[0]:mode==='melee'?c[1]:1-(1-c[0])*(1-c[1]);}
@@ -217,21 +217,23 @@ function testCard(){
   const box=(list,k)=>list.units.map((u,i)=>`<label style="white-space:normal;display:block"><input type="checkbox" data-sc="${k}" value="${i}" ${SC[k].includes(i)?'checked':''}> ${esc(u.name)} <small>${u.points}</small></label>`).join('');
   let h=`<div class="card"><h2>單位測試：選誰出手、打誰，程式幫你分槍</h2>
   <div class="opts seg" style="margin-bottom:6px"><span>誰出手：</span><button data-scr="0" class="${!SC.rev?'on':''}">A 打 B</button><button data-scr="1" class="${SC.rev?'on':''}">B 打 A</button>
-  <span style="margin-left:10px">階段：</span><button data-scm="0" class="${!SC.melee?'on':''}">射擊</button><button data-scm="1" class="${SC.melee?'on':''}">近戰</button></div>
+  <span style="margin-left:10px">階段：</span><button data-scm="0" class="${!SC.melee?'on':''}">射擊</button><button data-scm="1" class="${SC.melee?'on':''}">近戰</button>
+  <span style="margin-left:10px">目標：</span><button data-scg="points" class="${SC.goal==='points'?'on':''}">平均打死最多分</button><button data-scg="wipe" class="${SC.goal==='wipe'?'on':''}">確保滅隊（殺角色）</button></div>
   <div class="grid"><div><b class="${SC.rev?'lb':'la'}">${mt} 出手的單位</b>${box(me,'att')}</div><div><b class="${SC.rev?'la':'lb'}">${ft} 的目標</b>${box(foe,'tgt')}</div></div>
   <p><button id="scgo">幫我分槍</button> <small class="mute">每把武器都可以分開打不同目標。程式找「平均打死的分數」最多的分法：打殘沒死的幾乎不算分，所以會傾向集火確保打死。上面的半射程、掩體、衝鋒、沒移動選項都會套用。</small></p><div id="scmsg" class="err"></div></div>`;
   if(SR&&!SR.error){
-    h+=`<div class="card"><h2>建議分法：平均打死 ${SR.total} 分</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
-    <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td></tr>`).join('')}</tbody></table></div>
+    h+=`<div class="card"><h2>建議分法（${SR.goal==='wipe'?'確保滅隊':'平均打死最多分'}）：平均打死 ${SR.total} 分</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
+    <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}${t.buff?`<br><small>角色能力：這隊每輪多殺 ${t.buff} 分</small>`:''}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td></tr>`).join('')}</tbody></table></div>
     ${SR.save_once?`<p class="note" style="margin:8px 0 0">這次用了每場一次的：<b>${SR.save_once.names.map(esc).join('、')}</b>。省下來不用的話：平均打死 ${SR.save_once.total} 分（${SR.save_once.targets.map(t=>`${esc(t.name)} 全滅 ${pct(t.p_wipe)}%`).join('；')}）。</p>`:''}
-    <p class="mute" style="margin:8px 0 0">對照：全部集火同一個目標 → ${SR.focus.map(f=>`${esc(f.name)} ${f.value} 分`).join('；')}</p></div>`;
+    <h2 style="margin-top:10px">對照：全部集火同一個目標</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">全部打</th><th>全滅機率</th><th>平均死幾隻</th><th>平均打死的分數</th></tr></thead><tbody>${SR.focus.map(f=>`<tr><td class="r" data-l="全部打"><span>${esc(f.name)}</span></td><td data-l="全滅機率"><b>${pct(f.p_wipe)}%</b></td><td data-l="平均死幾隻">${f.dead} / ${f.models}</td><td data-l="打死的分數">${f.value}</td></tr>`).join('')}</tbody></table></div>
+    ${SR.char_note?`<p class="mute" style="margin:6px 0 0">角色一定最後才接傷，所以「殺掉角色」＝「整隊滅掉」。角色的價值常常不只它的分數：程式會算角色給的能力讓那隊每輪多殺幾分。選「確保滅隊」時，每隊的價值＝分數＋2 輪的角色能力價值（假設還剩 2 輪）。光環給別隊的、防守用的能力還沒算進去。</p>`:''}</div>`;
   }
   return h;
 }
 async function runTest(){
   if(!SC.att.length||!SC.tgt.length){$('scmsg').textContent='兩邊都要至少勾一個。';return}
   const a=$('a').value,b=$('b').value,opt={abil:over};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
-  const req={a,b,opt,scenario:{att:SC.att,tgt:SC.tgt,melee:SC.melee,rev:SC.rev}};
+  const req={a,b,opt,scenario:{att:SC.att,tgt:SC.tgt,melee:SC.melee,rev:SC.rev,goal:SC.goal}};
   $('scgo').disabled=true;
   try{
     let j;
@@ -270,6 +272,7 @@ function render(){
   document.querySelectorAll('.seg button[data-v]').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
   document.querySelectorAll('input[data-sc]').forEach(c=>c.onchange=()=>{const k=c.dataset.sc,v=+c.value;SC[k]=c.checked?[...new Set([...SC[k],v])]:SC[k].filter(x=>x!==v);SR=null;render()});
   document.querySelectorAll('.seg button[data-scm]').forEach(b=>b.onclick=()=>{SC.melee=b.dataset.scm==='1';SR=null;render()});
+  document.querySelectorAll('.seg button[data-scg]').forEach(b=>b.onclick=()=>{SC.goal=b.dataset.scg;SR=null;render()});
   document.querySelectorAll('.seg button[data-scr]').forEach(b=>b.onclick=()=>{const r=b.dataset.scr==='1';if(r!==SC.rev){SC.rev=r;SC.att=[];SC.tgt=[];SR=null}render()});
   const sb=$('scgo'); if(sb) sb.onclick=runTest;
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});

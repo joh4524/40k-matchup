@@ -1444,8 +1444,23 @@ def scenario(text_a, text_b, opt, db, sel):
         if key not in cache:
             cache[key] = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra']) for f in it['fxs']), key=lambda s: s['exp'])
         return cache[key]
+    wipe = sel.get('goal') == 'wipe'                    # 2026-11-15 使用者：「人物很多時候是不用在意分數的」「你可以看他們的能力決定」
+    # 角色的能力價值：這隊有角色時，角色給的能力讓這隊每輪多殺幾分（拿掉角色的標記重算一次）。滅隊的價值＝分數＋2 輪的能力價值
+    buff = []
+    for j in tg:
+        y = b['units'][j]
+        if y['leaders']:
+            both = {'ranged', 'melee'}
+            buff.append(max(0.0, _off(y, a, opt, both) - _off(_variant(y, drop=set(y['leaders']), db=db), a, opt, both)))
+        else:
+            buff.append(0.0)
+    worth = [pts[k] + 2 * buff[k] for k in range(len(tg))]
     def value(asg):
-        return sum(_target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[0] for j in range(len(tg)))
+        tot = 0.0
+        for j in range(len(tg)):
+            v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
+            tot += pw * worth[j] + 0.01 * v if wipe else v
+        return tot
     # 先貪心：傷害大的武器先放，每把放到「多打死最多分」的目標；再一把一把試著換目標，直到沒有更好
     order = sorted(range(len(items)), key=lambda k: -max(shot(items[k], j)['exp'] for j in range(len(tg))))
     asg = [None] * len(items)
@@ -1485,7 +1500,7 @@ def scenario(text_a, text_b, opt, db, sel):
     res_t = []
     for j in range(len(tg)):
         v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-        res_t.append(dict(name=lab(b, tg[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
+        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
@@ -1494,8 +1509,10 @@ def scenario(text_a, text_b, opt, db, sel):
     # 對照：全部集火同一個目標
     alt = []
     for j in range(len(tg)):
-        alt.append(dict(name=lab(b, tg[j]), value=round(value([j] * len(items)))))
-    out = dict(melee=melee, total=round(cur), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
+        alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models']))
+    tot_pts = sum(t['value'] for t in res_t)
+    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
     # 用了「每場一次」的能力：另外算不用的話會怎樣，讓使用者決定要不要省（2026-11-15 使用者要求）
     once = [(x['key'], x['name']) for i in atk for x in a['units'][i]['abil'] if x['on'] and x.get('once')]
     if once and not opt.get('_noonce'):
@@ -1503,6 +1520,8 @@ def scenario(text_a, text_b, opt, db, sel):
         sub = scenario(text_a, text_b, dict(opt, abil=dict(over, a=ab), _noonce=True), db, sel)
         if not sub.get('error'):
             out['save_once'] = dict(names=sorted({n for k, n in once}), total=sub['total'], targets=sub['targets'])
+    has_char = [j for j in range(len(tg)) if any(g[2] for g in tgts[j]['wgroups'])]
+    out['char_note'] = bool(has_char)
     return out
 
 
@@ -1521,7 +1540,7 @@ def api(req, db):
             ta, tb = tb, ta
             opt['abil'] = dict(a=opt['abil']['b'], b=opt['abil']['a'])
         return scenario(ta, tb, opt, db,
-                        dict(att=[int(x) for x in sc.get('att', [])], tgt=[int(x) for x in sc.get('tgt', [])], melee=bool(sc.get('melee'))))
+                        dict(att=[int(x) for x in sc.get('att', [])], tgt=[int(x) for x in sc.get('tgt', [])], melee=bool(sc.get('melee')), goal=sc.get('goal', 'points')))
     ro = req.get('opt') or {}
     opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values')}
     ab = ro.get('abil') or {}
