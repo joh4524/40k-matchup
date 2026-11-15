@@ -832,14 +832,17 @@ def split_combo(name):
     return out
 
 
-def loadout_items(sheet, gname):
-    """資料卡的預設配備：挑主詞對得上這組模型的那句，回傳 [(數量, 武器各型態)]"""
+def loadout_items(sheet, gname, strict=False):
+    """資料卡的預設配備：挑主詞對得上這組模型的那句，回傳 [(數量, 武器各型態)]。
+    strict=True（補「軍表沒列的固定武器」用）：只用主詞對得上、或「This model／Every model」的那句，不亂套別的模型的配備。"""
     sents = re.findall(r'(This model|Every model|Every [^.:]*?|The [^.:]*?) (?:is|are) equipped with: ([^.]*)\.', sheet['loadout'])
     if not sents:
         return []
     g = norm(gname).rstrip('s')
     pick = next((x for x in sents if norm(x[0]).replace('every ', '').replace('the ', '').rstrip('s') == g), None)
-    pick = pick or next((x for x in sents if x[0] in ('This model', 'Every model')), None) or sents[-1]
+    pick = pick or next((x for x in sents if x[0] in ('This model', 'Every model')), None) or (None if strict else sents[-1])
+    if not pick:
+        return []
     res = []
     for part in pick[1].split(';'):
         for n, nm in split_combo(part.strip()):
@@ -896,11 +899,11 @@ def build_unit(u, db, out):
             for n, nm, profs in loadout_items(sheet, g['name']):
                 g['weapons'].append((n * g['count'], profs))
                 added.append(nm)
-        elif single:                                     # 單一模型：補上軍表沒列、又不能換掉的固定武器
-            for n, nm, profs in loadout_items(sheet, g['name']):
+        else:                                            # 補上軍表沒列、又不能換掉的固定武器（App 匯出常省略 close combat weapon、坐騎的蹄子等）
+            for n, nm, profs in loadout_items(sheet, g['name'], strict=not single):   # 2026-11-16 跟 Kill Grid 對照時發現：卡迪安突擊兵、Tempestus Aquilons 近戰少算
                 b = profs[0]['base']
                 if b not in have and not re.search(re.escape(b) + r's?(?:(?! with ).){0,25}replaced', sheet['options']):
-                    g['weapons'].append((n, profs))
+                    g['weapons'].append((n * (1 if single else g['count']), profs))
                     added.append(nm)
     if ignored:
         out['notes'].append(f'{u["name"]}：沒算進去的裝備 {", ".join(sorted(set(ignored)))}')
