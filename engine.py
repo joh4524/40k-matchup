@@ -1686,6 +1686,8 @@ def scenario(text_a, text_b, opt, db, sel):
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
+        if it.get('mw_tag') and s['exp'] <= 0:          # 致命傷打不到這個目標（例：Rendax 加碼只打怪獸／載具）就不列
+            continue
         key = (lab(a, it['u']), s['name'], lab(b, tg[j]))
         plan_[key] = plan_.get(key, 0) + it['n']
     # 對照：全部集火同一個目標
