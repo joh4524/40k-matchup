@@ -106,6 +106,12 @@ def label(t):
             parts.append(f'{NAMES[k]} {v}+')
         elif k in ('half', 'cover'):
             parts.append(NAMES[k])
+        elif k == 'ign':
+            parts.append('無視命中／造傷／BS 的負修正')
+        elif k == 'mw':
+            parts.append(f'另外致命傷 {v:.1f}')
+        elif k == 'rr1':
+            parts.append(f'重骰一顆骰（約多 {v} 次攻擊）')
         else:
             parts.append(f'{NAMES[k]} {v:+d}')
     s = ('被' + sc + '打時 ' if t['side'] == 'def' else (sc + ' ' if sc else '')) + '、'.join(parts)
@@ -114,6 +120,8 @@ def label(t):
         extra.append('限 ' + t['weapon'])
     if t['tkw']:
         extra.append('目標是 ' + '/'.join(t['tkw']))
+    if t.get('wkw'):
+        extra.append('限 [' + t['wkw'] + '] 武器')
     if t['tkw_not']:
         extra.append('目標不是 ' + '/'.join(t['tkw_not']))
     if t['cond']:

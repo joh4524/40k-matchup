@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611151701"></script>
+<script src="browser.js?v=202611151836"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null;
@@ -122,7 +122,7 @@ function sideCard(s,cls,tag,sum,other,sk){
   if(dets.length) h+=`<details${window['dopen_'+sk]?' open':''} data-dt="${sk}"><summary>分隊規則和戰略（${don.length?don.map(d=>esc(d.name)).join('、'):'還沒選分隊'}）</summary>
   <div style="margin:6px 0"><small>${dets.some(d=>d.auto)?'已照軍表裡的分隊名自動勾選，可以改。':'軍表是中文或沒讀到分隊名，請自己勾用了哪幾個分隊（可多選）。'}括號是讀得懂的規則／戰略條數。</small>
   <div class="opts" style="gap:2px 14px;margin-top:4px">${dets.map(d=>`<label style="white-space:normal"><input type="checkbox" data-side="${sk}" data-key="${esc(d.key)}" ${d.on?'checked':''}> ${esc(d.name)} <small>(${d.n})</small></label>`).join('')}</div></div>
-  ${don.map(d=>`<div style="margin:10px 0 6px"><b>${esc(d.name)}</b>${d.rules.length?d.rules.map(x=>`<br><label><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''}> ${x.kind==='戰略'?'戰略 '+esc(x.cp)+'CP':'規則'}｜${esc(x.name)}：<small>${esc(x.label)}${x.need.length?'（限 '+x.need.join('/')+'）':''}</small></label>`).join(''):'<br><small class="mute">沒有讀得懂、會影響傷害的規則或戰略</small>'}<br><small class="mute">另有 ${d.unread} 條讀不懂或跟傷害無關，沒列出來</small></div>`).join('')}
+  ${don.map(d=>`<div style="margin:10px 0 6px"><b>${esc(d.name)}</b>${d.rules.length?d.rules.map(x=>`<br><label><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''}> ${x.kind==='戰略'?'戰略 '+esc(x.cp)+'CP':esc(x.kind)}｜${esc(x.name)}：<small>${esc(x.label)}${x.need.length?'（'+x.need.map(esc).join('，')+'）':''}</small></label>`).join(''):'<br><small class="mute">沒有讀得懂、會影響傷害的規則或戰略</small>'}<br><small class="mute">另有 ${d.unread} 條讀不懂或跟傷害無關，沒列出來</small></div>`).join('')}
   <small>規則和戰略預設都不算，勾了才算。勾戰略＝假設每個符合條件的單位都用了它，用來看「用了會差多少」。標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項。</small></details>`;
   h+=`<details><summary>每個單位最賺的目標</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th style="max-width:none">射擊最賺</th><th>殺分</th><th style="max-width:none">近戰最賺</th><th>殺分</th></tr></thead><tbody>${sum.best.map(x=>`<tr><td class="r">${esc(x.unit)}</td><td>${esc(x.shoot)}</td><td>${x.shoot_pts}</td><td>${esc(x.melee)}</td><td>${x.melee_pts}</td></tr>`).join('')}</tbody></table></div></details>`;
   return h+'</div>';

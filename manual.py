@@ -14,7 +14,12 @@ def T(name, side, effs, scope='all', on=False, why='', **kw):
 
 MANUAL = {
     'Defiler': [T('Daemonforge', 'att', [('rr_wound', '1')], why='這階段有簽 Dark Pact 才有')],
-    'Trajann Valoris': [T('Captain-General (Aura)', 'att', [('rr_hit', '1'), ('rr_wound', '1')], on=True, why='他自己這隊')],
+    'Trajann Valoris': [T('Captain-General (Aura)', 'att', [('rr_hit', '1'), ('rr_wound', '1')], on=True, why='他自己這隊'),
+                        T('Moment Shackle', 'att', [('attacks', 3)], scope='melee', weapon='watcher’s axe', unitwide=False, why='每場一次')],
+    # 2026-11-15 禁軍補充（使用者「你從禁軍開始」）
+    'Caladius Annihilator Grav-Tank': [T('Advanced Firepower', 'att', [('rr1', 2)], scope='ranged', tkw=['MONSTER', 'VEHICLE'], on=True,
+                                         why='重骰一顆命中、一顆造傷，約等於多 2 次攻擊；重骰傷害骰沒算')],
+    'Blade Champion': [T('Sword of the Throne', 'att', [('wound', 1)], unitwide=False, why='只打被選為 mark 的那一隊')],
 }
 
 GRANTS = [

@@ -82,35 +82,36 @@ def nums(txt):
     return re.findall(r'\d+', ' '.join(x for x in txt[1:] if 'UNIT' not in x.upper() and '单位' not in x))
 
 
-slugs = sorted(set(re.findall(r'href="/en/([a-z0-9-]+)"', fetch('en', ''))))
-units, wargear, clash, differ, untranslated, per = {}, {}, [], [], [], []
-for slug in slugs:
-    en, zh = page('en', slug), page('zh', slug)
-    n = tot = 0
-    for k, (cls, e) in en.items():
-        z = zh.get(k, ('', []))[1]
-        if not e or not z:
-            continue
-        if cls.startswith('flex flex-col space-y-1 m-1') and not (len(e) > 1 and re.fullmatch(r'\d+DP', e[1])):
-            tot += 1
-            if nums(e) != nums(z):
-                differ.append(f'{slug} {e[0]}／{z[0]}')
-            if not CJK.search(z[0]):
-                untranslated.append(f'{slug} {e[0]}')
+if __name__ == '__main__':   # 2026-11-15：讓 update_zh_det.py 可以 import 這裡的函式而不重抓
+    slugs = sorted(set(re.findall(r'href="/en/([a-z0-9-]+)"', fetch('en', ''))))
+    units, wargear, clash, differ, untranslated, per = {}, {}, [], [], [], []
+    for slug in slugs:
+        en, zh = page('en', slug), page('zh', slug)
+        n = tot = 0
+        for k, (cls, e) in en.items():
+            z = zh.get(k, ('', []))[1]
+            if not e or not z:
                 continue
-            if e[0] not in units.setdefault(z[0], []):
-                units[z[0]].append(e[0])
-            n += 1
-        elif cls == '' and e[0].startswith('per '):
-            zw = re.sub(r'^每个\s*', '', z[0])
-            if CJK.search(zw):
-                wargear[zw] = e[0][4:]
-    per.append(f'{slug} {n}/{tot}')
-    print(f'{slug}: {tot} 個單位，{n} 個有中文名', flush=True)
-clash = [f'{z} → {"／".join(e)}' for z, e in units.items() if len(e) > 1]
-json.dump(units, open(os.path.join(HERE, 'data', 'zh_units.json'), 'w'), ensure_ascii=False, indent=0)
-json.dump(wargear, open(os.path.join(HERE, 'data', 'zh_wargear.json'), 'w'), ensure_ascii=False, indent=0)
-print(f'共 {len(slugs)} 頁，{len(units)} 個中文單位名，{len(wargear)} 個武器名')
-print('人數或點數兩邊不一樣：', '；'.join(differ) or '無')
-print('同一個中文名對到不只一個英文名（都留著，讀軍表時看陣營挑）：', '；'.join(clash) or '無')
-print('中文頁還沒翻的：', '；'.join(untranslated) or '無')
+            if cls.startswith('flex flex-col space-y-1 m-1') and not (len(e) > 1 and re.fullmatch(r'\d+DP', e[1])):
+                tot += 1
+                if nums(e) != nums(z):
+                    differ.append(f'{slug} {e[0]}／{z[0]}')
+                if not CJK.search(z[0]):
+                    untranslated.append(f'{slug} {e[0]}')
+                    continue
+                if e[0] not in units.setdefault(z[0], []):
+                    units[z[0]].append(e[0])
+                n += 1
+            elif cls == '' and e[0].startswith('per '):
+                zw = re.sub(r'^每个\s*', '', z[0])
+                if CJK.search(zw):
+                    wargear[zw] = e[0][4:]
+        per.append(f'{slug} {n}/{tot}')
+        print(f'{slug}: {tot} 個單位，{n} 個有中文名', flush=True)
+    clash = [f'{z} → {"／".join(e)}' for z, e in units.items() if len(e) > 1]
+    json.dump(units, open(os.path.join(HERE, 'data', 'zh_units.json'), 'w'), ensure_ascii=False, indent=0)
+    json.dump(wargear, open(os.path.join(HERE, 'data', 'zh_wargear.json'), 'w'), ensure_ascii=False, indent=0)
+    print(f'共 {len(slugs)} 頁，{len(units)} 個中文單位名，{len(wargear)} 個武器名')
+    print('人數或點數兩邊不一樣：', '；'.join(differ) or '無')
+    print('同一個中文名對到不只一個英文名（都留著，讀軍表時看陣營挑）：', '；'.join(clash) or '無')
+    print('中文頁還沒翻的：', '；'.join(untranslated) or '無')

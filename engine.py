@@ -1,6 +1,6 @@
 """戰錘 40K 第十一版：兩張軍表互打的期望值計算（2026-11-15 使用者要求，不接 AI）。
 資料：data/*.csv 是 Wahapedia 的資料匯出檔（wahapedia.ru/wh40k11ed/the-rules/data-export/），更新用 update_data.sh。
-只算武器數值和武器關鍵字；單位特殊能力、戰術卡、分隊規則、強化都不算（只有核心的 Feel No Pain、Stealth 和無敵保護有算）。
+算武器數值、武器關鍵字、讀得懂的單位能力（tags.py／manual.py）、軍隊規則、分隊規則、戰略和強化（army.py 手動整理的，2026-11-15 先做禁軍；其他陣營用 tags.py 自動讀）。
 假設（沒在規則裡查到明文的）：造傷表 2+/3+/4+/5+/6+；命中和造傷修正最多 ±1；合併單位用護衛的 T。
 """
 import csv, difflib, functools, math, os, re, sys
@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import tags as tagger
 import manual
+import army
 import zh_glossary
 
 CJK = re.compile(r'[\u4e00-\u9fff]')
@@ -87,6 +88,13 @@ def eff_damage(dexpr, bonus, w, fnp, reduce=0, half=False):
     return tot
 
 
+def enh_key(s):
+    """強化名比對用：去掉「(one per army)」「(Upgrade)」「强化」之類"""
+    s = re.sub(r'^\s*(?:enhancements?:?|强化|強化)\s*', '', s or '', flags=re.I)
+    s = re.sub(r'\s*[（(](?:upgrade|升级|升級|one per army|每支军队限一个|每支軍隊限一個|\+?\d+ ?(?:pts|points|点|點))[)）]', '', s, flags=re.I)
+    return norm(s)
+
+
 # ---------- 資料 ----------
 class DB:
     def __init__(self):
@@ -98,7 +106,7 @@ class DB:
         for r in rd('Datasheets'):
             if r.get('virtual') == 'true':
                 continue
-            s = dict(id=r['id'], name=r['name'], faction=r['faction_id'], models=[], weapons=[], kw=set(), fnp=0, stealth=False, costs=[], tags=[], role=r.get('role', ''), loadout=re.sub(r'<[^>]+>', '', r.get('loadout', '')), options='')
+            s = dict(id=r['id'], name=r['name'], faction=r['faction_id'], models=[], weapons=[], kw=set(), fnp=0, stealth=False, costs=[], tags=[], fab=set(), role=r.get('role', ''), loadout=re.sub(r'<[^>]+>', '', r.get('loadout', '')), options='')
             self.sheets[r['id']] = s
             self.byname.setdefault(norm(r['name']), []).append(s)
         for r in rd('Datasheets_models'):
@@ -119,6 +127,8 @@ class DB:
             s = self.sheets.get(r['datasheet_id'])
             if s and r['type'] in ('Datasheet', 'Wargear') and r['description']:
                 s['tags'] += tagger.tag_ability(r['name'], r['description'])
+            if s and r['type'] == 'Faction':
+                s['fab'].add(r['ability_id'])
             if not s or r['type'] != 'Core':
                 continue
             n = abil.get(r['ability_id'], '')
@@ -149,6 +159,16 @@ class DB:
             ZH_WARGEAR.update(self.zh_wargear)
         except OSError:
             self.zh_wargear = {}
+        try:                                             # 分隊、強化的中文名（update_zh_det.py 從官方點數網站做的）
+            with open(os.path.join(DATA, 'zh_dets.json'), encoding='utf-8') as f:
+                zd = json.load(f)
+        except OSError:
+            zd = {}
+        self.zh_det, self.zh_enh = zd.get('det', {}), {enh_key(k): v for k, v in zd.get('enh', {}).items()}
+        self.enh = {}
+        for r in rd_safe('Enhancements'):
+            if r.get('name'):
+                self.enh.setdefault(enh_key(r['name']), []).append(dict(name=r['name'], faction=r.get('faction_id', ''), desc=r.get('description', '')))
         self.load_detachments()
 
     def load_detachments(self):
@@ -159,7 +179,8 @@ class DB:
                 self.dets.setdefault(r['faction_id'], []).append(dict(id=r['id'], name=r['name']))
         def add(det_id, rid, kind, name, cp, text, need):
             ts = tagger.tag_ability(name, text)
-            box = self.det_rules.setdefault(det_id, dict(rules=[], unread=0))
+            box = self.det_rules.setdefault(det_id, dict(rules=[], unread=0, total=0))
+            box['total'] += 1
             if ts:
                 box['rules'].append(dict(id=rid, kind=kind, name=name, cp=cp, tags=ts, need=need))
             else:
@@ -249,6 +270,8 @@ def applies(t, w, tgt, opt, s=0, aT=0):
     if t['side'] == 'att':
         if t['weapon'] and t['weapon'].rstrip('s') not in w['name'].lower():
             return False
+        if t.get('wkw') and t['wkw'] not in w['kw']:
+            return False
         if t['tkw'] and not any(kw_in(k, tgt['kw']) for k in t['tkw']):
             return False
         if t['tkw_not'] and any(kw_in(k, tgt['kw']) for k in t['tkw_not']):
@@ -271,7 +294,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0):
     """一把武器（一個模型拿的一把）對目標造成的期望傷數（已考慮保護、FNP、傷害不溢出、勾選的能力）"""
     tkw, ranged = tgt['kw'], not w['melee']
     kw = w['kw']
-    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6)
+    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, ign=0, mw=0, rr1=0)
     for t in fx:
         if applies(t, w, tgt, opt, 0, aT):
             for k, v in t['effs']:
@@ -312,11 +335,11 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0):
         crit_h, norm_h = 0.0, a
     else:
         mod = am['hit'] + dm['hit']
-        if ranged and (opt.get('cover') or tgt['stealth'] or dm['cover']) and 'IGNORES COVER' not in kw:
+        if ranged and (opt.get('cover') or tgt['stealth'] or dm['cover']) and 'IGNORES COVER' not in kw and not am['ign']:
             sk += 1          # 第十一版：掩體讓攻擊方的 BS 變差 1
         if ranged and opt.get('still') and 'HEAVY' in kw:
             mod += 1
-        mod = max(-1, min(1, mod))
+        mod = max(0 if am['ign'] else -1, min(1, mod))
         ch = am['crit_hit']
         p_c = (7 - ch) / 6
         p_n = sum(1 for r in range(2, ch) if r + mod >= sk) / 6
@@ -330,7 +353,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0):
     t = tgt['T']
     thr = 2 if s >= 2 * t else 3 if s > t else 4 if s == t else 6 if s * 2 <= t else 5
     wmod = (1 if (w['melee'] and opt.get('charge') and 'LANCE' in kw) else 0) + am['wound'] + dm['wound']
-    wmod = max(-1, min(1, wmod))
+    wmod = max(0 if am['ign'] else -1, min(1, wmod))
     crit_y = min([y for x, y in kw.get('anti', []) if kwmatch(x, tkw)] + [6])
     p_crit = (7 - crit_y) / 6
     p_norm = sum(1 for r in range(2, crit_y) if r + wmod >= thr) / 6
@@ -353,15 +376,51 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0):
 
 
 def unit_damage(att, tgt, melee, opt):
-    """整個單位打一輪（射擊或近戰）對目標的期望傷數"""
-    total = 0.0
+    """整個單位打一輪（射擊或近戰）對目標的期望傷數。有「二選一」的規則（pick）時，每個選法都算一次取最好的。"""
+    sc = 'melee' if melee else 'ranged'
+    picks = {}
     for g in att['groups']:
+        for t in g.get('fx', ()):
+            if t.get('pick') and t['scope'] in ('all', sc) and t['name'] not in picks.setdefault(t['pick'], []):
+                picks[t['pick']].append(t['name'])
+    if not picks:
+        return _unit_damage(att, tgt, melee, opt, {})
+    ks = sorted(picks)
+    combos = [{}]
+    for k in ks:
+        combos = [dict(c, **{k: n}) for c in combos for n in picks[k]]
+    return max(_unit_damage(att, tgt, melee, opt, c) for c in combos)
+
+
+def _unit_damage(att, tgt, melee, opt, chosen):
+    total, extra = 0.0, 0.0
+    sc = 'melee' if melee else 'ranged'
+    for g in att['groups']:
+        fx = [t for t in g.get('fx', ()) if not t.get('pick') or chosen.get(t['pick']) == t['name']]
         entries = []                                   # (每把期望傷數, 幾把, 武器)
         for cnt, profs in g['weapons']:
             ps = [p for p in profs if p['melee'] == melee]
             if ps:
-                best = max(ps, key=lambda p: weapon_damage(p, tgt, opt, g.get('fx', ()), g['model']['T']))
-                entries.append((weapon_damage(best, tgt, opt, g.get('fx', ()), g['model']['T']), cnt, best))
+                best = max(ps, key=lambda p: weapon_damage(p, tgt, opt, fx, g['model']['T']))
+                entries.append((weapon_damage(best, tgt, opt, fx, g['model']['T']), cnt, best))
+        # 「另外造成致命傷」「重骰一顆骰」：整個單位一次，不是每把武器
+        mw = rr1 = 0
+        for t in fx:
+            if t['side'] != 'att' or t['scope'] not in ('all', sc):
+                continue
+            if t['tkw'] and not any(kw_in(k, tgt['kw']) for k in t['tkw']):
+                continue
+            if t['tkw_not'] and any(kw_in(k, tgt['kw']) for k in t['tkw_not']):
+                continue
+            if t['cond'] == 'charge' and not (melee and opt.get('charge')):
+                continue
+            for k, v in t['effs']:
+                mw += v if k == 'mw' else 0
+                rr1 += v if k == 'rr1' else 0
+        if mw:
+            extra = max(extra, mw * (1 - (7 - tgt['fnp']) / 6 if tgt['fnp'] else 1))
+        if rr1 and entries:
+            extra = max(extra, rr1 * max(d / max(1.0, mean(w['A'])) for d, c, w in entries))
         if melee:
             total += sum(d * c for d, c, w in entries if 'EXTRA ATTACKS' in w['kw'])
             left = g['count']                          # 每個模型只用一把近戰武器：挑最好的
@@ -374,7 +433,7 @@ def unit_damage(att, tgt, melee, opt):
             a = sum(d * c for d, c, w in entries if not pistol(w))
             b = sum(d * c for d, c, w in entries if pistol(w))
             total += a + b if g['big'] else max(a, b)  # 非怪獸／載具：手槍和其他槍二選一
-    return min(total, tgt['wounds'])
+    return min(total + extra, tgt['wounds'])
 
 
 # ---------- 讀軍表 ----------
@@ -453,7 +512,8 @@ def parse_list(text, db):
             cur['extra'].append(body)
     out['fid'] = fid
     low = norm(text)
-    out['det_auto'] = [d['id'] for d in db.dets.get(fid, []) if norm(d['name']) in low]
+    zdet = {norm(en) for zh, en in db.zh_det.items() if norm(zh) in low}          # 中文軍表的分隊名
+    out['det_auto'] = [d['id'] for d in db.dets.get(fid, []) if norm(d['name']) in low or norm(d['name']) in zdet]
     built = [build_unit(u, db, out) for u in raw]
     # 合併領袖和護衛
     done = set()
@@ -651,8 +711,28 @@ def build_unit(u, db, out):
         out['notes'].append(f'{u["name"]}：軍表沒列、照資料卡預設補上 {", ".join(sorted(set(added)))}')
     main = max(groups, key=lambda g: g['count'])['model']
     return dict(name=u['name'], points=u['points'], attach=u['attach'], role=u['role'], groups=groups, kw=set(sheet['kw']),
-                fnp=sheet['fnp'], stealth=sheet['stealth'], extra=u['extra'], main=main,
-                tags=[dict(t, src=sheet['name']) for t in sheet['tags']], body={sheet['name']}, leaders=set())
+                fnp=sheet['fnp'], stealth=sheet['stealth'], extra=u['extra'], main=main, fab=set(sheet['fab']),
+                tags=[dict(t, src=sheet['name']) for t in sheet['tags'] + enh_tags(u, sheet, db, out)], body={sheet['name']}, leaders=set())
+
+
+def enh_tags(u, sheet, db, out):
+    """軍表上寫的強化（Enhancement／强化）→ 標記。先看 army.ENH 手動的，沒有就用 tags.py 讀 Wahapedia 原文。"""
+    res = []
+    for e in u['extra']:
+        k = enh_key(e)
+        en = db.zh_enh.get(k, k)
+        rows = db.enh.get(enh_key(en), [])
+        row = next((r for r in rows if r['faction'] == sheet['faction']), rows[0] if rows else None)
+        if not row:
+            out['notes'].append(f'{u["name"]}：強化「{e}」資料裡找不到，沒算')
+            continue
+        nm = re.sub(r'\s*\(one per army\)', '', row['name'], flags=re.I)
+        ts = army.ENH.get(nm) or tagger.tag_ability(nm, row['desc'])
+        if ts:
+            res += [dict(t, name='強化 ' + nm) for t in ts]
+        else:
+            out['notes'].append(f'{u["name"]}：強化 {nm} 沒有會影響傷害的效果（或讀不懂），沒算')
+    return res
 
 
 def merge(mates):
@@ -662,6 +742,7 @@ def merge(mates):
     return dict(name=' + '.join(m['name'] for m in lead + body), points=sum(m['points'] for m in mates), attach=b['attach'], role='',
                 groups=[g for m in body + lead for g in m['groups']], kw=set().union(*(m['kw'] for m in mates)),
                 fnp=b['fnp'], stealth=all(m['stealth'] for m in mates), extra=[e for m in mates for e in m['extra']], main=b['main'],
+                fab=set().union(*(m['fab'] for m in mates)),
                 tags=[t for m in body + lead for t in m['tags']], body={n for m in body for n in m['body']}, leaders={n for m in lead for n in m['body']})
 
 
@@ -693,33 +774,81 @@ def resolve(lst, over):
         u['dfx'] = [t for t in act if t['side'] == 'def' and (t['leading'] or t.get('unitwide') or t.get('granted') or t['src'] in u['body'])]
 
 
+def _fits(u, r):
+    """這個單位符不符合規則／戰略的對象限制"""
+    names = {n.lower() for n in u['body'] | u['leaders']}
+    if not all(n in u['kw'] for n in r.get('need', [])) or any(n in u['kw'] for n in r.get('need_not', [])):
+        return False
+    if r.get('names') and not any(x.lower() in n for x in r['names'] for n in names):
+        return False
+    if r.get('names_not') and any(x.lower() in n for x in r['names_not'] for n in {b.lower() for b in u['body']}):
+        return False
+    return not r.get('fab') or r['fab'] in u.get('fab', ())
+
+
+def _restrict(r):
+    s = []
+    if r.get('need'):
+        s.append('限 ' + '/'.join(r['need']))
+    if r.get('names'):
+        s.append('限 ' + '/'.join(r['names']))
+    if r.get('need_not') or r.get('names_not'):
+        s.append('不含 ' + '/'.join(r.get('need_not', []) + r.get('names_not', [])))
+    if r.get('model_kw'):
+        s.append('只有 ' + '/'.join(r['model_kw']) + ' 模型')
+    if r.get('model_not'):
+        s.append(' 不含 ' + '/'.join(r['model_not']) + ' 模型')
+    return s
+
+
 def apply_dets(lst, over, db):
-    """分隊規則和戰略：使用者勾哪個分隊、哪條規則／戰略才算。勾了的戰略當作「每個符合條件的單位都用了」（看假設用了會差多少）。
-    over 的 key：'D|分隊id' 選分隊（預設＝軍表裡讀到的分隊名）、'R|分隊id|規則id|第幾條' 勾規則或戰略（預設不勾）。"""
-    groups = [dict(id=d['id'], name=d['name']) for d in db.dets.get(lst.get('fid'), [])]
-    if db.det_rules.get('core', {}).get('rules'):
-        groups.append(dict(id='core', name='通用戰略（Core）'))
+    """軍隊規則、分隊規則和戰略。over 的 key：'D|分隊id' 選分隊（預設＝軍表裡讀到的分隊名，軍隊規則預設選）、
+    'R|分隊id|規則名' 勾規則或戰略（預設照 army.py 的 on；自動讀的都不勾）。勾了的戰略當作「每個符合條件的單位都用了」。"""
+    groups = []
+    for abid, spec in army.ARMY.items():                 # 軍隊規則：有這個能力的單位才有
+        if any(abid in u.get('fab', ()) for u in lst['units']):
+            groups.append(dict(id='army' + abid, name='軍隊規則：' + spec['name'], army=True,
+                               rules=[dict(r, fab=abid) for r in spec['rules']], unread=0))
+    for d in db.dets.get(lst.get('fid'), []):
+        box = db.det_rules.get(d['id'], dict(rules=[], unread=0, total=0))
+        if d['name'] in army.DET:
+            rules = army.DET[d['name']]
+            unread = max(0, box['total'] - len(rules))
+        else:
+            rules = [dict(name=r['name'], kind=r['kind'], cp=r['cp'], tags=r['tags'], need=r['need'], on=False) for r in box['rules']]
+            unread = box['unread']
+        groups.append(dict(id=d['id'], name=d['name'], rules=rules, unread=unread, hand=d['name'] in army.DET))
+    core = db.det_rules.get('core', {})
+    if core.get('rules'):
+        groups.append(dict(id='core', name='通用戰略（Core）', rules=[dict(name=r['name'], kind=r['kind'], cp=r['cp'], tags=r['tags'], need=r['need'], on=False)
+                                                               for r in core['rules']], unread=core['unread']))
+    sheet_kw = lambda g: (db.byname.get(norm(g['src'])) or [dict(kw=set())])[0]['kw']
     out = []
     for d in groups:
-        auto = d['id'] in lst.get('det_auto', [])
+        auto = d.get('army') or d['id'] in lst.get('det_auto', [])
         on = bool(over.get('D|' + d['id'], auto))
-        box = db.det_rules.get(d['id'], dict(rules=[], unread=0))
-        item = dict(id=d['id'], name=d['name'], key='D|' + d['id'], on=on, auto=auto, rules=[], unread=box['unread'], n=len(box['rules']))
+        item = dict(id=d['id'], name=d['name'], key='D|' + d['id'], on=on, auto=bool(auto), rules=[], unread=d['unread'], n=len(d['rules']),
+                    army=bool(d.get('army')), hand=bool(d.get('hand')))
         if on:
-            for r in box['rules']:
-                for k, t in enumerate(r['tags']):
-                    key = f"R|{d['id']}|{r['id']}|{k}"
-                    ron = bool(over.get(key, False))
-                    item['rules'].append(dict(key=key, kind=r['kind'], name=r['name'], cp=r['cp'], label=t['label'], need=r['need'], on=ron))
-                    if not ron:
-                        continue
+            for r in d['rules']:
+                key = f"R|{d['id']}|{r['name']}"
+                ron = bool(over.get(key, r.get('on', False)))
+                lab = '；'.join(t['label'] if not t.get('pick') else t['name'] + '：' + t['label'] for t in r['tags'])
+                if r.get('note'):
+                    lab += f'（{r["note"]}）'
+                item['rules'].append(dict(key=key, kind=r['kind'], name=r['name'], cp=r['cp'], label=lab, need=_restrict(r), on=ron))
+                if not ron:
+                    continue
+                for t in r['tags']:
                     tt = dict(t, src=r['name'], granted=True, situ=False)
                     for u in lst['units']:
-                        if not all(n in u['kw'] for n in r['need']):
+                        if not _fits(u, r):
                             continue
                         if tt['side'] == 'att':
                             for g in u['groups']:
-                                g['fx'] = g.get('fx', []) + [tt]
+                                gk = sheet_kw(g)
+                                if all(k in gk for k in r.get('model_kw', [])) and not any(k in gk for k in r.get('model_not', [])):
+                                    g['fx'] = g.get('fx', []) + [tt]
                         else:
                             u['dfx'] = u.get('dfx', []) + [tt]
         out.append(item)

@@ -33,6 +33,7 @@ python3 app.py          # 預設只開 127.0.0.1:8090
 ```
 ./update_data.sh        # 重抓 Wahapedia 匯出檔（新點數、新 codex）
 python3 update_zh.py    # 重做中文單位名對照
+python3 update_zh_det.py    # 重做分隊、強化的中文名對照（data/zh_dets.json）
 ```
 
 ## 資料來源

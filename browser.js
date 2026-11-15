@@ -2,9 +2,9 @@
 // 自己架 app.py 時這個檔不會被送出來，網頁會改用 /api/calc。
 (() => {
   const PYODIDE = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
-  const CODE = ['engine.py', 'tags.py', 'manual.py', 'zh_glossary.py'];
+  const CODE = ['engine.py', 'tags.py', 'manual.py', 'zh_glossary.py', 'army.py'];
   const DATA = ['Last_update', 'Factions', 'Datasheets', 'Datasheets_models', 'Datasheets_wargear', 'Datasheets_abilities', 'Datasheets_keywords',
-    'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities', 'Detachments', 'Detachment_abilities', 'Stratagems'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json']);
+    'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities', 'Detachments', 'Detachment_abilities', 'Stratagems', 'Enhancements'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json', 'zh_dets.json']);
   let ready = null;
   // 版本號（index.html 載入 browser.js?v=…）：程式和資料更新後，舊的瀏覽器快取不會被拿來用
   const V = ((document.currentScript && document.currentScript.src.match(/[?&]v=([^&]+)/)) || [])[1] || String(Date.now());
