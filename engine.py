@@ -415,6 +415,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     sk = num(w['skill'])
     if sk and am['skill']:                             # 「BS／WS 提升 1」是改數值，不是命中修正（不受 ±1 上限）
         sk = max(2, sk - am['skill'])
+    qe_h = 0.0                                          # 一顆命中骰「失敗而且還沒被重骰過」的機率（給「重骰一顆」用；核心 01.05.02：同一顆不能重骰兩次）
     if 'TORRENT' in kw or not sk:
         crit_h, norm_h = 0.0, a
     else:
@@ -428,6 +429,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
         p_c = (7 - ch) / 6
         p_n = sum(1 for r in range(2, ch) if r + mod >= sk) / 6
         f = 1 + (1 - p_c - p_n) if am['rr_hit'] == 'all' else 1 + 1 / 6 if am['rr_hit'] == '1' else 1
+        qe_h = 0.0 if am['rr_hit'] == 'all' else max(0.0, 1 - p_c - p_n - (1 / 6 if am['rr_hit'] == '1' else 0))
         crit_h, norm_h = a * p_c * f, a * p_n * f
     sus = mean(kw['SUSTAINED HITS'][0]) if has('SUSTAINED HITS') else 0
     lethal = has('LETHAL HITS')
@@ -443,6 +445,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     p_norm = sum(1 for r in range(2, crit_y) if r + wmod >= thr) / 6
     rr = 'all' if 'TWIN-LINKED' in kw else am['rr_wound']
     f = 2 - p_crit - p_norm if rr == 'all' else 1 + 1 / 6 if rr == '1' else 1
+    qe_w = 0.0 if rr == 'all' else max(0.0, 1 - p_crit - p_norm - (1 / 6 if rr == '1' else 0))
     p_crit, p_norm = p_crit * f, p_norm * f
     crit_w, norm_w = to_wound * p_crit, to_wound * p_norm + auto_w
     mortal = 0.0
@@ -464,7 +467,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     ev = norm_w * p_fail + mortal                      # 平均幾發沒擋住（含 DEVASTATING 的致命傷，一樣不溢傷）
     exp = ev * eff_damage(w['D'], bonus, tgt['W'], dm['fnp'], -dm['dmg'], dm['half'])
     if detail == 'rr1':                                 # 給「重骰一顆」用：每次攻擊的命中率、每次攻擊要骰幾顆造傷、每顆造傷成功率
-        return exp, a, (crit_h + norm_h) / a if a else 0, to_wound / a if a else 0, p_crit + p_norm
+        return exp, a, (crit_h + norm_h) / a if a else 0, to_wound / a if a else 0, p_crit + p_norm, qe_h, qe_w
     if detail == 'sv':                                  # 給 05.04「保護骰從小到大分配」用：要擲幾顆保護骰、致命傷幾發、幾點以下擋不住
         return norm_w, mortal, min(7, max(2, need)), a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
     if detail:
@@ -526,14 +529,16 @@ def rr1_equiv(w, tgt, opt, fx, aT, cnt):
     重骰命中的收穫＝至少有一顆沒中的機率 × 一次攻擊的平均傷害；
     重骰造傷的收穫＝至少有一顆沒造傷的機率 × 一顆造傷骰的平均傷害（換算成攻擊數）。
     回傳 (相當於多幾次攻擊, 一次攻擊的平均傷害)"""
-    exp, a, ph, wr, pw = weapon_damage(w, tgt, opt, fx, aT, detail='rr1')
+    exp, a, ph, wr, pw, qe_h, qe_w = weapon_damage(w, tgt, opt, fx, aT, detail='rr1')
     n = a * cnt
     if n <= 0 or exp <= 0:
         return 0.0, 0.0
     m = wr * n                                           # 要骰的造傷骰數（Lethal 自動成功的不用骰）
-    eq = (1 - min(ph, 1) ** n) if ph < 1 else 0.0       # 至少一顆沒中
-    if m > 0 and pw < 1:
-        eq += (1 - pw ** m) * n / m                      # 至少一顆沒造傷
+    # 2026-11-16 使用者問「帝皇偉力和圖拉真光環的重投能不能生效」：同一顆骰子不能重骰兩次（核心 01.05.02），
+    # 所以只有「失敗、而且沒被別的規則重骰過」的骰子能用這次重骰（例：有重骰 1 時，命中 2+ 的失敗全是重骰過的 1 → 沒得用）
+    eq = 1 - (1 - qe_h) ** n                             # 至少一顆能重骰的沒中
+    if m > 0:
+        eq += (1 - (1 - qe_w) ** m) * n / m              # 至少一顆能重骰的沒造傷
     return eq, exp * cnt / n
 
 
@@ -1443,6 +1448,18 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0, haz_w=0.0):
                 score=score * cnt, haz=cnt if 'HAZARDOUS' in p['kw'] else 0)
 
 
+def _mw_shot(t, x, tgt):
+    """「另外造成 x 點致命傷」打 tgt：條件（目標關鍵字）不合就是 0。致命傷沒有保護，FNP 照算，一點一點照接傷順序扣（會溢到下一隻）。"""
+    keys = sorted({(c[3], c[4]) for c in tgt['wgroups']})
+    ok = not (t['tkw'] and not any(kw_in(k, tgt['kw']) for k in t['tkw'])) and not (t['tkw_not'] and any(kw_in(k, tgt['kw']) for k in t['tkw_not']))
+    if tgt.get('fnp'):
+        x = x * (tgt['fnp'] - 1) / 6
+    if not ok or x <= 0:
+        return dict(name=t['name'] + '（致命傷）', subs=[], kd={1: 1.0}, md=1.0, exp=0.0, score=0.0, haz=0, haz_pts=0.0)
+    trials = max(1, math.ceil(x))
+    return dict(name=t['name'] + '（致命傷）', subs=[(trials, {k: x / trials for k in keys})], kd={1: 1.0}, md=1.0, exp=x, score=x, haz=0, haz_pts=0.0)
+
+
 def _target_value(tgt, shots, points):
     """一個目標被這些武器打：(平均打死的分數, 全滅機率, 平均死幾隻)。攻擊方挑開火順序，防守方挑接傷順序（讓死掉的分數最少）"""
     if not shots:
@@ -1537,12 +1554,27 @@ def scenario(text_a, text_b, opt, db, sel):
                 bi = max(range(first, len(items)), key=rrv)
                 items[bi]['extra'] = rr1
                 u['_rr1'] = True
+    # 「另外造成致命傷」（例：帝皇親選的 Rendax 加碼）：每個單位一項，當成一把可以指定目標的「武器」（2026-11-16 使用者：致命傷沒算）
+    sc_ = 'melee' if melee else 'ranged'
+    for i in atk:
+        seen = set()
+        for g in a['units'][i]['groups']:
+            for t in g.get('fx', []):
+                if t['side'] == 'att' and t['scope'] in ('all', sc_) and t['name'] not in seen and any(k == 'mw' for k, v in t['effs']):
+                    if t['cond'] == 'charge' and not (melee and opt.get('charge')):
+                        continue
+                    seen.add(t['name'])
+                    items.append(dict(u=i, ps=[], fxs=[[]], aT=g['model']['T'], n=1, extra=0, haz_pts=0.0, mw_tag=t,
+                                      mw=sum(v for k, v in t['effs'] if k == 'mw')))
     if not items:
         return dict(error='選的單位沒有可用的' + ('近戰' if melee else '射擊') + '武器')
     cache = {}
     def shot(it, j):
         key = (id(it), j)
         if key not in cache:
+            if it.get('mw_tag'):
+                cache[key] = _mw_shot(it['mw_tag'], it['mw'], tgts[j])
+                return cache[key]
             hw = it['haz_pts'] / max(1e-9, pts[j] / max(1, tgts[j]['wounds']))     # 危險武器的代價換算成目標的傷數
             s_ = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra'], hw) for f in it['fxs']), key=lambda s: s['score'])
             s_['haz_pts'] = s_['haz'] * it['haz_pts']

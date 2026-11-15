@@ -81,7 +81,9 @@ DET = {
     ],
     'Emperor’s Chosen': [
         R('Magna Imperator', '規則', [T('Magna Imperator', 'att', [('rr1', 2)], why='重骰一顆命中、一顆造傷，約等於多 2 次攻擊')], on=True),
-        R('Rendax 加碼（Favoured Ka’tah）', '規則', [T('Rendax 加碼', 'att', [('mw', 11 / 6)], scope='melee', tkw=MV, why='要用 Rendax，平均 1.8 致命傷')], fab='000008391'),
+        R('Rendax 加碼（Favoured Ka’tah）', '規則', [T('Rendax', 'att', [('mw', 11 / 6)], scope='melee', tkw=MV, pick='katah',
+                                                  why='用 Rendax 打交戰中的怪獸／載具時：D6 1-2＝1、3-5＝D3、6＝3 致命傷，平均 1.8')],
+          on=True, fab='000008391', note='跟 Ka’tah 綁在一起：程式挑 Rendax 那招時才算（2026-11-16 使用者：親選團的致命傷沒算）'),
         R('In Auramite Clad', '戰略', [T('In Auramite Clad', 'def', [('ap', -1)])], cp='1', names_not=['Custodian Wardens']),
     ],
     'Emissaries Imperatus': [
