@@ -1392,8 +1392,20 @@ def translate_list(text, db):
 
 
 # ---------- 單位測試：選幾隊打幾隊，幫你分槍（2026-11-15 使用者：「兩隊終結者…對面是太陽領主和科技技師 我要怎麼分槍」）----------
-def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
-    """一把（或 cnt 把一樣的）武器打 tgt：挑最好的模式，回傳每種保護的 (發數, 每發打穿機率, 掉血分布, 平均 D)"""
+def haz_pts(u):
+    """[HAZARDOUS] 每把開過火的武器要擲一次危險骰（核心規則 06.03）：1～2 失敗，這隊吃 1 點致命傷（整隊都是 MONSTER/VEHICLE 吃 3 點）。
+    回傳一次危險骰平均損失幾分：1/3 × 致命傷 × 這隊最便宜的每點傷分數（致命傷照一般接傷順序，護衛先接）。"""
+    gs = u.get('groups') or []
+    if not gs:
+        return 0.0
+    mw = 3 if all(g.get('big') for g in gs) else 1
+    ppw = min(g.get('pts_each', 0) / max(1, g['model']['W']) for g in gs)
+    return mw * ppw / 3
+
+
+def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0, haz_w=0.0):
+    """一把（或 cnt 把一樣的）武器打 tgt：挑最好的模式，回傳每種保護的 (發數, 每發打穿機率, 掉血分布, 平均 D)。
+    haz_w：[HAZARDOUS] 模式每把的代價（換算成目標的傷數），挑模式時扣掉（2026-11-16：電漿超載不是免費的）"""
     best = None
     for p in w:
         sv = {}
@@ -1402,14 +1414,16 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
             exp, ev, a, kd = weapon_damage(p, dict(tgt, Sv=g[0], inv=g[1]), opt, fx, aT, detail=True)
             sv[g] = (exp, ev)
         tot = sum(e for e, v in sv.values())
-        if best is None or tot > best[0]:
-            best = (tot, p, sv, a, kd)
-    tot, p, sv, a, kd = best
+        score = tot - (haz_w * len(sv) if 'HAZARDOUS' in p['kw'] else 0)
+        if best is None or score > best[5]:
+            best = (tot, p, sv, a, kd, score)
+    tot, p, sv, a, kd, score = best
     scale = 1.0
     if extra and a * cnt > 0:                           # 「重骰一顆」換算成多幾次攻擊（Magna Imperator 等），每發機率不變
         scale = 1 + extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0] / (a * cnt)
     subs, kd, a = pool_shots(p, tgt, opt, fx, aT, cnt, sorted(sv), scale)   # 05.04：保護骰從小到大分配
-    return dict(name=p['name'], subs=subs, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
+    return dict(name=p['name'], subs=subs, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt,
+                score=score * cnt, haz=cnt if 'HAZARDOUS' in p['kw'] else 0)
 
 
 def _target_value(tgt, shots, points):
@@ -1497,7 +1511,7 @@ def scenario(text_a, text_b, opt, db, sel):
                 step = max(1, -(-n // 10))              # 同一種武器最多拆 10 份
                 while n > 0:
                     k = min(step, n)
-                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0))
+                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0, haz_pts=haz_pts(u)))
                     n -= k
             if rr1 and len(items) > first and not u.get('_rr1'):    # 一個單位只算一次，加在這組最強的那把
                 def rrv(k):                             # 用在「重骰一顆」最划算的那把（整種武器一起算）
@@ -1512,7 +1526,10 @@ def scenario(text_a, text_b, opt, db, sel):
     def shot(it, j):
         key = (id(it), j)
         if key not in cache:
-            cache[key] = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra']) for f in it['fxs']), key=lambda s: s['exp'])
+            hw = it['haz_pts'] / max(1e-9, pts[j] / max(1, tgts[j]['wounds']))     # 危險武器的代價換算成目標的傷數
+            s_ = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra'], hw) for f in it['fxs']), key=lambda s: s['score'])
+            s_['haz_pts'] = s_['haz'] * it['haz_pts']
+            cache[key] = s_
         return cache[key]
     wipe = sel.get('goal') == 'wipe'                    # 2026-11-15 使用者：「人物很多時候是不用在意分數的」「你可以看他們的能力決定」
     # 角色的能力價值：這隊有角色時，角色給的能力讓這隊每輪多殺幾分（拿掉角色的標記重算一次）。滅隊的價值＝分數＋2 輪的能力價值
@@ -1575,6 +1592,7 @@ def scenario(text_a, text_b, opt, db, sel):
         for j in range(len(tg)):
             v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
             tot += (pw * worth[j] + 0.01 * v if wipe else v) - rem_frac(j, dn) * back[j]
+        tot -= sum(shot(it, x)['haz_pts'] for it, x in zip(items, asg) if x is not None and x >= 0)
         return tot
     # 先貪心：傷害大的武器先放，每把放到「多打死最多分」的目標；再一把一把試著換目標，直到沒有更好
     order = sorted(range(len(items)), key=lambda k: -max(shot(items[k], j)['exp'] for j in range(len(tg))))
@@ -1626,10 +1644,12 @@ def scenario(text_a, text_b, opt, db, sel):
     for j in range(len(tg)):
         v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
         bk = rem_frac(j, dn) * back[j] + sum(back[k] for k in range(len(tg)) if k != j)      # 沒打的目標全力反打
-        alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models'], back=round(bk), net=round(v - bk)))
+        hz = sum(shot(it, j)['haz_pts'] for it in items)
+        alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models'], back=round(bk), hazard=round(hz, 1), net=round(v - bk - hz)))
     tot_pts = sum(t['value'] for t in res_t)
     tot_back = sum(t['back'] for t in res_t)
-    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), back=round(tot_back), net=round(tot_pts - tot_back), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+    tot_haz = sum(shot(it, j)['haz_pts'] for it, j in zip(items, asg))
+    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), back=round(tot_back), hazard=round(tot_haz, 1), net=round(tot_pts - tot_back - tot_haz), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
     # 用了「每場一次」的能力：另外算不用的話會怎樣，讓使用者決定要不要省（2026-11-15 使用者要求）
     once = [(x['key'], x['name']) for i in atk for x in a['units'][i]['abil'] if x['on'] and x.get('once')]
     if once and not opt.get('_noonce'):
