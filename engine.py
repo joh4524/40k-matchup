@@ -3,7 +3,9 @@
 算武器數值、武器關鍵字、讀得懂的單位能力（tags.py／manual.py）、軍隊規則、分隊規則、戰略和強化（army.py 手動整理的，2026-11-15 先做禁軍；其他陣營用 tags.py 自動讀）。
 使用者 2026-11-15 逐段核對過、確認的：命中和造傷修正最多 ±1；「無視修正」只無視壞的（掩體讓 BS 變差也不算）；DEVASTATING 的致命傷不溢傷；
 保護骰修正沒有上限（修到 7+ 就不用骰），骰 1 一定失敗；扣血一隻一隻扣：攻擊方決定哪把先打、防守方決定誰接、受傷的要先接；整隊加總的方式（手槍二選一、每個模型一把近戰武器等）。
-還沒確認的：CLEAVE X 照 BLAST 每 5 個模型 +X；Stealth 當成掩體（BS 變差 1）；傷害先減半再 -1；合併單位用護衛的 T、領袖最後接。
+也確認了：CLEAVE X 照 BLAST 每 5 個模型 +X；Stealth 當成掩體（BS 變差 1）；傷害先減半再 -1。
+合併單位照核心規則 19.02、05.03：T 用護衛裡最高的；非 CHARACTER 的組先接、CHARACTER 最後；每組用自己的 Sv／無敵。
+還沒做的：05.03 的保護骰是一起骰、從最低的結果開始分配，所以排在後面的角色拿到的是比較高的骰子；程式每發獨立算，對領袖的傷害會偏高。
 """
 import csv, difflib, functools, itertools, math, os, re, sys
 
@@ -92,7 +94,7 @@ def lost_dist(dexpr, bonus, fnp, reduce=0, half=False):
 
 def allocate(models, shots):
     """一隻一隻扣血（2026-11-15 使用者：攻擊方決定哪把先打、防守方決定誰接，受傷的要先接）。
-    models：照接傷順序的每隻模型 W。shots：照開火順序 [(發數, 每發沒擋住機率, 掉血分布)]。
+    models：照接傷順序的每隻模型 W。shots：照開火順序 [(發數, 每發沒擋住機率（一個數，或每隻模型各一個）, 掉血分布)]。
     回傳平均掉的血＝死掉模型的血＋還活著那隻受的傷。發數有小數時，最後一發的機率按比例。"""
     n = len(models)
     off, tot = [], 0
@@ -106,12 +108,11 @@ def allocate(models, shots):
         kd = [(k, p) for k, p in kd.items() if k > 0 and p > 0]
         full = int(trials)
         for t in range(full + (1 if trials - full > 1e-9 else 0)):
-            qq = q if t < full else q * (trials - full)
-            if qq <= 0:
-                continue
+            frac = 1.0 if t < full else trials - full
             new = [0.0] * (tot + 1)
             new[dead] = pr[dead]
             for i in range(n):
+                qq = (q[i] if isinstance(q, (list, tuple)) else q) * frac      # 每隻模型可以有自己的保護（領袖的 Sv／無敵不一樣）
                 for r in range(1, models[i] + 1):
                     p0 = pr[off[i] + r - 1]
                     if p0 < 1e-12:
@@ -520,8 +521,8 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False):
 
 def needs_alloc(tgt, used, opt):
     """舊算法（每發都當打在滿血模型上）不準的時候才一隻一隻扣：模型的 W 不只一種，或有傷害不能整除 W"""
-    ws = {wv for c, wv, ld in tgt['wgroups']}
-    if len(ws) > 1:
+    ws = {g[1] for g in tgt['wgroups']}
+    if len(ws) > 1 or len({(g[3], g[4]) for g in tgt['wgroups']}) > 1:
         return True
     W = next(iter(ws))
     for w, c, fx, aT in used:
@@ -532,27 +533,36 @@ def needs_alloc(tgt, used, opt):
 
 
 def alloc_best(tgt, used, opt, hi=False):
-    """攻擊方挑開火順序（D 大的先或 D 小的先），防守方挑哪種模型先接（領袖最後）：攻擊方取最好、防守方取對自己最好。
+    """攻擊方挑開火順序（D 大的先或 D 小的先），防守方挑哪種模型先接：攻擊方取最好、防守方取對自己最好。
+    核心規則 05.03（第十一版）：非 CHARACTER 的組先接（受傷的組最先），CHARACTER 最後；每一組用自己的 Sv／無敵；T 用護衛裡最高的（19.02）。
     hi=True：防守方接得最差的情況（給使用者看可能的範圍）"""
+    groups = {}                                         # (W, Sv, 無敵, 是不是角色) → 模型數
+    for c, wv, ld, sv, inv in tgt['wgroups']:
+        k = (wv, sv, inv, ld)
+        groups[k] = groups.get(k, 0) + c
+    body = [k for k in groups if not k[3]]
+    lead = [k for k in groups if k[3]]
+    saves = {(k[1], k[2]) for k in groups}
     shots = []
     for w, c, fx, aT in used:
-        exp, ev, a, kd = weapon_damage(w, tgt, opt, fx, aT, detail=True)
-        if ev <= 0:
+        ev, a, kd = {}, 0, None
+        for sv, inv in saves:
+            exp, e, a, kd = weapon_damage(w, dict(tgt, Sv=sv, inv=inv), opt, fx, aT, detail=True)
+            ev[(sv, inv)] = e * c
+        top = max(ev.values())
+        if top <= 0:
             continue
-        trials = max(a * c, ev * c)
-        shots.append((trials, ev * c / trials, kd, sum(k * p for k, p in kd.items())))
+        trials = max(a * c, top)
+        shots.append((trials, {k: v / trials for k, v in ev.items()}, kd, sum(k * p for k, p in kd.items())))
     if not shots:
         return 0.0
-    body = {}
-    for c, wv, ld in tgt['wgroups']:
-        if not ld:
-            body[wv] = body.get(wv, 0) + c
-    lead = [wv for c, wv, ld in tgt['wgroups'] if ld for _ in range(c)]
-    border = list(itertools.permutations(body)) or [()]
     best = 0.0
     for att in (sorted(shots, key=lambda s: -s[3]), sorted(shots, key=lambda s: s[3])):
-        worst = (max if hi else min)(allocate([wv for o in order for wv in [o] * body[o]] + lead, [s[:3] for s in att]) for order in border)
-        best = max(best, worst)
+        res = []
+        for order in itertools.permutations(body) if body else [()]:
+            seq = [k for k in list(order) + lead for _ in range(groups[k])]
+            res.append(allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], kd) for tr, q, kd, m in att]))
+        best = max(best, (max if hi else min)(res))
     return best
 
 
@@ -979,7 +989,7 @@ def target_of(u):
     m = u['main']
     return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()),
                 models=sum(g['count'] for g in u['groups']), wounds=sum(g['count'] * g['model']['W'] for g in u['groups']),
-                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ())) for g in u['groups']])
+                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv']) for g in u['groups']])
 
 
 def describe(u):
@@ -1002,7 +1012,7 @@ def matrix(a, b, opt):
             t = target_of(y)
             w = t['wounds'] or 1
             cell = [round(unit_damage(x, t, False, opt) / w, 3), round(unit_damage(x, t, True, opt) / w, 3)]
-            if len({wv for c, wv, ld in t['wgroups']}) > 1:           # 模型 W 不只一種時，防守方怎麼接才有差
+            if len({g[1] for g in t['wgroups'] if not g[2]}) > 1:     # 非角色的模型 W 不只一種時，防守方怎麼接才有差
                 cell += [round(unit_damage(x, t, False, opt, True) / w, 3), round(unit_damage(x, t, True, opt, True) / w, 3)]   # 防守方接得差時
             row.append(cell)
         rows.append(row)
