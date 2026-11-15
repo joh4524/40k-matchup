@@ -1361,7 +1361,7 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
 def _target_value(tgt, shots, points):
     """一個目標被這些武器打：(平均打死的分數, 全滅機率, 平均死幾隻)。攻擊方挑開火順序，防守方挑接傷順序（讓死掉的分數最少）"""
     if not shots:
-        return 0.0, 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0
     groups = {}
     for c, wv, ld, sv, inv in tgt['wgroups']:
         groups[(wv, sv, inv, ld)] = groups.get((wv, sv, inv, ld), 0) + c
@@ -1374,7 +1374,7 @@ def _target_value(tgt, shots, points):
         for order in itertools.permutations(body) if body else [()]:
             seq = [k for k in list(order) + lead for _ in range(groups[k])]
             lost, deadw, pw, dn = allocate([k[0] for k in seq], [(s['trials'], [s['q'][(k[1], k[2])] for k in seq], s["kd"]) for s in att], stats=True)
-            v = (deadw / tot * points + 0.05 * (lost - deadw) / tot * points, pw, dn)   # 打殘沒死的只算一點點，讓程式傾向確保打死
+            v = (deadw / tot * points + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)   # 打殘沒死的只算一點點，讓程式傾向確保打死
             if worst is None or v[0] < worst[0]:
                 worst = v
         if best is None or worst[0] > best[0]:
@@ -1455,11 +1455,25 @@ def scenario(text_a, text_b, opt, db, sel):
         else:
             buff.append(0.0)
     worth = [pts[k] + 2 * buff[k] for k in range(len(tg))]
+    # 對面反打（2026-11-15 使用者：「你要看我打完對面反打我的狀況」）：每個目標剩下的部分（照死掉的血算比例）打回來，
+    # 挑我方出手單位裡它打最痛的那隊。近戰：同一個近戰階段打回來（只算近戰）；射擊：對面下一回合射擊＋近戰。
+    back = []
+    for j in tg:
+        y = b['units'][j]
+        best_b = 0.0
+        for i in atk:
+            tu = target_of(a['units'][i])
+            w_ = tu['wounds'] or 1
+            f = min(1.0, unit_damage(y, tu, True, opt) / w_)
+            if not melee:
+                f = min(1.0, f + unit_damage(y, tu, False, opt) / w_)
+            best_b = max(best_b, f * a['units'][i]['points'])
+        back.append(best_b)
     def value(asg):
         tot = 0.0
         for j in range(len(tg)):
-            v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-            tot += pw * worth[j] + 0.01 * v if wipe else v
+            v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
+            tot += (pw * worth[j] + 0.01 * v if wipe else v) - (1 - df) * back[j]
         return tot
     # 先貪心：傷害大的武器先放，每把放到「多打死最多分」的目標；再一把一把試著換目標，直到沒有更好
     order = sorted(range(len(items)), key=lambda k: -max(shot(items[k], j)['exp'] for j in range(len(tg))))
@@ -1499,8 +1513,8 @@ def scenario(text_a, text_b, opt, db, sel):
         return nm + (f' #{same.index(i) + 1}' if len(same) > 1 else '')
     res_t = []
     for j in range(len(tg)):
-        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
+        v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
+        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), back=round((1 - df) * back[j]), back_full=round(back[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
@@ -1509,10 +1523,12 @@ def scenario(text_a, text_b, opt, db, sel):
     # 對照：全部集火同一個目標
     alt = []
     for j in range(len(tg)):
-        v, pw, dn = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
-        alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models']))
+        v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
+        bk = (1 - df) * back[j] + sum(back[k] for k in range(len(tg)) if k != j)      # 沒打的目標全力反打
+        alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models'], back=round(bk), net=round(v - bk)))
     tot_pts = sum(t['value'] for t in res_t)
-    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+    tot_back = sum(t['back'] for t in res_t)
+    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), back=round(tot_back), net=round(tot_pts - tot_back), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
     # 用了「每場一次」的能力：另外算不用的話會怎樣，讓使用者決定要不要省（2026-11-15 使用者要求）
     once = [(x['key'], x['name']) for i in atk for x in a['units'][i]['abil'] if x['on'] and x.get('once')]
     if once and not opt.get('_noonce'):
