@@ -1315,7 +1315,7 @@ def translate_list(text, db):
 
 
 # ---------- 單位測試：選幾隊打幾隊，幫你分槍（2026-11-15 使用者：「兩隊終結者…對面是太陽領主和科技技師 我要怎麼分槍」）----------
-def _shot_for(w, fx, aT, tgt, opt, cnt):
+def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0):
     """一把（或 cnt 把一樣的）武器打 tgt：挑最好的模式，回傳每種保護的 (發數, 每發打穿機率, 掉血分布, 平均 D)"""
     best = None
     for p in w:
@@ -1329,6 +1329,9 @@ def _shot_for(w, fx, aT, tgt, opt, cnt):
             best = (tot, p, sv, a, kd)
     tot, p, sv, a, kd = best
     trials = max(a * cnt, max(v for e, v in sv.values()) * cnt, 1e-9)
+    if extra and a * cnt > 0:                           # 「重骰一顆」近似成多幾次攻擊（Magna Imperator 等），每發機率不變
+        trials *= 1 + extra / (a * cnt)
+        sv = {k: (e, v * (1 + extra / (a * cnt))) for k, (e, v) in sv.items()}
     return dict(name=p['name'], trials=trials, q={k: v * cnt / trials for k, (e, v) in sv.items()}, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt)
 
 
@@ -1392,21 +1395,28 @@ def scenario(text_a, text_b, opt, db, sel):
                         use.append((k, ps))
                     left -= k
                 ents = ex + use
+            rr1 = sum(v for t in fx if t['side'] == 'att' and t['scope'] in ('all', 'melee' if melee else 'ranged')
+                      for k, v in t['effs'] if k == 'rr1')
+            first = len(items)
             for c, ps in ents:
                 fxs = [fx + [t] for t in picks] or [fx]
                 n = int(round(c))
                 step = max(1, -(-n // 10))              # 同一種武器最多拆 10 份
                 while n > 0:
                     k = min(step, n)
-                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k))
+                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0))
                     n -= k
+            if rr1 and len(items) > first and not u.get('_rr1'):    # 一個單位只算一次，加在這組最強的那把
+                bi = max(range(first, len(items)), key=lambda k: max(weapon_damage(p, t, opt, items[k]['fxs'][0], items[k]['aT']) for p in items[k]['ps'] for t in tgts) / items[k]['n'])
+                items[bi]['extra'] = rr1
+                u['_rr1'] = True
     if not items:
         return dict(error='選的單位沒有可用的' + ('近戰' if melee else '射擊') + '武器')
     cache = {}
     def shot(it, j):
         key = (id(it), j)
         if key not in cache:
-            cache[key] = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n']) for f in it['fxs']), key=lambda s: s['exp'])
+            cache[key] = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra']) for f in it['fxs']), key=lambda s: s['exp'])
         return cache[key]
     def value(asg):
         return sum(_target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])[0] for j in range(len(tg)))
