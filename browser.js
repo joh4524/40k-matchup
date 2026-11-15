@@ -6,6 +6,8 @@
   const DATA = ['Last_update', 'Factions', 'Datasheets', 'Datasheets_models', 'Datasheets_wargear', 'Datasheets_abilities', 'Datasheets_keywords',
     'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities', 'Detachments', 'Detachment_abilities', 'Stratagems'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json']);
   let ready = null;
+  // 版本號（index.html 載入 browser.js?v=…）：程式和資料更新後，舊的瀏覽器快取不會被拿來用
+  const V = ((document.currentScript && document.currentScript.src.match(/[?&]v=([^&]+)/)) || [])[1] || String(Date.now());
 
   async function boot(status) {
     status('正在下載計算程式和資料（第一次約 10 MB），請等一下…');
@@ -20,7 +22,7 @@
     py.FS.mkdirTree('/app/data');
     const files = CODE.map(f => [f, '/app/' + f]).concat(DATA.map(f => ['data/' + f, '/app/data/' + f]));
     await Promise.all(files.map(async ([url, path]) => {
-      const r = await fetch(url);
+      const r = await fetch(url + '?v=' + V);
       if (!r.ok) throw new Error('下載不到 ' + url);
       py.FS.writeFile(path, new Uint8Array(await r.arrayBuffer()));
     }));
