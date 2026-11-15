@@ -1025,6 +1025,21 @@ def _def(u, foe, opt, scopes):
                 if ('melee' if melee else 'ranged') in scopes), default=0)
 
 
+def _exchange(u, foe, opt):
+    """近戰交換（2026-11-15 使用者：禁軍通常是衝鋒、先打的那方）：u 衝鋒先打一隊，對面剩下的才打回來。
+    回傳最好的目標的「殺掉的分數 − 被打回來的分數」。打回來＝對面一整輪近戰 ×（1 − 被打掉的比例）。"""
+    oc = dict(opt, charge=True)
+    tu = target_of(u)
+    best = None
+    for y in foe['units']:
+        ty = target_of(y)
+        k = min(1.0, unit_damage(u, ty, True, oc) / (ty['wounds'] or 1))
+        back = min(1.0, unit_damage(y, tu, True, opt) / (tu['wounds'] or 1)) * (1 - k)
+        v = k * y['points'] - back * u['points']
+        best = v if best is None else max(best, v)
+    return best or 0.0
+
+
 def option_values(me, foe, opt, db):
     """每條規則／戰略／Ka'tah 招式：用在哪個單位最賺、多殺幾分或少被殺幾分。戰略＝用在一個單位；規則＝全部符合的單位一起。"""
     out = []
@@ -1046,8 +1061,24 @@ def option_values(me, foe, opt, db):
                     continue
                 base = _variant(u, drop={r['name']}, db=db)
                 plus = _variant(u, add=tags, drop={r['name']}, r=r, db=db)
-                g_off = _off(plus, foe, opt, scopes) - _off(base, foe, opt, scopes) if any(t['side'] == 'att' for t in tags) else 0
-                g_def = _def(base, foe, opt, scopes) - _def(plus, foe, opt, scopes) if any(t['side'] == 'def' for t in tags) else 0
+                att = any(t['side'] == 'att' for t in tags)
+                dfn = any(t['side'] == 'def' for t in tags)
+                # 射擊：打最賺的目標多殺幾分；被射：對面射最痛的一隊少殺幾分
+                g_off = _off(plus, foe, opt, {'ranged'}) - _off(base, foe, opt, {'ranged'}) if att and 'ranged' in scopes else 0
+                g_def = _def(base, foe, opt, {'ranged'}) - _def(plus, foe, opt, {'ranged'}) if dfn and 'ranged' in scopes else 0
+                # 近戰：照「我方衝鋒先打、對面剩下的打回來」算（多殺的和少被打回來的都算進去）
+                g_mel = _exchange(plus, foe, opt) - _exchange(base, foe, opt) if 'melee' in scopes else 0
+                if g_mel > 0:
+                    if att:
+                        g_off += g_mel
+                    else:
+                        g_def += g_mel
+                if r['kind'] == '戰略' and (g_off + g_def) > 0 and 'ranged' in scopes and 'melee' in scopes:
+                    rng = (g_off - (g_mel if att and g_mel > 0 else 0)) + (g_def - (g_mel if not att and g_mel > 0 else 0))
+                    if g_mel > rng:                       # 戰略只能用一個階段：射擊或近戰挑大的
+                        g_off, g_def = (g_mel, 0) if att else (0, g_mel)
+                    else:
+                        g_off, g_def = (g_off - g_mel, g_def) if att and g_mel > 0 else (g_off, g_def - (g_mel if g_mel > 0 else 0))
                 if g_off + g_def > 0.5:
                     rows.append(dict(unit=u['name'], off=round(g_off), deff=round(g_def), gain=round(g_off + g_def)))
             rows.sort(key=lambda x: -x['gain'])
