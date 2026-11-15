@@ -274,7 +274,8 @@ class DB:
             m = re.search(r'EFFECT:\s*(.*?)(?:RESTRICTIONS:|$)', d, re.S)
             e = re.sub(r'\byour unit\b', 'this unit', m[1] if m else d, flags=re.I)
             e = re.sub(r'(?:^|(?<=\. ))\s*until the end of the (?:phase|turn|battle round),\s*', '', e, flags=re.I)
-            add(r.get('detachment_id') or ('core' if not r.get('faction_id') else ''), r.get('id', ''), '戰略', r.get('name', '').title(),
+            add(r.get('detachment_id') or ('core' if not r.get('faction_id') else ''), r.get('id', ''), '戰略',
+                r.get('name', '').title() + ('（Challenger：分數落後才能用）' if 'challenger' in (r.get('type') or '').lower() else ''),
                 r.get('cp_cost', ''), e.strip(), need)
 
     def sheets_named(self, name):
@@ -957,6 +958,9 @@ def apply_dets(lst, over, db):
     for d in groups:
         auto = d.get('army') or d['id'] in lst.get('det_auto', [])
         on = bool(over.get('D|' + d['id'], auto))
+        if d['id'] == 'core' and not on:                 # 通用戰略沒勾也拿去算「值不值得」
+            for r in d['rules']:
+                lst.setdefault('_rules', []).append(dict(r, det=d['name'], on_now=False))
         item = dict(id=d['id'], name=d['name'], key='D|' + d['id'], on=on, auto=bool(auto), rules=[], unread=d['unread'], n=len(d['rules']),
                     army=bool(d.get('army')), hand=bool(d.get('hand')))
         if on:
@@ -967,6 +971,7 @@ def apply_dets(lst, over, db):
                 if r.get('note'):
                     lab += f'（{r["note"]}）'
                 item['rules'].append(dict(key=key, kind=r['kind'], name=r['name'], cp=r['cp'], label=lab, need=_restrict(r), on=ron))
+                lst.setdefault('_rules', []).append(dict(r, det=d['name'], on_now=ron, model_kw=r.get('model_kw', []), model_not=r.get('model_not', [])))
                 if not ron:
                     continue
                 for t in r['tags']:
@@ -983,6 +988,101 @@ def apply_dets(lst, over, db):
                             u['dfx'] = u.get('dfx', []) + [tt]
         out.append(item)
     lst['dets'] = out
+
+
+# ---------- 每個選項值多少（2026-11-15 使用者：「給我看細節差異 例如六種武藝要不要開cp」）----------
+def _variant(u, add=(), drop=(), r=None, db=None):
+    """單位的複本：加上 add 這些標記、拿掉來源是 drop 的標記"""
+    v = dict(u)
+    sk = lambda g: (db.byname.get(norm(g['src'])) or [dict(kw=set())])[0]['kw'] if db else set()
+    gs = []
+    for g in u['groups']:
+        fx = [t for t in g.get('fx', []) if t.get('src') not in drop]
+        gk = sk(g)
+        if r is None or (all(k in gk for k in r.get('model_kw', [])) and not any(k in gk for k in r.get('model_not', []))):
+            fx += [t for t in add if t['side'] == 'att']
+        gs.append(dict(g, fx=fx))
+    v['groups'] = gs
+    v['dfx'] = [t for t in u.get('dfx', []) if t.get('src') not in drop] + [t for t in add if t['side'] == 'def']
+    return v
+
+
+def _off(u, foe, opt, scopes):
+    """這個單位一輪最多殺幾分（射擊、近戰各挑最賺的目標）"""
+    tot = 0.0
+    for melee in (False, True):
+        if ('melee' if melee else 'ranged') not in scopes:
+            continue
+        tot += max((unit_damage(u, target_of(y), melee, opt) / (target_of(y)['wounds'] or 1) * y['points'] for y in foe['units']), default=0)
+    return tot
+
+
+def _def(u, foe, opt, scopes):
+    """對面單一一隊打這個單位，最多殺它幾分（射擊、近戰取大的）"""
+    t = target_of(u)
+    w = t['wounds'] or 1
+    return max((unit_damage(x, t, melee, opt) / w * u['points'] for x in foe['units'] for melee in (False, True)
+                if ('melee' if melee else 'ranged') in scopes), default=0)
+
+
+def option_values(me, foe, opt, db):
+    """每條規則／戰略／Ka'tah 招式：用在哪個單位最賺、多殺幾分或少被殺幾分。戰略＝用在一個單位；規則＝全部符合的單位一起。"""
+    out = []
+    for r in me.get('_rules', []):
+        variants = []
+        picks = [t for t in r['tags'] if t.get('pick')]
+        if picks and len(picks) > 1:                      # 二選一的（Ka'tah、Martial Mastery）：每個選項分開算
+            for t in picks:
+                variants.append((t['name'], [dict(t, pick=None, src=r['name'], granted=True, situ=False)]))
+        else:
+            variants.append(('', [dict(t, src=r['name'], granted=True, situ=False) for t in r['tags']]))
+        for vname, tags in variants:
+            scopes = set()
+            for t in tags:
+                scopes |= {'ranged', 'melee'} if t['scope'] == 'all' else {t['scope']}
+            rows = []
+            for u in me['units']:
+                if not _fits(u, r):
+                    continue
+                base = _variant(u, drop={r['name']}, db=db)
+                plus = _variant(u, add=tags, drop={r['name']}, r=r, db=db)
+                g_off = _off(plus, foe, opt, scopes) - _off(base, foe, opt, scopes) if any(t['side'] == 'att' for t in tags) else 0
+                g_def = _def(base, foe, opt, scopes) - _def(plus, foe, opt, scopes) if any(t['side'] == 'def' for t in tags) else 0
+                if g_off + g_def > 0.5:
+                    rows.append(dict(unit=u['name'], off=round(g_off), deff=round(g_def), gain=round(g_off + g_def)))
+            rows.sort(key=lambda x: -x['gain'])
+            strat = r['kind'] == '戰略'
+            total = rows[0]['gain'] if strat and rows else sum(x['gain'] for x in rows)
+            cp = int(r['cp']) if str(r.get('cp', '')).isdigit() else 0
+            nm = r['name']
+            if vname:
+                nm = (r['det'].replace('軍隊規則：', '') if r['kind'] == '軍隊規則' else r['name']) + '：' + vname
+            out.append(dict(det=r['det'], name=nm, kind=r['kind'], cp=cp, on=r['on_now'],
+                            gain=total, per_cp=round(total / cp) if cp else None, units=rows[:5], strat=strat))
+    # Superhuman Focus（禁軍 Emperor’s Chosen／Guardians of the Throne，1CP）：讓已經用過招的單位再 readied 一次，
+    # 同一輪可以攻擊招和 Kaptaris 都用。價值＝兩招裡比較小的那一招（本來只能二選一，選大的）。
+    if any(d['on'] and d['name'] in ('Emperor’s Chosen', 'Guardians of the Throne') for d in me.get('dets', [])):
+        per = {}
+        for v in out:
+            if v['kind'] == '軍隊規則' and '：' in v['name']:
+                st = v['name'].split('：', 1)[1]
+                for x in v['units']:
+                    per.setdefault(x['unit'], {})[st] = x['gain']
+            elif v['name'].startswith('Kaptaris'):
+                for x in v['units']:
+                    per.setdefault(x['unit'], {})['Kaptaris'] = x['gain']
+        rows = []
+        for un, d in per.items():
+            atk = max((g for k, g in d.items() if k != 'Kaptaris'), default=0)
+            sec = min(atk, d.get('Kaptaris', 0))
+            if sec > 0:
+                rows.append(dict(unit=un, off=0, deff=0, gain=sec))
+        rows.sort(key=lambda x: -x['gain'])
+        if rows:
+            out.append(dict(det='Emperor’s Chosen／Guardians of the Throne', name='Superhuman Focus：同一輪攻擊招和 Kaptaris 都用', kind='戰略', cp=1, on=False,
+                            gain=rows[0]['gain'], per_cp=rows[0]['gain'], units=rows[:5], strat=True))
+    out.sort(key=lambda x: -x['gain'])
+    return out
 
 
 def target_of(u):
@@ -1086,12 +1186,13 @@ def compare(text_a, text_b, opt, db):
     apply_dets(a, over.get('a') or {}, db)
     apply_dets(b, over.get('b') or {}, db)
     ab, ba = matrix(a, b, opt), matrix(b, a, opt)
+    vals = dict(a=option_values(a, b, opt, db), b=option_values(b, a, opt, db)) if opt.get('values') else None
 
     def side(l):
         us = [describe(u) for u in l['units']]
         return dict(name=l['name'], faction=l['faction'], points=l['points'], units=us, unknown=l['unknown'], notes=l['notes'], dets=l.get('dets', []),
                     oc=sum(u['OC'] for u in us), wounds=sum(u['wounds'] for u in us), models=sum(u['models'] for u in us))
-    return dict(a=side(a), b=side(b), ab=ab, ba=ba, sum_ab=summary(a, b, ab), sum_ba=summary(b, a, ba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated)
+    return dict(a=side(a), b=side(b), ab=ab, ba=ba, sum_ab=summary(a, b, ab), sum_ba=summary(b, a, ba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated, values=vals)
 
 
 # ---------- 英文軍表 → 中文（2026-11-15，使用者「英文軍表翻譯成中文」）----------
@@ -1183,7 +1284,7 @@ def api(req, db):
     if req.get('translate'):
         return {k: translate_list(str(req.get(k, '')), db) for k in ('a', 'b')}
     ro = req.get('opt') or {}
-    opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still')}
+    opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values')}
     ab = ro.get('abil') or {}
     opt['abil'] = {sd: {str(k): bool(v) for k, v in (ab.get(sd) or {}).items()} for sd in ('a', 'b')}
     return compare(str(req.get('a', '')), str(req.get('b', '')), opt, db)

@@ -81,7 +81,7 @@ DET = {
     ],
     'Emperor’s Chosen': [
         R('Magna Imperator', '規則', [T('Magna Imperator', 'att', [('rr1', 2)], why='重骰一顆命中、一顆造傷，約等於多 2 次攻擊')], on=True),
-        R('Rendax 加碼（Favoured Ka’tah）', '規則', [T('Rendax 加碼', 'att', [('mw', 11 / 6)], scope='melee', tkw=MV, why='要用 Rendax，平均 1.8 致命傷')]),
+        R('Rendax 加碼（Favoured Ka’tah）', '規則', [T('Rendax 加碼', 'att', [('mw', 11 / 6)], scope='melee', tkw=MV, why='要用 Rendax，平均 1.8 致命傷')], fab='000008391'),
         R('In Auramite Clad', '戰略', [T('In Auramite Clad', 'def', [('ap', -1)])], cp='1', names_not=['Custodian Wardens']),
     ],
     'Emissaries Imperatus': [
