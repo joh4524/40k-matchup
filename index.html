@@ -109,6 +109,8 @@ function fullData(u,s){
   const army=(s.dets||[]).filter(d=>d.army&&d.on).map(d=>d.name.replace('軍隊規則：',''));
   const status=a=>{
     if(st.has(a.name)) return st.get(a.name);
+    const k=[...st.keys()].find(n=>a.name.startsWith(n+' ('));          // 資料裡的名字帶「(Once per battle…)」
+    if(k) return st.get(k);
     if(/^Feel No Pain/.test(a.name)&&!a.model) return '有算';
     if(a.name==='Stealth') return '有算';
     if(a.type==='Faction'&&army.includes(a.name)) return '有算（看上面軍隊規則）';
