@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611152009"></script>
+<script src="browser.js?v=202611152015"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[]}, SR=null;
@@ -223,6 +223,7 @@ function testCard(){
   if(SR&&!SR.error){
     h+=`<div class="card"><h2>建議分法：平均打死 ${SR.total} 分</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
     <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td></tr>`).join('')}</tbody></table></div>
+    ${SR.save_once?`<p class="note" style="margin:8px 0 0">這次用了每場一次的：<b>${SR.save_once.names.map(esc).join('、')}</b>。省下來不用的話：平均打死 ${SR.save_once.total} 分（${SR.save_once.targets.map(t=>`${esc(t.name)} 全滅 ${pct(t.p_wipe)}%`).join('；')}）。</p>`:''}
     <p class="mute" style="margin:8px 0 0">對照：全部集火同一個目標 → ${SR.focus.map(f=>`${esc(f.name)} ${f.value} 分`).join('；')}</p></div>`;
   }
   return h;

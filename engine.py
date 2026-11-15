@@ -901,7 +901,7 @@ def resolve(lst, over):
                 why = '只保護領袖自己，併隊後不算'
             avail = not why
             on = bool(over.get(f'{i}|{k}', t['on'])) and avail
-            u['abil'].append(dict(key=f'{i}|{k}', name=t['name'], src=t['src'], label=t['label'], on=on, avail=avail, why=why))
+            u['abil'].append(dict(key=f'{i}|{k}', name=t['name'], src=t['src'], label=t['label'], on=on, avail=avail, why=why, once=bool(t.get('once'))))
             if on:
                 act.append(t)
         for g in u['groups']:
@@ -1469,7 +1469,15 @@ def scenario(text_a, text_b, opt, db, sel):
     alt = []
     for j in range(len(tg)):
         alt.append(dict(name=lab(b, tg[j]), value=round(value([j] * len(items)))))
-    return dict(melee=melee, total=round(cur), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+    out = dict(melee=melee, total=round(cur), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+    # 用了「每場一次」的能力：另外算不用的話會怎樣，讓使用者決定要不要省（2026-11-15 使用者要求）
+    once = [(x['key'], x['name']) for i in atk for x in a['units'][i]['abil'] if x['on'] and x.get('once')]
+    if once and not opt.get('_noonce'):
+        ab = dict(over.get('a') or {}, **{k: False for k, n in once})
+        sub = scenario(text_a, text_b, dict(opt, abil=dict(over, a=ab), _noonce=True), db, sel)
+        if not sub.get('error'):
+            out['save_once'] = dict(names=sorted({n for k, n in once}), total=sub['total'], targets=sub['targets'])
+    return out
 
 
 def api(req, db):

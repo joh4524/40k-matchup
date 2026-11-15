@@ -21,7 +21,7 @@ COVER = re.compile(rf"^{M} ha(?:s|ve) the benefit of cover", re.I)
 SL = r"((?:[A-Z][A-Z\-]+)(?: [A-Z][A-Z\-]+)*(?: / (?:[A-Z][A-Z\-]+)(?: [A-Z][A-Z\-]+)*)*)"
 SKIP = re.compile(r"overwatch|stratagem|deadly demise|battle-shock test", re.I)
 # 程式沒辦法判斷的條件 → 預設不算，讓使用者自己勾
-SITU = re.compile(r"once per battle|objective marker|\border\b|closest eligible|starting strength|battle-shocked|within \d|more than \d|disembark|until the|"
+SITU = re.compile(r"objective marker|\border\b|closest eligible|starting strength|battle-shocked|within \d|more than \d|disembark|until the|"
                   r"friendly|provided|below|first time|\bwhile\b|\bif\b|psychic|mortal wound|instead|deployment zone|within (?!half)|that is |that contains|that has |"
                   r"targets (?:its|that|the) |hated|quarry", re.I)
 EXCL = re.compile(r"\(excluding ([A-Z][A-Z\- ]+?(?:,? (?:and|or) [A-Z][A-Z\- ]+?)*)(?: units?)?\s*\)")
@@ -128,6 +128,8 @@ def label(t):
         extra.append(dict(charge='衝鋒時', half='半射程內', still='沒移動時', s_gt_t='對方 S 大於 T 時', t_gt_t='目標 T 比自己高時')[t['cond']])
     if t['leading']:
         extra.append('帶隊時給整隊')
+    if t.get('once'):
+        extra.append('每場一次，預設有算')
     if t['situ']:
         extra.append('有其他條件，預設不算')
     return s + ('（' + '，'.join(extra) + '）' if extra else '')
@@ -138,7 +140,8 @@ def tag_ability(name, desc):
     text = clean(desc)
     text = re.sub(r'\.\s+(?=Re-roll )', '; ', text)                 # 「can: Re-roll A. Re-roll B.」是同一句
     text = re.sub(r'\.\s+Or:', '; or:', text)
-    once = bool(re.search(r'once per', name, re.I))
+    # 「每場一次」之類的：使用者 2026-11-15「一定都開的 沒人省這種東西」→ 預設算，標出來（計算時提醒可以省）
+    once = bool(re.search(r'once per battle', name + ' ' + clean(desc), re.I))
     for sent in re.split(r'(?<=[a-z\]\)0-9”"])\.\s+', text):
         sent = sent.strip().rstrip('.')
         if not sent or SKIP.search(sent):
@@ -152,7 +155,7 @@ def tag_ability(name, desc):
         nb = re.sub(r'^if you do,\s*', '', body, flags=re.I)
         na, nd = NEWA.match(nb), NEWD.match(nb)
         if na or nd or COVER.match(body):
-            situ = once or nb != body
+            situ = nb != body
             if na:
                 t['scope'] = (na['scope'] or 'all').strip().lower()
                 t['unitwide'] = na['who'].lower() == 'unit'
@@ -184,7 +187,7 @@ def tag_ability(name, desc):
                 t['side'], t['effs'] = 'def', [('cover', 1)]
             if not t['effs']:
                 continue
-            t['situ'], t['on'] = situ, not situ
+            t['situ'], t['on'], t['once'] = situ, not situ, once
             t['label'] = label(t)
             out.append(t)
             continue
@@ -227,8 +230,9 @@ def tag_ability(name, desc):
             if re.search(pat, r2):
                 t['cond'] = c
                 r2 = re.sub(pat, '', r2)
-        t['situ'] = once or bool(SITU.search(r2))
+        t['situ'] = bool(SITU.search(r2))
         t['on'] = not t['situ']
+        t['once'] = once
         t['label'] = label(t)
         out.append(t)
     return out
