@@ -1421,22 +1421,27 @@ def scenario(text_a, text_b, opt, db, sel):
             if bestv is None or v > bestv:
                 bestj, bestv = j, v
         asg[k] = bestj
-    cur = value(asg)
-    for _ in range(6):
-        moved = False
-        for k in range(len(items)):
-            for j in range(len(tg)):
-                if j == asg[k]:
-                    continue
-                old = asg[k]
-                asg[k] = j
-                v = value(asg)
-                if v > cur + 1e-6:
-                    cur, moved = v, True
-                else:
-                    asg[k] = old
-        if not moved:
-            break
+    def improve(asg):
+        cur = value(asg)
+        for _ in range(8):
+            moved = False
+            for k in range(len(items)):
+                for j in range(len(tg)):
+                    if j == asg[k]:
+                        continue
+                    old = asg[k]
+                    asg[k] = j
+                    v = value(asg)
+                    if v > cur + 1e-6:
+                        cur, moved = v, True
+                    else:
+                        asg[k] = old
+            if not moved:
+                break
+        return cur, asg
+    # 從好幾個起點各自改進，取最好的（只從貪心開始容易卡住：例如一門砲打不死大角色，就永遠不會往那邊移）
+    starts = [asg] + [[j] * len(items) for j in range(len(tg))]
+    cur, asg = max((improve(list(st)) for st in starts), key=lambda x: x[0])
     def lab(lst, i):                                    # 同名的單位加編號
         nm = lst['units'][i]['name']
         same = [k for k, u in enumerate(lst['units']) if u['name'] == nm]
