@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611151836"></script>
+<script src="browser.js?v=202611151854"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null;
@@ -103,6 +103,30 @@ function matrix(title,cls,att,def,m,pm){
     m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
   return h+'</tbody></table></div></div>';
 }
+// 每個單位的完整資料（2026-11-15，使用者「你把所有單位的資料都加上」，讓使用者自己驗算）
+function fullData(u,s){
+  const st=new Map(u.abil.map(x=>[x.name,x.on?'有算':'有讀到、沒勾']));
+  const army=(s.dets||[]).filter(d=>d.army&&d.on).map(d=>d.name.replace('軍隊規則：',''));
+  const status=a=>{
+    if(st.has(a.name)) return st.get(a.name);
+    if(/^Feel No Pain/.test(a.name)&&!a.model) return '有算';
+    if(a.name==='Stealth') return '有算';
+    if(a.type==='Faction'&&army.includes(a.name)) return '有算（看上面軍隊規則）';
+    return '沒算';
+  };
+  let h=`<div style="margin:10px 0;border-top:1px solid var(--line,#ddd);padding-top:6px"><b>${esc(u.name)}</b> <small>${u.points} 分</small>`;
+  u.data.forEach(g=>{
+    h+=`<div style="margin:4px 0 2px"><small>${g.count}× ${esc(g.name)}${g.src&&g.src!==g.name?'（'+esc(g.src)+'）':''}｜M${g.M}" T${g.T} Sv${g.Sv}+ ${g.inv?'無敵'+g.inv+'+ ':''}W${g.W}</small></div>`;
+    if(g.weapons.length) h+=`<div class="scroll"><table><thead><tr><th class="r">武器</th><th>幾把</th><th>射程</th><th>A</th><th>BS/WS</th><th>S</th><th>AP</th><th>D</th><th style="max-width:none">武器能力</th></tr></thead><tbody>${g.weapons.map(w=>`<tr><td class="r">${esc(w.name)}</td><td>${w.n}</td><td>${esc(w.range)}${/^\d+$/.test(w.range)?'"':''}</td><td>${esc(w.A)}</td><td>${w.skill&&w.skill!=='-'?esc(w.skill)+'+':'-'}</td><td>${esc(w.S)}</td><td>${esc(w.AP)}</td><td>${esc(w.D)}</td><td style="text-align:left">${esc(w.kw)||'<span class="mute">無</span>'}</td></tr>`).join('')}</tbody></table></div>`;
+  });
+  u.info.forEach(i=>{
+    const ab=i.abil.filter(a=>a.name!=='Leader');
+    if(ab.length) h+=`<div><small>${u.info.length>1?esc(i.src)+' 的':''}能力：${ab.map(a=>{const x=status(a);return `${esc(a.name)}${a.model?' <span class="mute">('+esc(a.model)+')</span>':''} <span class="${x==='沒算'?'mute':''}">[${x}]</span>`}).join('、')}</small></div>`;
+  });
+  const enh=u.abil.filter(x=>x.name.startsWith('強化 '));
+  if(enh.length) h+=`<div><small>強化：${enh.map(x=>esc(x.name.slice(3))+' ['+(x.on?'有算':'有讀到、沒勾')+']').join('、')}</small></div>`;
+  return h+'</div>';
+}
 function sideCard(s,cls,tag,sum,other,sk){
   let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
   <div class="kpi"><div><b>${s.points}</b><span>分</span></div><div><b>${s.units.length}</b><span>單位</span></div><div><b>${s.models}</b><span>模型</span></div>
@@ -114,6 +138,7 @@ function sideCard(s,cls,tag,sum,other,sk){
   h+=`<details><summary>單位數值（${s.units.length}）</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th>分</th><th>模型</th><th>M</th><th>T</th><th>Sv</th><th>無敵</th><th>W</th><th>FNP</th><th>OC</th><th style="max-width:none">算進去的武器</th></tr></thead><tbody>`;
   s.units.forEach(u=>h+=`<tr><td class="r">${esc(u.name)}</td><td>${u.points}</td><td>${u.models}</td><td>${u.M}"</td><td>${u.T}</td><td>${u.Sv}+</td><td>${u.inv?u.inv+'+':'-'}</td><td>${u.W}</td><td>${u.fnp?u.fnp+'+':'-'}</td><td>${u.OC}</td><td style="text-align:left">${u.weapons.map(esc).join('、')}</td></tr>`);
   h+='</tbody></table></div></details>';
+  h+=`<details${window['fopen_'+sk]?' open':''} data-fd="${sk}"><summary>每個單位的完整資料（驗算用：程式用的數值、武器、能力）</summary>${s.units.map(u=>fullData(u,s)).join('')}<small>資料來源：Wahapedia 第十一版匯出檔。能力標「有算」＝這條有加進計算；「有讀到、沒勾」＝程式讀得懂但預設不算（要看條件），可以到下面「單位能力」勾；「沒算」＝讀不懂或跟傷害無關。</small></details>`;
   if(s.notes.length) h+=`<details><summary class="warn">讀軍表時的註記（${s.notes.length}）</summary><ul>${s.notes.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></details>`;
   const ab=s.units.filter(u=>u.abil.length), nab=ab.reduce((n,u)=>n+u.abil.length,0);
   if(nab) h+=`<details${window['open_'+sk]?' open':''} data-ab="${sk}"><summary>單位能力（讀到 ${nab} 條，打勾的有算進去）</summary>${ab.map(u=>`<div style="margin:6px 0"><b>${esc(u.name)}</b>${u.abil.map(x=>`<br><label style="${x.avail?'':'opacity:.5'}"><input type="checkbox" data-side="${sk}" data-key="${esc(x.key)}" ${x.on?'checked':''} ${x.avail?'':'disabled'}> ${esc(x.name)}：<small>${esc(x.label)}${x.avail?'':'（'+esc(x.why||'不適用')+'）'}</small></label>`).join('')}</div>`).join('')}<small>只讀得懂固定句型的能力（自己攻擊時、被打時的加減和重骰）。沒列出來的能力就是沒算。</small></details>`;
@@ -188,6 +213,7 @@ function render(){
   document.querySelectorAll('input[data-key]').forEach(c=>c.onchange=()=>{over[c.dataset.side][c.dataset.key]=c.checked;go()});
   document.querySelectorAll('details[data-ab]').forEach(d=>d.ontoggle=()=>{window['open_'+d.dataset.ab]=d.open});
   document.querySelectorAll('details[data-dt]').forEach(d=>d.ontoggle=()=>{window['dopen_'+d.dataset.dt]=d.open});
+  document.querySelectorAll('details[data-fd]').forEach(d=>d.ontoggle=()=>{window['fopen_'+d.dataset.fd]=d.open});
   document.querySelectorAll('button[data-pv]').forEach(b=>b.onclick=()=>{pv=b.dataset.pv;render()});
   document.querySelectorAll('.tsort button').forEach(b=>b.onclick=()=>{tsort=b.dataset.s;render()});
 }

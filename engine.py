@@ -106,7 +106,7 @@ class DB:
         for r in rd('Datasheets'):
             if r.get('virtual') == 'true':
                 continue
-            s = dict(id=r['id'], name=r['name'], faction=r['faction_id'], models=[], weapons=[], kw=set(), fnp=0, stealth=False, costs=[], tags=[], fab=set(), role=r.get('role', ''), loadout=re.sub(r'<[^>]+>', '', r.get('loadout', '')), options='')
+            s = dict(id=r['id'], name=r['name'], faction=r['faction_id'], models=[], weapons=[], kw=set(), fnp=0, stealth=False, costs=[], tags=[], fab=set(), abil_all=[], role=r.get('role', ''), loadout=re.sub(r'<[^>]+>', '', r.get('loadout', '')), options='')
             self.sheets[r['id']] = s
             self.byname.setdefault(norm(r['name']), []).append(s)
         for r in rd('Datasheets_models'):
@@ -118,7 +118,8 @@ class DB:
             if s and r['name']:
                 base = re.split(r'\s[–—-]\s', re.sub(r'<[^>]+>', '', r['name']))[0]
                 s['weapons'].append(dict(name=re.sub(r'<[^>]+>', '', r['name']), base=norm(base), melee=r['type'].lower() == 'melee', range=r['range'],
-                                         A=r['A'], skill=r['BS_WS'], S=r['S'], AP=r['AP'], D=r['D'], kw=parse_kw(r['description'])))
+                                         A=r['A'], skill=r['BS_WS'], S=r['S'], AP=r['AP'], D=r['D'], kw=parse_kw(r['description']),
+                                         desc=re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', r['description'] or '')).strip()))
         for r in rd('Datasheets_keywords'):
             s = self.sheets.get(r['datasheet_id'])
             if s and r['keyword']:
@@ -129,6 +130,12 @@ class DB:
                 s['tags'] += tagger.tag_ability(r['name'], r['description'])
             if s and r['type'] == 'Faction':
                 s['fab'].add(r['ability_id'])
+            if s and r['type'] in ('Datasheet', 'Wargear', 'Core', 'Faction'):      # 全部列出來給使用者驗算（2026-11-15）
+                nm = r['name'] or abil.get(r['ability_id'], '')
+                if r['parameter'] and r['type'] == 'Core':
+                    nm += ' ' + r['parameter'] + ('+' if nm.startswith('Feel No Pain') and not r['parameter'].endswith('+') else '')
+                if nm and nm not in [a['name'] for a in s['abil_all']]:
+                    s['abil_all'].append(dict(name=nm, type=r['type'], model=r['model'] or ''))
             if not s or r['type'] != 'Core':
                 continue
             n = abil.get(r['ability_id'], '')
@@ -711,7 +718,7 @@ def build_unit(u, db, out):
         out['notes'].append(f'{u["name"]}：軍表沒列、照資料卡預設補上 {", ".join(sorted(set(added)))}')
     main = max(groups, key=lambda g: g['count'])['model']
     return dict(name=u['name'], points=u['points'], attach=u['attach'], role=u['role'], groups=groups, kw=set(sheet['kw']),
-                fnp=sheet['fnp'], stealth=sheet['stealth'], extra=u['extra'], main=main, fab=set(sheet['fab']),
+                fnp=sheet['fnp'], stealth=sheet['stealth'], extra=u['extra'], main=main, fab=set(sheet['fab']), info=[dict(src=sheet['name'], abil=sheet['abil_all'])],
                 tags=[dict(t, src=sheet['name']) for t in sheet['tags'] + enh_tags(u, sheet, db, out)], body={sheet['name']}, leaders=set())
 
 
@@ -742,7 +749,7 @@ def merge(mates):
     return dict(name=' + '.join(m['name'] for m in lead + body), points=sum(m['points'] for m in mates), attach=b['attach'], role='',
                 groups=[g for m in body + lead for g in m['groups']], kw=set().union(*(m['kw'] for m in mates)),
                 fnp=b['fnp'], stealth=all(m['stealth'] for m in mates), extra=[e for m in mates for e in m['extra']], main=b['main'],
-                fab=set().union(*(m['fab'] for m in mates)),
+                fab=set().union(*(m['fab'] for m in mates)), info=[i for m in body + lead for i in m['info']],
                 tags=[t for m in body + lead for t in m['tags']], body={n for m in body for n in m['body']}, leaders={n for m in lead for n in m['body']})
 
 
@@ -865,7 +872,11 @@ def describe(u):
     t = target_of(u)
     return dict(name=u['name'], points=u['points'], models=t['models'], wounds=t['wounds'], T=t['T'], Sv=t['Sv'], inv=t['inv'], W=t['W'],
                 fnp=t['fnp'], M=u['main']['M'], OC=sum(g['count'] * g['model']['OC'] for g in u['groups']), extra=u['extra'], abil=u.get('abil', []),
-                weapons=sorted({p[0]['name'].split(' – ')[0] for g in u['groups'] for c, p in g['weapons']}))
+                weapons=sorted({p[0]['name'].split(' – ')[0] for g in u['groups'] for c, p in g['weapons']}),
+                data=[dict(src=g['src'], name=g['name'], count=g['count'], M=g['model']['M'], T=g['model']['T'], Sv=g['model']['Sv'], inv=g['model']['inv'],
+                           W=g['model']['W'], weapons=[dict(n=c, name=w['name'], range=w['range'], A=w['A'], skill=w['skill'], S=w['S'], AP=w['AP'], D=w['D'], kw=w.get('desc', ''))
+                                                       for c, ps in g['weapons'] for w in ps]) for g in u['groups']],
+                info=u.get('info', []), stealth=u['stealth'])
 
 
 def matrix(a, b, opt):
