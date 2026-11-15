@@ -92,7 +92,7 @@ def lost_dist(dexpr, bonus, fnp, reduce=0, half=False):
     return out
 
 
-def allocate(models, shots, stats=False):
+def allocate(models, shots, stats=False, vals=None):
     """一隻一隻扣血（2026-11-15 使用者：攻擊方決定哪把先打、防守方決定誰接，受傷的要先接）。
     models：照接傷順序的每隻模型 W。shots：照開火順序 [(發數, 每發沒擋住機率（一個數，或每隻模型各一個）, 掉血分布)]。
     回傳平均掉的血＝死掉模型的血＋還活著那隻受的傷。發數有小數時，最後一發的機率按比例。"""
@@ -135,9 +135,12 @@ def allocate(models, shots, stats=False):
         for r in range(1, models[i] + 1):
             left += pr[off[i] + r - 1] * (r + rest)
             deadw += pr[off[i] + r - 1] * off[i]
-    if stats:                                           # (平均掉的血, 平均死掉模型的血, 全滅機率, 平均死幾隻)
+    if stats:                                           # (平均掉的血, 平均死掉模型的血, 全滅機率, 平均死幾隻, 平均死掉的分數)
         deadn = sum(pr[off[i] + r - 1] * i for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * n
-        return tot - left, deadw + pr[dead] * tot, pr[dead], deadn
+        vals = vals or [0.0] * n
+        cum = [sum(vals[:i]) for i in range(n)]
+        deadv = sum(pr[off[i] + r - 1] * cum[i] for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * sum(vals)
+        return tot - left, deadw + pr[dead] * tot, pr[dead], deadn, deadv
     return tot - left
 
 
@@ -564,7 +567,7 @@ def alloc_best(tgt, used, opt, hi=False):
     核心規則 05.03（第十一版）：非 CHARACTER 的組先接（受傷的組最先），CHARACTER 最後；每一組用自己的 Sv／無敵；T 用護衛裡最高的（19.02）。
     hi=True：防守方接得最差的情況（給使用者看可能的範圍）"""
     groups = {}                                         # (W, Sv, 無敵, 是不是角色) → 模型數
-    for c, wv, ld, sv, inv in tgt['wgroups']:
+    for c, wv, ld, sv, inv, *_ in tgt["wgroups"]:
         k = (wv, sv, inv, ld)
         groups[k] = groups.get(k, 0) + c
     body = [k for k in groups if not k[3]]
@@ -837,6 +840,9 @@ def build_unit(u, db, out):
         g['model'] = g['model'] or (sheet['models'][0] if sheet['models'] else dict(name='?', M=0, T=4, Sv=7, inv=0, W=1, OC=0))
         g['big'] = big
         g['src'] = sheet['name']
+    nmod = sum(g['count'] for g in groups) or 1
+    for g in groups:
+        g['pts_each'] = u['points'] / nmod                 # 每隻模型值幾分（領袖和護衛分開算，2026-11-15）
     single = len(groups) == 1 and groups[0]['count'] == 1
     for g in groups:
         have = {id(p) for c, p in g['weapons']} | {p[0]['base'] for c, p in g['weapons']}
@@ -1146,7 +1152,7 @@ def target_of(u):
     m = u['main']
     return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()),
                 models=sum(g['count'] for g in u['groups']), wounds=sum(g['count'] * g['model']['W'] for g in u['groups']),
-                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv']) for g in u['groups']])
+                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv'], g.get('pts_each', 0)) for g in u['groups']])
 
 
 def describe(u):
@@ -1363,8 +1369,11 @@ def _target_value(tgt, shots, points):
     if not shots:
         return 0.0, 0.0, 0.0, 0.0
     groups = {}
-    for c, wv, ld, sv, inv in tgt['wgroups']:
-        groups[(wv, sv, inv, ld)] = groups.get((wv, sv, inv, ld), 0) + c
+    for g in tgt['wgroups']:
+        c, wv, ld, sv, inv = g[:5]
+        pe = g[5] if len(g) > 5 else points / max(1, tgt['models'])
+        k = (wv, sv, inv, ld, round(pe, 3))
+        groups[k] = groups.get(k, 0) + c
     body = [k for k in groups if not k[3]]
     lead = [k for k in groups if k[3]]
     tot = tgt['wounds'] or 1
@@ -1373,8 +1382,10 @@ def _target_value(tgt, shots, points):
         worst = None
         for order in itertools.permutations(body) if body else [()]:
             seq = [k for k in list(order) + lead for _ in range(groups[k])]
-            lost, deadw, pw, dn = allocate([k[0] for k in seq], [(s['trials'], [s['q'][(k[1], k[2])] for k in seq], s["kd"]) for s in att], stats=True)
-            v = (deadw / tot * points + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)   # 打殘沒死的只算一點點，讓程式傾向確保打死
+            lost, deadw, pw, dn, deadv = allocate([k[0] for k in seq], [(s['trials'], [s['q'][(k[1], k[2])] for k in seq], s["kd"]) for s in att],
+                                                  stats=True, vals=[k[4] for k in seq])
+            # 打死的分數照每隻模型自己的分數算（領袖要真的死了才算他的分數）；打殘沒死的只算一點點，讓程式傾向確保打死
+            v = (deadv + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)
             if worst is None or v[0] < worst[0]:
                 worst = v
         if best is None or worst[0] > best[0]:
