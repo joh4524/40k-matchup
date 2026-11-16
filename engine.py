@@ -140,7 +140,9 @@ def allocate(models, shots, stats=False, vals=None):
         vals = vals or [0.0] * n
         cum = [sum(vals[:i]) for i in range(n)]
         deadv = sum(pr[off[i] + r - 1] * cum[i] for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * sum(vals)
-        return tot - left, deadw + pr[dead] * tot, pr[dead], deadn, deadv
+        # 還活著但受傷的那隻：照掉的血按比例算分數（之後它得先接傷，傷會被帶到下一次攻擊；2026-11-16 使用者：太陽被打殘之後都要先扛）
+        partv = sum(pr[off[i] + r - 1] * vals[i] * (models[i] - r) / models[i] for i in range(n) for r in range(1, models[i] + 1))
+        return tot - left, deadw + pr[dead] * tot, pr[dead], deadn, deadv, partv
     return tot - left
 
 
@@ -1479,14 +1481,16 @@ def _target_value(tgt, shots, points):
         worst = None
         for order in alloc_orders(body, lead):
             seq = [k for k in order for _ in range(groups[k])]
-            lost, deadw, pw, dn, deadv = allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], s["kd"]) for s in att for tr, q in s['subs']],
-                                                  stats=True, vals=[k[4] for k in seq])
+            lost, deadw, pw, dn, deadv, partv = allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], s["kd"]) for s in att for tr, q in s['subs']],
+                                                         stats=True, vals=[k[4] for k in seq])
             # 打死的分數照每隻模型自己的分數算（領袖要真的死了才算他的分數）；打殘沒死的只算一點點，讓程式傾向確保打死
             v = (deadv + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)
-            if worst is None or v[0] < worst[0]:
-                worst = v
-        if best is None or worst[0] > best[0]:
-            best = worst
+            # 防守方挑順序：死掉的分數＋殘血按比例的分數（殘血的角色之後要先接傷，等於傷會留著；所以寧可先送便宜的血包，不讓貴的角色被打殘）
+            cost = deadv + partv
+            if worst is None or cost < worst[0]:
+                worst = (cost, v)
+        if best is None or worst[1][0] > best[0]:
+            best = worst[1]
     return best
 
 
