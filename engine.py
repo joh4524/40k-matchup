@@ -92,7 +92,7 @@ def lost_dist(dexpr, bonus, fnp, reduce=0, half=False):
     return out
 
 
-def allocate(models, shots, stats=False, vals=None):
+def allocate(models, shots, stats=False, vals=None, dvals=None):
     """一隻一隻扣血（2026-11-15 使用者：攻擊方決定哪把先打、防守方決定誰接，受傷的要先接）。
     models：照接傷順序的每隻模型 W。shots：照開火順序 [(發數, 每發沒擋住機率（一個數，或每隻模型各一個）, 掉血分布)]。
     回傳平均掉的血＝死掉模型的血＋還活著那隻受的傷。發數有小數時，最後一發的機率按比例。"""
@@ -142,6 +142,10 @@ def allocate(models, shots, stats=False, vals=None):
         deadv = sum(pr[off[i] + r - 1] * cum[i] for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * sum(vals)
         # 還活著但受傷的那隻：照掉的血按比例算分數（之後它得先接傷，傷會被帶到下一次攻擊；2026-11-16 使用者：太陽被打殘之後都要先扛）
         partv = sum(pr[off[i] + r - 1] * vals[i] * (models[i] - r) / models[i] for i in range(n) for r in range(1, models[i] + 1))
+        if dvals is not None:                           # 防守方心裡的價值（分數＋能力）：死掉的＋殘血按比例，用來挑接傷順序
+            dc = [sum(dvals[:i]) for i in range(n)]
+            cost = sum(pr[off[i] + r - 1] * (dc[i] + dvals[i] * (models[i] - r) / models[i]) for i in range(n) for r in range(1, models[i] + 1)) + pr[dead] * sum(dvals)
+            return tot - left, deadw + pr[dead] * tot, pr[dead], deadn, deadv, partv, cost
         return tot - left, deadw + pr[dead] * tot, pr[dead], deadn, deadv, partv
     return tot - left
 
@@ -206,6 +210,13 @@ class DB:
                 s['tags'] += tagger.tag_ability(r['name'], r['description'])
             if s and r['type'] == 'Faction':
                 s['fab'].add(r['ability_id'])
+            if s and r['name'].strip().upper() == 'ORDERS':  # 星界軍軍官能下幾個命令、給誰（2026-11-16 使用者：角色要比單位價值，Lord Solar 的命令也算）
+                d = re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', ' ', r['description'] or '')).upper().replace('’', "'")
+                mo = re.search(r'(\d+) ORDER', d)
+                only = re.search(r'ONLY ISSUE THE (.+?) ORDERS', d)
+                s['orders'] = dict(n=int(mo[1]) if mo else 1,
+                                   kw=[k for k in ('REGIMENT', 'SQUADRON', 'TITANIC', 'CATACHAN JUNGLE FIGHTERS', "GAUNT'S GHOSTS") if k in d],
+                                   only=only[1] if only else '')
             if s and r['type'] in ('Datasheet', 'Wargear', 'Core', 'Faction'):      # 全部列出來給使用者驗算（2026-11-15）
                 nm = r['name'] or abil.get(r['ability_id'], '')
                 if r['parameter'] and r['type'] == 'Core':
@@ -1225,7 +1236,8 @@ def target_of(u):
     m = u['main']
     return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()),
                 models=sum(g['count'] for g in u['groups']), wounds=sum(g['count'] * g['model']['W'] for g in u['groups']),
-                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv'], g.get('pts_each', 0)) for g in u['groups']])
+                wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv'], g.get('pts_each', 0)) for g in u['groups']],
+                gnames=[g['name'] for g in u['groups']])
 
 
 def describe(u):
@@ -1464,14 +1476,18 @@ def _mw_shot(t, x, tgt):
 
 def _target_value(tgt, shots, points):
     """一個目標被這些武器打：(平均打死的分數, 全滅機率, 平均死幾隻)。攻擊方挑開火順序，防守方挑接傷順序（讓死掉的分數最少）"""
+    tgt['_order'] = []
     if not shots:
         return 0.0, 0.0, 0.0, 0.0
-    groups = {}
-    for g in tgt['wgroups']:
+    groups, names = {}, {}
+    for gi, g in enumerate(tgt['wgroups']):
         c, wv, ld, sv, inv = g[:5]
         pe = g[5] if len(g) > 5 else points / max(1, tgt['models'])
-        k = (wv, sv, inv, ld, round(pe, 3))
+        dv = g[6] if len(g) > 6 else pe                 # 防守方心裡的價值＝分數＋角色能力一輪值多少分
+        k = (wv, sv, inv, ld, round(pe, 3), round(dv, 3))
         groups[k] = groups.get(k, 0) + c
+        if tgt.get('gnames'):
+            names.setdefault(k, []).append(tgt['gnames'][gi])
     body = [k for k in groups if not k[3]]
     lead = [k for k in groups if k[3]]
     tot = tgt['wounds'] or 1
@@ -1481,17 +1497,101 @@ def _target_value(tgt, shots, points):
         worst = None
         for order in alloc_orders(body, lead):
             seq = [k for k in order for _ in range(groups[k])]
-            lost, deadw, pw, dn, deadv, partv = allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], s["kd"]) for s in att for tr, q in s['subs']],
-                                                         stats=True, vals=[k[4] for k in seq])
+            lost, deadw, pw, dn, deadv, partv, cost = allocate([k[0] for k in seq], [(tr, [q[(k[1], k[2])] for k in seq], s["kd"]) for s in att for tr, q in s['subs']],
+                                                               stats=True, vals=[k[4] for k in seq], dvals=[k[5] for k in seq])
             # 打死的分數照每隻模型自己的分數算（領袖要真的死了才算他的分數）；打殘沒死的只算一點點，讓程式傾向確保打死
             v = (deadv + 0.05 * (lost - deadw) / tot * points, pw, dn, deadw / tot)
-            # 防守方挑順序：死掉的分數＋殘血按比例的分數（殘血的角色之後要先接傷，等於傷會留著；所以寧可先送便宜的血包，不讓貴的角色被打殘）
-            cost = deadv + partv
+            # 防守方挑順序：用「單位價值」（分數＋角色能力一輪值多少分；2026-11-16 使用者：比兩個單位的價值更適合），
+            # 死掉的＋殘血按比例（殘血的角色之後要先接傷，傷會留著；所以寧可先送便宜的血包，不讓重要的角色被打殘）
             if worst is None or cost < worst[0]:
-                worst = (cost, v)
+                worst = (cost, v, order)
         if best is None or worst[1][0] > best[0]:
             best = worst[1]
+            tgt['_order'] = ['／'.join(dict.fromkeys(names.get(k, []))) for k in worst[2]]   # 防守方挑的接傷順序（給使用者看）
     return best
+
+
+def _key_group(u, src):
+    """一張資料卡在併隊裡有好幾組模型時（例：Command Squad＝Commander＋老兵），能力算在哪一組：只有一隻的那組（軍官、隊長）"""
+    gs = [i for i, g in enumerate(u['groups']) if g['src'] == src]
+    if not gs:
+        return None
+    return min(gs, key=lambda i: (u['groups'][i]['count'] != 1, -u['groups'][i]['model']['W'],
+                                  not re.search(r'commander|officer|captain|sergeant|leader', u['groups'][i]['name'].lower())))
+
+
+def _order_gains(me, foe, opt, db):
+    """星界軍的命令：每個友軍單位接到每種命令一輪多殺幾分＋少被殺幾分。回傳 [(單位序號, 命令名, 值)]"""
+    rule = next((r for r in me.get('_rules', []) if r['name'] == 'Voice of Command'), None)
+    if not rule:
+        return []
+    out = []
+    for i, u in enumerate(me['units']):
+        base = _variant(u, drop={'Voice of Command'}, db=db)
+        for t in rule['tags']:
+            plus = _variant(u, add=[dict(t, pick=None, src='Voice of Command', granted=True, situ=False)], drop={'Voice of Command'}, db=db)
+            sc = {'ranged', 'melee'} if t['scope'] == 'all' else {t['scope']}
+            g = (_off(plus, foe, opt, sc) - _off(base, foe, opt, sc)) if t['side'] == 'att' else (_def(base, foe, opt, {'ranged'}) - _def(plus, foe, opt, {'ranged'}))
+            if g > 0.5:
+                out.append((i, t['name'], g))
+    return out
+
+
+def _orders_total(me, officers, gains):
+    """officers：[(軍官 key, 張數, 可以給的關鍵字, 限定的命令)]。貪心分配：每隊最多一個命令，值大的先給、能給的軍官裡選限制最多的。"""
+    slots = [[n, kw, only] for k, n, kw, only in officers]
+    used, tot = set(), 0.0
+    for i, name, g in sorted(gains, key=lambda x: -x[2]):
+        if i in used:
+            continue
+        u = me['units'][i]
+        ok = [s for s in slots if s[0] > 0 and any(k in u['kw'] for k in s[1]) and (not s[2] or name.upper().replace('’', "'") in s[2])]
+        if ok:
+            s = min(ok, key=lambda s: (len(s[1]), s[0]))
+            s[0] -= 1
+            used.add(i)
+            tot += g
+    return tot
+
+
+def char_values(me, foe, opt, db, idx):
+    """防守方的「單位價值」（2026-11-16 使用者）：me 的第 idx 隊裡每個角色，死了會少掉多少「一輪的價值」。
+    1. 帶隊能力（例：圖拉真給 Allarus 重骰）：隊友一輪少殺幾分＋多被殺幾分。角色自己的武器不算（分數已經包含）。
+    2. 星界軍軍官的命令：全軍的命令重新分配，少了這個軍官的命令少賺幾分。
+    回傳 {組序號: (加的分數, [說明])}"""
+    u = me['units'][idx]
+    out = {}
+    both = {'ranged', 'melee'}
+    for src in u.get('leaders', ()):
+        gi = _key_group(u, src)
+        if gi is None:
+            continue
+        v = dict(u)
+        v['groups'] = [dict(g, fx=[t for t in g.get('fx', []) if g['src'] == src or t.get('src') != src]) for g in u['groups']]
+        v['dfx'] = [t for t in u.get('dfx', []) if t.get('src') != src]
+        gain = max(0.0, _off(u, foe, opt, both) - _off(v, foe, opt, both)) + max(0.0, _def(v, foe, opt, both) - _def(u, foe, opt, both))
+        notes = [f'帶隊能力 {gain:.0f}'] if gain >= 0.5 else []
+        out[gi] = (gain, notes)
+    # 命令
+    gains = None
+    officers = []
+    for k, x in enumerate(me['units']):
+        for src in x['body'] | x.get('leaders', set()):
+            sh = (db.byname.get(norm(src)) or [{}])[0]
+            if sh.get('orders') and 'OFFICER' in sh.get('kw', ()):
+                officers.append(((k, src), sh['orders']['n'], sh['orders']['kw'], sh['orders']['only']))
+    mine = [o for o in officers if o[0][0] == idx]
+    if mine:
+        gains = _order_gains(me, foe, opt, db)
+        full = _orders_total(me, officers, gains)
+        for o in mine:
+            lost = full - _orders_total(me, [x for x in officers if x[0] != o[0]], gains)
+            gi = _key_group(u, o[0][1])
+            if gi is None or lost < 0.5:
+                continue
+            g0, n0 = out.get(gi, (0.0, []))
+            out[gi] = (g0 + lost, n0 + [f'命令 {o[1]} 個 {lost:.0f}'])
+    return out
 
 
 def scenario(text_a, text_b, opt, db, sel):
@@ -1519,6 +1619,13 @@ def scenario(text_a, text_b, opt, db, sel):
         return dict(error='至少要選一隊出手、一個目標')
     tgts = [target_of(b['units'][j]) for j in tg]
     pts = [b['units'][j]['points'] for j in tg]
+    cvals = []                                          # 角色的單位價值（防守方挑接傷順序用；打死的分數照舊只算分數）
+    for n, j in enumerate(tg):
+        cv = char_values(b, a, opt, db, j) if b['units'][j].get('leaders') else {}
+        wg = tgts[n]['wgroups']
+        tgts[n]['wgroups'] = [w + (w[5] + cv[gi][0] / max(1, w[0]),) if gi in cv else w for gi, w in enumerate(wg)]
+        cvals.append([dict(name=b['units'][j]['groups'][gi]['name'], points=round(wg[gi][5] * wg[gi][0]), extra=round(x[0]), why='；'.join(x[1]))
+                      for gi, x in cv.items() if x[0] >= 0.5])
     items = []                                          # 每把武器一項：(單位序號, 武器模式們, fx, 攻擊方 T)
     for i in atk:
         u = a['units'][i]
@@ -1686,7 +1793,7 @@ def scenario(text_a, text_b, opt, db, sel):
     res_t = []
     for j in range(len(tg)):
         v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
-        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), back=round(rem_frac(j, dn) * back[j]), back_full=round(back[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2)))
+        res_t.append(dict(name=lab(b, tg[j]), buff=round(buff[j]), back=round(rem_frac(j, dn) * back[j]), back_full=round(back[j]), points=pts[j], models=tgts[j]['models'], value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), cvals=cvals[j], order=tgts[j].get('_order', [])))
     plan_ = {}
     for it, j in zip(items, asg):
         s = shot(it, j)
