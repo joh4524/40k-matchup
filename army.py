@@ -123,7 +123,13 @@ ENH = {
 # ---------- 其他陣營：rules/陣營代號.py（2026-11-16 起由 Sonnet 照 rules/GUIDE.md 手動標記，主 bot 抽查）----------
 def _load_rules():
     import glob, importlib.util, os
-    for path in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules', '*.py'))):
+    base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules')
+    try:                                                 # 只讀 rules/index.json 列的（＝已經抽查、commit 的）；Sonnet 正在寫、還沒抽查的不會被伺服器讀進去
+        import json
+        paths = [os.path.join(base, n) for n in json.load(open(os.path.join(base, 'index.json')))]
+    except (OSError, ValueError):
+        paths = sorted(glob.glob(os.path.join(base, '*.py')))
+    for path in paths:
         name = os.path.basename(path)[:-3]
         if name.startswith('_'):
             continue
