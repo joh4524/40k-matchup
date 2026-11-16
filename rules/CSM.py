@@ -8,20 +8,9 @@ ARMY = {
             T('Sustained Hits 1', 'att', [('kw', 'SUSTAINED HITS 1')], pick='pact', why='要過領導力測試，失敗吃 D3 致命傷（沒算）'),
         ], on=True, note='每次射擊／近戰二選一，程式對每個目標自動挑好的；自傷風險未計入'),
     ]),
-    '000008428': dict(name='Blessings of Khorne', rules=[
-        R('Martial Excellence', '軍隊規則', [T('Martial Excellence', 'att', [('kw', 'SUSTAINED HITS 1')], scope='melee')], need=['WORLD EATERS'],
-          note='每回合最多啟動兩個祝福，使用者自己勾'),
-        R('Warp Blades', '軍隊規則', [T('Warp Blades', 'att', [('kw', 'LETHAL HITS')], scope='melee')], need=['WORLD EATERS'],
-          note='每回合最多啟動兩個祝福，使用者自己勾'),
-        R('Decapitating Strikes', '軍隊規則', [T('Decapitating Strikes', 'att', [('kw', 'DEVASTATING WOUNDS')], scope='melee', tkw=['INFANTRY'])], need=['WORLD EATERS'],
-          note='每回合最多啟動兩個祝福，使用者自己勾'),
-    ]),
+    # 000008428 Blessings of Khorne 寫在 WE.py
     # 000008396 Nurgle’s Gift 是死亡守衛的軍隊規則，寫在 DG.py
-    '000008424': dict(name='Cabal of Sorcerers', rules=[
-        R('Destiny’s Ruin', '軍隊規則', [T('Destiny’s Ruin', 'att', [('rr_hit', '1')], why='要儀式成功；10+ 可全部重骰')], need=['THOUSAND SONS']),
-        R('Twist of Fate', '軍隊規則', [T('Twist of Fate', 'att', [('ap', 1)], why='要儀式成功；12+ 為 AP+2')], need=['THOUSAND SONS']),
-        R('Doombolt', '軍隊規則', [T('Doombolt', 'att', [('mw', 2)], scope='ranged', why='要儀式成功；D3 致命傷（11+ 為 D3+3）')], need=['THOUSAND SONS']),
-    ]),
+    # 000008424 Cabal of Sorcerers 寫在 TS.py
 }
 
 DET = {
