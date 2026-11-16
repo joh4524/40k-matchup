@@ -73,6 +73,8 @@ ENH = {    # 強化：key = 強化英文名（照原文，不含括號）
 | Critical Wound on 5+（不限目標） | `('crit_wound', 5)` |
 | 武器得到 [LETHAL HITS]、[SUSTAINED HITS 1]、[DEVASTATING WOUNDS]、[IGNORES COVER]、[LANCE]、[ANTI-INFANTRY 4+]、[TWIN-LINKED]、[CLEAVE 1] | `('kw', 'LETHAL HITS')`、`('kw', 'SUSTAINED HITS 1')`、`('kw', 'ANTI-INFANTRY 4+')`…（ANTI 只限某目標時，關鍵字寫在 ANTI 裡就好） |
 | 可以無視命中／造傷／BS 的修正 | `('ign', 1)` |
+| 目標（敵人）T 減 1 | `('tgt_t', 1)` |
+| 目標（敵人）的 Save 變差 1（worsen the Save of enemy models） | `('ap', 1)`（效果一樣：都不影響無敵保護） |
 | 另外造成 D3 致命傷（每次這單位攻擊一輪） | `('mw', 2)`（填平均值：D3=2、D6=3.5；有擲骰門檻要乘機率，例：每個模型擲 D6、4+ 造成 1 致命傷 → 寫平均總數並在 why 說明） |
 
 被攻擊方（side='def'）：

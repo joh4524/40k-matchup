@@ -28,7 +28,7 @@ EXCL = re.compile(r"\(excluding ([A-Z][A-Z\- ]+?(?:,? (?:and|or) [A-Z][A-Z\- ]+?
 TKW = re.compile(r"targets (?:an? |one or more )?(?:enemy )?(?:unit that can )?((?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*)(?:,? (?:or|and) (?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*))*)")
 NAMES = dict(hit='命中', wound='造傷', rr_hit='命中重骰', rr_wound='造傷重骰', ap='AP', dmg='傷害', attacks='攻擊數', strength='S',
              crit_hit='爆擊命中', inv='無敵保護', fnp='FNP', half='傷害減半', cover='算有掩體',
-             crit_wound='爆擊造傷', skill='BS/WS 提升', sv='保護提升', sv3='保護提升（最多到 3+）')
+             crit_wound='爆擊造傷', skill='BS/WS 提升', sv='保護提升', sv3='保護提升（最多到 3+）', tgt_t='目標 T 降低')
 
 
 def clean(t):

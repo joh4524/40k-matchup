@@ -16,12 +16,7 @@ ARMY = {
         R('Decapitating Strikes', '軍隊規則', [T('Decapitating Strikes', 'att', [('kw', 'DEVASTATING WOUNDS')], scope='melee', tkw=['INFANTRY'])], need=['WORLD EATERS'],
           note='每回合最多啟動兩個祝福，使用者自己勾'),
     ]),
-    '000008396': dict(name='Nurgle’s Gift (Aura)', rules=[
-        R('Skullsquirm Blight', '軍隊規則', [
-            T('Skullsquirm Blight (ranged)', 'def', [('cover', 1)], scope='ranged', why='敵人在瘟疫範圍內且選此瘟疫'),
-            T('Skullsquirm Blight (melee)', 'def', [('hit', -1)], scope='melee', why='敵人在瘟疫範圍內且選此瘟疫'),
-        ], need=['DEATH GUARD'], note='戰前三選一瘟疫；T-1、其他瘟疫（降敵方存檔）程式沒算'),
-    ]),
+    # 000008396 Nurgle’s Gift 是死亡守衛的軍隊規則，寫在 DG.py
     '000008424': dict(name='Cabal of Sorcerers', rules=[
         R('Destiny’s Ruin', '軍隊規則', [T('Destiny’s Ruin', 'att', [('rr_hit', '1')], why='要儀式成功；10+ 可全部重骰')], need=['THOUSAND SONS']),
         R('Twist of Fate', '軍隊規則', [T('Twist of Fate', 'att', [('ap', 1)], why='要儀式成功；12+ 為 AP+2')], need=['THOUSAND SONS']),

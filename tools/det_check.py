@@ -29,7 +29,7 @@ sheets = [s for s in db.sheets.values() if s['faction'] == fid]
 kws = set().union(*[s['kw'] for s in sheets]) if sheets else set()
 names = [s['name'].lower() for s in sheets]
 
-ATT = {'hit', 'wound', 'ap', 'dmg', 'attacks', 'strength', 'rr_hit', 'rr_wound', 'crit_hit', 'crit_wound', 'ign', 'mw', 'rr1', 'kw', 'skill'}
+ATT = {'hit', 'wound', 'ap', 'dmg', 'attacks', 'strength', 'rr_hit', 'rr_wound', 'crit_hit', 'crit_wound', 'ign', 'mw', 'rr1', 'kw', 'skill', 'tgt_t'}
 DEF = {'hit', 'wound', 'ap', 'dmg', 'inv', 'fnp', 'half', 'cover', 'sv', 'sv3'}
 CONDS = {None, 'charge', 'half', 'still', 's_gt_t', 't_gt_t'}
 

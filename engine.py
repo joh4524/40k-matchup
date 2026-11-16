@@ -389,7 +389,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     """一把武器（一個模型拿的一把）對目標造成的期望傷數（已考慮保護、FNP、傷害不溢出、勾選的能力）"""
     tkw, ranged = tgt['kw'], not w['melee']
     kw = w['kw']
-    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, crit_wound=6, ign=0, mw=0, rr1=0, skill=0)
+    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, crit_wound=6, ign=0, mw=0, rr1=0, skill=0, tgt_t=0)
     for t in fx:
         if applies(t, w, tgt, opt, 0, aT):
             for k, v in t['effs']:
@@ -449,7 +449,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     to_wound = norm_h + crit_h * sus + (0 if lethal else crit_h)
     auto_w = crit_h if lethal else 0
     # 造傷
-    t = tgt['T']
+    t = max(1, tgt['T'] - am['tgt_t'])                # tgt_t：目標 T 降低（例：死亡守衛 Nurgle’s Gift 被感染的敵人 T−1）
     thr = 2 if s >= 2 * t else 3 if s > t else 4 if s == t else 6 if s * 2 <= t else 5
     wmod = (1 if (w['melee'] and opt.get('charge') and 'LANCE' in kw) else 0) + am['wound'] + dm['wound']
     wmod = max(0 if am['ign'] else -1, min(1, wmod))
@@ -1625,7 +1625,7 @@ def scenario(text_a, text_b, opt, db, sel):
         wg = tgts[n]['wgroups']
         tgts[n]['wgroups'] = [w + (w[5] + cv[gi][0] / max(1, w[0]),) if gi in cv else w for gi, w in enumerate(wg)]
         cvals.append([dict(name=b['units'][j]['groups'][gi]['name'], points=round(wg[gi][5] * wg[gi][0]), extra=round(x[0]), why='；'.join(x[1]))
-                      for gi, x in cv.items() if x[0] >= 0.5])
+                      for gi, x in sorted(cv.items(), key=lambda kv: -kv[1][0]) if x[0] >= 0.5])
     items = []                                          # 每把武器一項：(單位序號, 武器模式們, fx, 攻擊方 T)
     for i in atk:
         u = a['units'][i]
