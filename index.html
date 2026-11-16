@@ -87,14 +87,15 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611161415"></script>
+<script src="browser.js?v=202611161902"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
 const pct=v=>Math.round(v*100);
 // 打死幾隻的機率（2026-11-16）：每一格＝剛好死 k 隻，最高那格最深；滑過／點一下看數字
 const pctS=v=>v>=.995&&v<1?'>99':v>0&&v<.005?'<1':String(pct(v));
-function kbar(kd){if(!kd||kd.length<3)return'';      // 只有 1 隻的單位：分佈＝全滅機率，不重複畫const mx=Math.max(...kd),n=kd.length-1,mode=kd.indexOf(mx);
+// 只有 1 隻的單位：分佈＝全滅機率，不重複畫
+function kbar(kd){if(!kd||kd.length<3)return'';const mx=Math.max(...kd),n=kd.length-1,mode=kd.indexOf(mx);
   const atl=k=>kd.slice(k).reduce((a,b)=>a+b,0);
   const bars=kd.map((p,k)=>`<i title="剛好死 ${k} 隻：${pctS(p)}%｜至少 ${k} 隻：${pctS(atl(k))}%" style="flex:1;max-width:14px;min-width:2px;height:${Math.max(1,Math.round(p/mx*26))}px;background:var(--a);opacity:${k===mode?1:.45}"></i>`).join('');
   const half=kd.findIndex((p,k)=>atl(k+1)<.5);
@@ -102,12 +103,12 @@ function kbar(kd){if(!kd||kd.length<3)return'';      // 只有 1 隻的單位：
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function val(c){return mode==='shoot'?c[0]:mode==='melee'?c[1]:1-(1-c[0])*(1-c[1]);}
 function color(v){const h=v>=.5?140:v>=.25?75:v>=.1?45:0;return v<.03?'transparent':`hsl(${h} 70% ${88-v*28}%)`;}
-function matrix(title,cls,att,def,m,pm){
+function matrix(title,cls,att,def,m,pm,hz){
   let h=`<div class="card"><h2 class="${cls}">${title}</h2><div class="scroll"><table><thead><tr><th class="r">打的單位 ↓　目標 →</th>`;
   def.units.forEach(u=>h+=`<th>${esc(u.name)}<br><small>${u.points} 分</small></th>`);
   h+='</tr></thead><tbody>';
   att.units.forEach((u,i)=>{h+=`<tr><td class="r">${esc(u.name)} <small>${u.points}</small></td>`;
-    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%${c.length>2&&(pct(c[2])!==pct(c[0])||pct(c[3])!==pct(c[1]))?`（對方模型血量不一樣，這是對方接得好的數字；接得不好會到 射擊 ${pct(c[2])}%　近戰 ${pct(c[3])}%）`:''}">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
+    m[i].forEach((c,j)=>{const v=val(c),d=pm?pct(v)-pct(val(pm[i][j])):0;h+=`<td class="c${d?' chg':''}" style="background:${color(v)}" title="射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%" data-tip="${esc(u.name)} 打 ${esc(def.units[j].name)}：射擊 ${pct(c[0])}%　近戰 ${pct(c[1])}%${hz&&hz[i]&&(hz[i][j][0]||hz[i][j][1])?`（危險武器自傷：${hz[i][j][0]?`射擊約 ${hz[i][j][0]} 分`:''}${hz[i][j][0]&&hz[i][j][1]?'、':''}${hz[i][j][1]?`近戰約 ${hz[i][j][1]} 分`:''}）`:''}${c.length>2&&(pct(c[2])!==pct(c[0])||pct(c[3])!==pct(c[1]))?`（對方模型血量不一樣，這是對方接得好的數字；接得不好會到 射擊 ${pct(c[2])}%　近戰 ${pct(c[3])}%）`:''}">${v<.005&&!d?'<span class="mute">·</span>':pct(v)+'%'}${d?`<small>${d>0?'▲':'▼'}${Math.abs(d)}</small>`:''}</td>`});h+='</tr>'});
   return h+'</tbody></table></div></div>';
 }
 // 每個單位的完整資料（2026-11-15，使用者「你把所有單位的資料都加上」，讓使用者自己驗算）
@@ -140,7 +141,7 @@ function sideCard(s,cls,tag,sum,other,sk){
   let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
   <div class="kpi"><div><b>${s.points}</b><span>分</span></div><div><b>${s.units.length}</b><span>單位</span></div><div><b>${s.models}</b><span>模型</span></div>
   <div><b>${s.wounds}</b><span>總傷數</span></div><div><b>${s.oc}</b><span>總 OC</span></div>
-  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*</span></div></div>`;
+  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*${sum.shoot_haz?`<br>危險武器自傷 ${Math.round(sum.shoot_haz)}`:''}</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*${sum.melee_haz?`<br>危險武器自傷 ${Math.round(sum.melee_haz)}`:''}</span></div></div>`;
   if(sum.no_answer.length) h+=`<p><b>${tag} 難處理的對方單位</b>（沒有單位一輪能打掉 25%）：<br>${sum.no_answer.map(x=>`${esc(x.unit)} <small>最多 ${pct(x.best)}%</small>`).join('、')}</p>`;
   else h+=`<p class="mute">對方每個單位，${tag} 都有單位一輪能打掉 25% 以上。</p>`;
   if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
@@ -213,7 +214,7 @@ function valuesCard(tag,cls,list){
 function sideMini(s,cls,tag,sum){
   let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
   <div class="kpi"><div><b>${s.points}</b><span>分</span></div><div><b>${s.units.length}</b><span>單位</span></div><div><b>${s.wounds}</b><span>總傷數</span></div>
-  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*</span></div></div>`;
+  <div><b>${sum.shoot_pts}</b><span>射擊一輪殺分*${sum.shoot_haz?`<br>危險武器自傷 ${Math.round(sum.shoot_haz)}`:''}</span></div><div><b>${sum.melee_pts}</b><span>近戰一輪殺分*${sum.melee_haz?`<br>危險武器自傷 ${Math.round(sum.melee_haz)}`:''}</span></div></div>`;
   const on=(s.dets||[]).filter(d=>d.on).map(d=>d.name);
   if(on.length) h+=`<p class="mute" style="margin:6px 0 0">有算：${on.map(esc).join('、')}（到「規則和數據」改）</p>`;
   if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
@@ -274,7 +275,7 @@ function render(){
   <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
   ${valuesCard('A','la',R.values&&R.values.a)}${valuesCard('B','lb',R.values&&R.values.b)}
   ${seg}${note}
-  ${matrix('A 打 B','la',R.a,R.b,R.ab,pab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba)}`;
+  ${matrix('A 打 B','la',R.a,R.b,R.ab,pab,R.hz_ab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba,R.hz_ba)}`;
   $('out').innerHTML=tabs+body;
   $('upd').textContent='（更新到 '+R.data_updated+'）';
   document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',c.dataset.tip.length>80?9000:4000)});

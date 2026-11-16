@@ -556,8 +556,9 @@ def rr1_equiv(w, tgt, opt, fx, aT, cnt):
     return eq, exp * cnt / n
 
 
-def unit_damage(att, tgt, melee, opt, hi=False):
-    """整個單位打一輪（射擊或近戰）對目標的期望傷數。有「二選一」的規則（pick）時，每個選法都算一次取最好的。"""
+def unit_damage(att, tgt, melee, opt, hi=False, info=None):
+    """整個單位打一輪（射擊或近戰）對目標的期望傷數。有「二選一」的規則（pick）時，每個選法都算一次取最好的。
+    info（dict）：填 haz＝這輪開了幾把 [HAZARDOUS] 武器（2026-11-16 對戰總表也算危險武器自傷）"""
     sc = 'melee' if melee else 'ranged'
     picks = {}
     for g in att['groups']:
@@ -565,24 +566,35 @@ def unit_damage(att, tgt, melee, opt, hi=False):
             if t.get('pick') and t['scope'] in ('all', sc) and t['name'] not in picks.setdefault(t['pick'], []):
                 picks[t['pick']].append(t['name'])
     if not picks:
-        return _unit_damage(att, tgt, melee, opt, {}, hi)
+        return _unit_damage(att, tgt, melee, opt, {}, hi, info)
     ks = sorted(picks)
     combos = [{}]
     for k in ks:
         combos = [dict(c, **{k: n}) for c in combos for n in picks[k]]
-    return max(_unit_damage(att, tgt, melee, opt, c, hi) for c in combos)
+    best = None
+    for c in combos:
+        inf = {}
+        v = _unit_damage(att, tgt, melee, opt, c, hi, inf)
+        if best is None or v > best[0]:
+            best = (v, inf)
+    if info is not None:
+        info.update(best[1])
+    return best[0]
 
 
-def _unit_damage(att, tgt, melee, opt, chosen, hi=False):
+def _unit_damage(att, tgt, melee, opt, chosen, hi=False, info=None):
     total, extra, used = 0.0, 0.0, []
     sc = 'melee' if melee else 'ranged'
+    # 危險武器的代價換算成目標的傷數（每把一次危險骰的平均損失分數 ÷ 目標每點傷值幾分）；挑模式時扣掉
+    hw = haz_pts(att) / max(1e-9, tgt.get('points', 0) / max(1, tgt['wounds'])) if tgt.get('points') else 0.0
+    nhaz = 0
     for g in att['groups']:
         fx = [t for t in g.get('fx', ()) if not t.get('pick') or chosen.get(t['pick']) == t['name']]
         entries = []                                   # (每把期望傷數, 幾把, 武器)
         for cnt, profs in g['weapons']:
             ps = [p for p in profs if p['melee'] == melee]
             if ps:
-                best = max(ps, key=lambda p: weapon_damage(p, tgt, opt, fx, g['model']['T']))
+                best = max(ps, key=lambda p: weapon_damage(p, tgt, opt, fx, g['model']['T']) - (hw if 'HAZARDOUS' in p['kw'] else 0))
                 entries.append((weapon_damage(best, tgt, opt, fx, g['model']['T']), cnt, best))
         # 「另外造成致命傷」「重骰一顆骰」：整個單位一次，不是每把武器
         mw = rr1 = 0
@@ -620,7 +632,10 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False):
             b = [e for e in entries if pistol(e[2])]
             chosen_e = a + b if g['big'] else max(a, b, key=lambda es: sum(d * c for d, c, w in es))  # 非怪獸／載具：手槍和其他槍二選一
         total += sum(d * c for d, c, w in chosen_e)
+        nhaz += sum(c for d, c, w in chosen_e if 'HAZARDOUS' in w['kw'])
         used += [(w, c, fx, g['model']['T']) for d, c, w in chosen_e]
+    if info is not None:
+        info['haz'] = nhaz
     if used and needs_alloc(tgt, used, opt):
         total = alloc_best(tgt, used, opt, hi)
     return min(total + extra, tgt['wounds'])
@@ -1251,7 +1266,7 @@ def option_values(me, foe, opt, db):
 
 def target_of(u):
     m = u['main']
-    return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()),
+    return dict(T=m['T'], Sv=m['Sv'], inv=m['inv'], W=m['W'], fnp=u['fnp'], stealth=u['stealth'], kw=u['kw'], dfx=u.get('dfx', ()), points=u['points'],
                 models=sum(g['count'] for g in u['groups']), wounds=sum(g['count'] * g['model']['W'] for g in u['groups']),
                 wgroups=[(g['count'], g['model']['W'], g['src'] in u.get('leaders', ()), g['model']['Sv'], g['model']['inv'], g.get('pts_each', 0)) for g in u['groups']],
                 gnames=[g['name'] for g in u['groups']])
@@ -1268,25 +1283,30 @@ def describe(u):
                 info=u.get('info', []), stealth=u['stealth'])
 
 
-def matrix(a, b, opt):
-    """a 的每個單位打 b 的每個單位：[射擊比例, 近戰比例]（0~1，佔目標總傷數）"""
+def matrix(a, b, opt, hz=None):
+    """a 的每個單位打 b 的每個單位：[射擊比例, 近戰比例]（0~1，佔目標總傷數）。
+    hz（list）：填每格 [射擊自傷分, 近戰自傷分]（危險武器，2026-11-16）"""
     rows = []
     for x in a['units']:
-        row = []
+        row, hrow, hp = [], [], haz_pts(x)
         for y in b['units']:
             t = target_of(y)
             w = t['wounds'] or 1
-            cell = [round(unit_damage(x, t, False, opt) / w, 3), round(unit_damage(x, t, True, opt) / w, 3)]
+            i1, i2 = {}, {}
+            cell = [round(unit_damage(x, t, False, opt, info=i1) / w, 3), round(unit_damage(x, t, True, opt, info=i2) / w, 3)]
+            hrow.append([round(i1.get('haz', 0) * hp, 1), round(i2.get('haz', 0) * hp, 1)])
             if len({g[1] for g in t['wgroups'] if not g[2]}) > 1:     # 非角色的模型 W 不只一種時，防守方怎麼接才有差
                 cell += [round(unit_damage(x, t, False, opt, True) / w, 3), round(unit_damage(x, t, True, opt, True) / w, 3)]   # 防守方接得差時
             row.append(cell)
         rows.append(row)
+        if hz is not None:
+            hz.append(hrow)
     return rows
 
 
-def summary(a, b, m):
-    """a 打 b 的摘要。m = matrix(a, b)"""
-    s = dict(shoot_pts=0, melee_pts=0, no_answer=[], best=[])
+def summary(a, b, m, hz=None):
+    """a 打 b 的摘要。m = matrix(a, b)；hz＝危險武器自傷分（matrix 填的）"""
+    s = dict(shoot_pts=0, melee_pts=0, no_answer=[], best=[], shoot_haz=0.0, melee_haz=0.0)
     bp = [u['points'] for u in b['units']]
     for i, x in enumerate(a['units']):
         if not b['units']:
@@ -1295,12 +1315,16 @@ def summary(a, b, m):
         me = max(range(len(bp)), key=lambda j: m[i][j][1] * bp[j])
         s['shoot_pts'] += m[i][sh][0] * bp[sh]
         s['melee_pts'] += m[i][me][1] * bp[me]
+        if hz:
+            s['shoot_haz'] += hz[i][sh][0]
+            s['melee_haz'] += hz[i][me][1]
         s['best'].append(dict(unit=x['name'], shoot=b['units'][sh]['name'], shoot_pts=round(m[i][sh][0] * bp[sh]), melee=b['units'][me]['name'], melee_pts=round(m[i][me][1] * bp[me])))
     for j, y in enumerate(b['units']):
         top = max((1 - (1 - m[i][j][0]) * (1 - m[i][j][1]) for i in range(len(a['units']))), default=0)
         if top < 0.25:
             s['no_answer'].append(dict(unit=y['name'], best=round(top, 2)))
     s['shoot_pts'], s['melee_pts'] = round(s['shoot_pts']), round(s['melee_pts'])
+    s['shoot_haz'], s['melee_haz'] = round(s['shoot_haz'], 1), round(s['melee_haz'], 1)
     return s
 
 
@@ -1350,14 +1374,15 @@ def compare(text_a, text_b, opt, db):
     resolve(b, over.get('b') or {})
     apply_dets(a, over.get('a') or {}, db)
     apply_dets(b, over.get('b') or {}, db)
-    ab, ba = matrix(a, b, opt), matrix(b, a, opt)
+    hab, hba = [], []
+    ab, ba = matrix(a, b, opt, hab), matrix(b, a, opt, hba)
     vals = dict(a=option_values(a, b, opt, db), b=option_values(b, a, opt, db)) if opt.get('values') else None
 
     def side(l):
         us = [describe(u) for u in l['units']]
         return dict(name=l['name'], faction=l['faction'], points=l['points'], units=us, unknown=l['unknown'], warn=l.get('warn', []), notes=l['notes'], dets=l.get('dets', []),
                     oc=sum(u['OC'] for u in us), wounds=sum(u['wounds'] for u in us), models=sum(u['models'] for u in us))
-    return dict(a=side(a), b=side(b), ab=ab, ba=ba, sum_ab=summary(a, b, ab), sum_ba=summary(b, a, ba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated, values=vals)
+    return dict(a=side(a), b=side(b), ab=ab, ba=ba, hz_ab=hab, hz_ba=hba, sum_ab=summary(a, b, ab, hab), sum_ba=summary(b, a, ba, hba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated, values=vals)
 
 
 # ---------- 英文軍表 → 中文（2026-11-15，使用者「英文軍表翻譯成中文」）----------
