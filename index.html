@@ -87,11 +87,18 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611161335"></script>
+<script src="browser.js?v=202611161415"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
 const pct=v=>Math.round(v*100);
+// 打死幾隻的機率（2026-11-16）：每一格＝剛好死 k 隻，最高那格最深；滑過／點一下看數字
+const pctS=v=>v>=.995&&v<1?'>99':v>0&&v<.005?'<1':String(pct(v));
+function kbar(kd){if(!kd||kd.length<3)return'';      // 只有 1 隻的單位：分佈＝全滅機率，不重複畫const mx=Math.max(...kd),n=kd.length-1,mode=kd.indexOf(mx);
+  const atl=k=>kd.slice(k).reduce((a,b)=>a+b,0);
+  const bars=kd.map((p,k)=>`<i title="剛好死 ${k} 隻：${pctS(p)}%｜至少 ${k} 隻：${pctS(atl(k))}%" style="flex:1;max-width:14px;min-width:2px;height:${Math.max(1,Math.round(p/mx*26))}px;background:var(--a);opacity:${k===mode?1:.45}"></i>`).join('');
+  const half=kd.findIndex((p,k)=>atl(k+1)<.5);
+  return `<div class="kbar" style="display:flex;align-items:flex-end;gap:1px;height:28px;margin:4px 0 0;justify-content:center">${bars}</div><small class="mute" style="display:block;white-space:nowrap">0～${n} 隻｜最可能 ${mode} 隻（${pctS(mx)}%）${n>1?`<br>至少 1 隻 ${pctS(atl(1))}%${half>1&&half<n?`、至少 ${half} 隻 ${pctS(atl(half))}%`:''}`:''}</small>`;}
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function val(c){return mode==='shoot'?c[0]:mode==='melee'?c[1]:1-(1-c[0])*(1-c[1]);}
 function color(v){const h=v>=.5?140:v>=.25?75:v>=.1?45:0;return v<.03?'transparent':`hsl(${h} 70% ${88-v*28}%)`;}
@@ -137,6 +144,7 @@ function sideCard(s,cls,tag,sum,other,sk){
   if(sum.no_answer.length) h+=`<p><b>${tag} 難處理的對方單位</b>（沒有單位一輪能打掉 25%）：<br>${sum.no_answer.map(x=>`${esc(x.unit)} <small>最多 ${pct(x.best)}%</small>`).join('、')}</p>`;
   else h+=`<p class="mute">對方每個單位，${tag} 都有單位一輪能打掉 25% 以上。</p>`;
   if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
+  if((s.warn||[]).length) h+=`<p class="warn">⚠️ ${s.warn.map(esc).join('<br>⚠️ ')}</p>`;
   h+=`<details><summary>單位數值（${s.units.length}）</summary><div class="scroll"><table><thead><tr><th class="r">單位</th><th>分</th><th>模型</th><th>M</th><th>T</th><th>Sv</th><th>無敵</th><th>W</th><th>FNP</th><th>OC</th><th style="max-width:none">算進去的武器</th></tr></thead><tbody>`;
   s.units.forEach(u=>h+=`<tr><td class="r">${esc(u.name)}</td><td>${u.points}</td><td>${u.models}</td><td>${u.M}"</td><td>${u.T}</td><td>${u.Sv}+</td><td>${u.inv?u.inv+'+':'-'}</td><td>${u.W}</td><td>${u.fnp?u.fnp+'+':'-'}</td><td>${u.OC}</td><td style="text-align:left">${u.weapons.map(esc).join('、')}</td></tr>`);
   h+='</tbody></table></div></details>';
@@ -209,6 +217,7 @@ function sideMini(s,cls,tag,sum){
   const on=(s.dets||[]).filter(d=>d.on).map(d=>d.name);
   if(on.length) h+=`<p class="mute" style="margin:6px 0 0">有算：${on.map(esc).join('、')}（到「規則和數據」改）</p>`;
   if(s.unknown.length) h+=`<p class="warn">找不到資料、沒算進去的單位：${s.unknown.map(esc).join('、')}</p>`;
+  if((s.warn||[]).length) h+=`<p class="warn">⚠️ ${s.warn.map(esc).join('<br>⚠️ ')}</p>`;
   return h+'</div>';
 }
 // 單位測試（2026-11-15，使用者：「兩隊終結者可以射擊 對面是太陽領主和科技技師 我要怎麼分槍」）
@@ -223,10 +232,10 @@ function testCard(){
   <p><button id="scgo">幫我分槍</button> <small class="mute">每把武器都可以分開打不同目標。程式找「平均打死的分數」最多的分法：打殘沒死的幾乎不算分，所以會傾向集火確保打死。上面的半射程、掩體、衝鋒、沒移動選項都會套用。</small></p><div id="scmsg" class="err"></div></div>`;
   if(SR&&!SR.error){
     h+=`<div class="card"><h2>建議分法（${SR.goal==='wipe'?'確保滅隊':'平均打死最多分'}）：平均打死 ${SR.total} 分，對面反打殺我 ${SR.back} 分${SR.hazard?`，危險武器自傷 ${SR.hazard} 分`:''}，淨賺 <b>${SR.net}</b> 分</h2>${SR.hazard?`<p class="note" style="margin:4px 0 8px">危險武器（[HAZARDOUS]，例如電漿超載）：每把開過火擲一次，1～2 這隊吃 1 點致命傷（全是載具／怪獸吃 3 點）。程式只在多打的比自傷划算時才開。</p>`:''}<div class="scroll"><table class="thr"><thead><tr><th class="r">出手單位</th><th style="max-width:none">武器</th><th>幾把</th><th class="r">打誰</th></tr></thead><tbody>${SR.plan.map(p=>`<tr><td class="r" data-l="出手單位"><span>${esc(p.unit)}</span></td><td data-l="武器">${esc(p.weapon)}</td><td data-l="幾把">${p.n}</td><td class="r" data-l="打誰"><span>${esc(p.target)}</span></td></tr>`).join('')}</tbody></table></div>
-    <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>平均死幾隻</th><th>平均打死的分數</th><th>它反打殺我<br><small>剩下的部分／滿編</small></th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}${t.buff?`<br><small>角色能力：這隊每輪多殺 ${t.buff} 分</small>`:''}${(t.cvals||[]).length?`<br><small>防守方心裡的價值：${t.cvals.map(c=>`${esc(c.name)} ${c.points}＋${c.extra}（${esc(c.why)}）`).join('、')}</small>`:''}${(t.order||[]).length>1?`<br><small>接傷順序：${t.order.map(esc).join(' → ')}</small>`:''}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻">${t.dead} / ${t.models}</td><td data-l="打死的分數">${t.value}</td><td data-l="它反打殺我">${t.back} <small>／${t.back_full}</small></td></tr>`).join('')}</tbody></table></div>
+    <h2 style="margin-top:10px">每個目標的結果</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">目標</th><th>分數</th><th>打死機率<br><small>整隊全滅</small></th><th>死幾隻<br><small>平均／機率分佈</small></th><th>平均打死的分數</th><th>它反打殺我<br><small>剩下的部分／滿編</small></th></tr></thead><tbody>${SR.targets.map(t=>`<tr><td class="r" data-l="目標"><span>${esc(t.name)}${t.buff?`<br><small>角色能力：這隊每輪多殺 ${t.buff} 分</small>`:''}${(t.cvals||[]).length?`<br><small>防守方心裡的價值：${t.cvals.map(c=>`${esc(c.name)} ${c.points}＋${c.extra}（${esc(c.why)}）`).join('、')}</small>`:''}${(t.gdead||[]).length>1?`<br><small>接傷順序（整組被打光的機率）：${t.gdead.map(g=>`${esc(g.name)}${g.n>1?`×${g.n}`:''} ${pctS(g.p)}%`).join(' → ')}</small>`:''}</span></td><td data-l="分數">${t.points}</td><td data-l="全滅機率"><b>${pct(t.p_wipe)}%</b></td><td data-l="平均死幾隻"><span>${t.dead} / ${t.models}${kbar(t.kdist)}</span></td><td data-l="打死的分數">${t.value}</td><td data-l="它反打殺我">${t.back} <small>／${t.back_full}</small></td></tr>`).join('')}</tbody></table></div>
     ${SR.kaptaris||(SR.defense&&SR.defense.length)?`<h2 style="margin-top:10px">反打時我方的防守</h2><ul>${SR.kaptaris?`<li>改用 <b>Kaptaris</b>（這個近戰階段被打 -1 命中，不能同時用攻擊的 Ka'tah）：打死 ${SR.kaptaris.total}、被反打 ${SR.kaptaris.back}、淨賺 <b>${SR.kaptaris.net}</b>（用攻擊招是淨賺 ${SR.net}）→ ${SR.kaptaris.net>SR.net?'<b>這場用 Kaptaris 比較好</b>':'還是用攻擊招比較好'}</li>`:''}${(SR.defense||[]).map(d=>`<li>${esc(d.name)}（${esc(d.cp)}CP）：用在 ${esc(d.unit)}、擋 ${esc(d.vs)} 的反打，少被殺 <b>${d.save}</b> 分${d.cp?'，每 CP '+Math.round(d.save/(+d.cp||1)):''}</li>`).join('')}</ul>`:''}
     ${SR.save_once?`<p class="note" style="margin:8px 0 0">這次用了每場一次的：<b>${SR.save_once.names.map(esc).join('、')}</b>。省下來不用的話：平均打死 ${SR.save_once.total} 分（${SR.save_once.targets.map(t=>`${esc(t.name)} 全滅 ${pct(t.p_wipe)}%`).join('；')}）。</p>`:''}
-    <h2 style="margin-top:10px">對照：全部集火同一個目標</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">全部打</th><th>全滅機率</th><th>平均死幾隻</th><th>平均打死的分數</th><th>對面反打</th><th>淨賺</th></tr></thead><tbody>${SR.focus.map(f=>`<tr><td class="r" data-l="全部打"><span>${esc(f.name)}</span></td><td data-l="全滅機率"><b>${pct(f.p_wipe)}%</b></td><td data-l="平均死幾隻">${f.dead} / ${f.models}</td><td data-l="打死的分數">${f.value}</td><td data-l="對面反打">${f.back}</td><td data-l="淨賺"><b>${f.net}</b>${f.hazard?`<br><small>含自傷 ${f.hazard}</small>`:''}</td></tr>`).join('')}</tbody></table></div>
+    <h2 style="margin-top:10px">對照：全部集火同一個目標</h2><div class="scroll"><table class="thr"><thead><tr><th class="r">全部打</th><th>全滅機率</th><th>死幾隻<br><small>平均／機率分佈</small></th><th>平均打死的分數</th><th>對面反打</th><th>淨賺</th></tr></thead><tbody>${SR.focus.map(f=>`<tr><td class="r" data-l="全部打"><span>${esc(f.name)}</span></td><td data-l="全滅機率"><b>${pct(f.p_wipe)}%</b></td><td data-l="平均死幾隻"><span>${f.dead} / ${f.models}${kbar(f.kdist)}</span></td><td data-l="打死的分數">${f.value}</td><td data-l="對面反打">${f.back}</td><td data-l="淨賺"><b>${f.net}</b>${f.hazard?`<br><small>含自傷 ${f.hazard}</small>`:''}</td></tr>`).join('')}</tbody></table></div>
     <p class="mute" style="margin:6px 0 0">反打：每個目標剩下的部分（照死掉的比例扣）打回來，挑我方出手單位裡它打最痛的那隊。近戰＝同一個近戰階段打回來；射擊＝對面下一回合射擊加近戰。沒被打的目標全力反打。程式找的是「淨賺」最多的分法。</p>
     ${SR.char_note?`<p class="mute" style="margin:6px 0 0">角色一定最後才接傷，所以「殺掉角色」＝「整隊滅掉」。角色之間誰先接由防守方挑：程式用「單位價值」比＝分數＋角色能力一輪值多少分（帶隊能力讓隊友多殺／少被殺幾分；星界軍軍官的命令＝少了他全軍少賺幾分），寧可先送血包、不讓重要的角色被打殘。「平均打死的分數」照舊只算分數。角色的價值常常不只它的分數：程式會算角色給的能力讓那隊每輪多殺幾分。選「確保滅隊」時，每隊的價值＝分數＋2 輪的角色能力價值（假設還剩 2 輪）。光環給別隊的、防守用的能力還沒算進去。</p>`:''}</div>`;
   }
