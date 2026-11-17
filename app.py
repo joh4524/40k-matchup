@@ -32,7 +32,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, {"error": "forbidden"})
         if self.path in ("/", "/index.html"):
             return self.reply(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
-        if self.path.split("?")[0] == "/meta.json" and (HERE / "meta" / "meta.json").exists():   # GT 前段代表表（tools/meta_build.py；只在這台，不進 git）
+        if self.path.split("?")[0] == "/meta/meta.json" and (HERE / "meta" / "meta.json").exists():   # GT 前段代表表（tools/meta_build.py）
             return self.reply(200, (HERE / "meta" / "meta.json").read_bytes())
         self.reply(404, {"error": "not found"})
 

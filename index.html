@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611171119"></script>
+<script src="browser.js?v=202611171125"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -261,7 +261,7 @@ async function runDetCmp(side){
   }catch(e){DC[side]={error:'算不出來：'+e.message}}
   DCrun[side]='';render();
 }
-// GT 前段代表表（2026-11-17）：只有家裡那台伺服器有 meta.json（tools/meta_build.py 產生，資料來自 listhammer.info）；公開版抓不到就不顯示
+// GT 前段代表表（2026-11-17）：meta/meta.json（tools/meta_build.py 產生，資料來自 listhammer.info，使用者 11/17 同意放公開版）；抓不到就不顯示
 let META=null;
 const MW={rows:null,run:''};
 function metaCredit(b){return `代表表：${esc(b.player)}，${esc(b.event)}（${esc(b.date)}，${esc(b.result)}）。同組 ${b.n} 張、合計 ${esc(b.record)}。資料來源 <a href="${META.source}" target="_blank" rel="noopener">listhammer.info</a>（${esc(META.updated)} 更新）`}
@@ -271,7 +271,7 @@ function metaPick(key,run){
   if(run) go();
 }
 async function loadMeta(){
-  try{const r=await fetch('meta.json',{cache:'no-store'});if(!r.ok)return;META=await r.json()}catch(e){META=null;return}
+  try{const r=await fetch('meta/meta.json',{cache:'no-store'});if(!r.ok)return;META=await r.json()}catch(e){META=null;return}
   if(!META||!META.factions||!META.factions.length){META=null;return}
   const s=$('metasel');
   let h='<option value="">從 GT 前段（全勝／只輸一場）的代表表選對手…</option>';
