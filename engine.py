@@ -1466,6 +1466,55 @@ def compare(text_a, text_b, opt, db):
     return dict(a=side(a), b=side(b), ab=ab, ba=ba, hz_ab=hab, hz_ba=hba, sum_ab=summary(a, b, ab, hab), sum_ba=summary(b, a, ba, hba), thr_a=threats(a, b, ab, ba), thr_b=threats(b, a, ba, ab), data_updated=db.updated, values=vals)
 
 
+
+def det_compare(text_a, text_b, opt, db, det=None, base=None):
+    """把 A 陣營的每個分隊各開一次（其他分隊都關、軍隊規則照使用者勾的），跟「不開分隊」比
+    （2026-11-17 使用者：禁軍 15 個分隊的表「完善到網頁」）。
+    回傳 base＝不開分隊的總表殺分／被殺分；rows＝每個分隊：總表殺分（只算一直有效的規則）、被殺分、每條規則和戰略值多少（option_values，條件當作成立）。
+    det='list'：只算 base 和分隊清單；det=分隊 id：只算那一個分隊（網頁一個一個要，公開版瀏覽器才不會卡住太久）。"""
+    over = dict((opt.get('abil') or {}).get('a') or {})
+    ob = (opt.get('abil') or {}).get('b') or {}
+    a0 = parse_list(text_a, db)
+    dets = [d for d in db.dets.get(a0.get('fid'), [])]
+    if not dets:
+        return dict(error='讀不出 A 是哪個陣營，或這個陣營沒有分隊資料')
+    keys = ['D|' + d['id'] for d in dets]
+
+    def run(det_id, values):
+        oa = dict(over, **{k: (k == 'D|' + str(det_id)) for k in keys})
+        a, b = parse_list(text_a, db), parse_list(text_b, db)
+        resolve(a, over)
+        resolve(b, ob)
+        apply_dets(a, oa, db)
+        apply_dets(b, ob, db)
+        dd = next((d for d in a.get('dets', []) if d['id'] == det_id), None)
+        if dd is not None and not any(r['on'] for r in dd.get('rules', [])):
+            row = dict(base)                            # 這個分隊沒有一直有效（或使用者勾了）的規則：總表跟不開分隊一樣，省掉重算
+        else:
+            hab, hba = [], []
+            ab, ba = matrix(a, b, opt, hab), matrix(b, a, opt, hba)
+            s1, s2 = summary(a, b, ab, hab), summary(b, a, ba, hba)
+            row = dict(kill_s=s1['shoot_pts'], kill_m=s1['melee_pts'], lost_s=s2['shoot_pts'], lost_m=s2['melee_pts'])
+        if values:
+            name = next((d['name'] for d in a.get('dets', []) if d['id'] == det_id), '')
+            row['vals'] = [dict(name=v['name'], kind=v['kind'], cp=v['cp'], on=v['on'], gain=v['gain'], per_cp=v['per_cp'],
+                                best=v['units'][0]['unit'] if v['units'] else '') for v in option_values(a, b, opt, db) if v['det'] == name]
+            row['n_rules'] = next((len(d.get('rules', [])) for d in a.get('dets', []) if d['id'] == det_id), 0)
+            row['unread'] = next((d.get('unread', 0) for d in a.get('dets', []) if d['id'] == det_id), 0)
+        return row
+    base = base if isinstance(base, dict) and base else run(None, False)   # 網頁一個一個分隊要的時候，把第一次算的 base 傳回來，不用每次重算
+    if det == 'list':
+        return dict(faction=a0.get('faction', ''), name=a0.get('name', ''), base=base,
+                    dets=[dict(id=d['id'], name=d['name']) for d in dets])
+    rows = []
+    for d in dets:
+        if det is not None and d['id'] != det:
+            continue
+        r = run(d['id'], True)
+        r.update(id=d['id'], name=d['name'], on_now=bool(over.get('D|' + d['id'], d['id'] in a0.get('det_auto', []))))
+        rows.append(r)
+    return dict(faction=a0.get('faction', ''), name=a0.get('name', ''), base=base, rows=rows)
+
 # ---------- 英文軍表 → 中文（2026-11-15，使用者「英文軍表翻譯成中文」）----------
 # 單位名用官方點數網站的中文（跟 App 中文版一樣，簡體）；武器和模型名用 zh_glossary／官方點數頁對得到的，對不到的保留英文。
 # 分類標題只翻 App 中文匯出裡看過的寫法，沒看過的不自己編。
@@ -2019,4 +2068,10 @@ def api(req, db):
     opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values')}
     ab = ro.get('abil') or {}
     opt['abil'] = {sd: {str(k): bool(v) for k, v in (ab.get(sd) or {}).items()} for sd in ('a', 'b')}
+    if req.get('detcmp') in ('a', 'b'):                  # 「比較所有分隊」（2026-11-17）：B 的就把兩張表對調
+        ta, tb = str(req.get('a', '')), str(req.get('b', ''))
+        if req['detcmp'] == 'b':
+            ta, tb = tb, ta
+            opt['abil'] = dict(a=opt['abil']['b'], b=opt['abil']['a'])
+        return dict(det_compare(ta, tb, opt, db, req.get('det'), req.get('base')), side=req['detcmp'])
     return compare(str(req.get('a', '')), str(req.get('b', '')), opt, db)

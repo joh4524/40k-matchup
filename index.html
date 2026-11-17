@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611171054"></script>
+<script src="browser.js?v=202611171105"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -210,6 +210,57 @@ function valuesCard(tag,cls,list){
   list.forEach(v=>{h+=`<tr><td class="r" data-l="選項"><span>${esc(v.name)}<br><small class="mute">${esc(v.det)}${v.on?'｜現在有算':''}</small></span></td><td data-l="種類">${esc(v.kind)}${v.cp?' '+v.cp+'CP':''}</td><td data-l="值"><b>${v.gain}</b></td><td data-l="每 CP">${v.per_cp??'-'}</td><td data-l="最適合的單位" style="text-align:left"><span>${v.units.length?v.units.slice(0,3).map(x=>`${esc(x.unit)} <small>${x.off?'+'+x.off+' 殺':''}${x.off&&x.deff?'、':''}${x.deff?'少被殺 '+x.deff:''}</small>`).join('<br>'):'<span class="mute">這場沒有用處</span>'}</span></td></tr>`});
   return h+`</tbody></table></div><small>戰略＝只用在一個單位，值是用在最適合的那隊；規則＝所有符合的單位一起有，值是加總。射擊：多殺＝那隊射最賺的目標多殺的分數，少被殺＝對面射它最痛的一隊少殺的分數。近戰照「我方衝鋒先打、對面剩下的才打回來」算：多殺的分數，加上因為對面剩得少（或防守招）少被打回來的分數。被對面衝鋒的情況沒算。Ka'tah 每招分開算（每隊每輪只能用一招），Superhuman Focus 是讓同一隊再多用一招。Challenger 戰略要分數落後才能用。條件（目標點上、低於半數等）都當作成立。</small></div>`;
 }
+// 「比較所有分隊」（2026-11-17）：一個分隊一個分隊向計算程式要，顯示進度；公開版在瀏覽器裡算，才不會一次卡住太久
+const DC={a:null,b:null},DCrun={a:'',b:''};
+function detCmpCard(tag,cls,side){
+  const d=DC[side];
+  const head=`<div class="card"><h2 class="${cls}">${tag} 所有分隊比較</h2>`;
+  if(!d||d.running){
+    const btn=DCrun[side]?`<button disabled>計算中…</button> <small>${esc(DCrun[side])}</small>`:`<button id="dc_${side}">比較 ${tag} 的所有分隊</button> <small class="mute">陣營分隊多的要算一兩分鐘（公開版更久）。</small>`;
+    return head+`<p>把 ${tag} 陣營的每個分隊各開一次（其他分隊都關掉），看總表殺分怎麼變、每條規則和戰略值多少。對手是另一張表；條件（目標點上、低於半數等）當作成立。<br>${btn}</p></div>`;
+  }
+  if(d.error) return head+`<p class="mute">${esc(d.error)}</p><p><button id="dc_${side}">重算</button></p></div>`;
+  const b=d.base,sgn=x=>x>0?'+'+x:''+x;
+  const rows=d.rows.map(r=>{
+    const vs=r.vals||[];
+    const on=vs.filter(v=>v.kind!=='戰略'&&v.on),cond=vs.filter(v=>v.kind!=='戰略'&&!v.on),st=vs.filter(v=>v.kind==='戰略');
+    return Object.assign({},r,{on,cond,st,score:on.reduce((x,v)=>x+v.gain,0),top:Math.max(0,...vs.map(v=>v.gain))});
+  });
+  rows.sort((x,y)=>y.score-x.score||y.top-x.top);
+  const li=(vs,isSt)=>vs.length?vs.slice().sort((x,y)=>y.gain-x.gain).map(v=>`${esc(v.name)} <b>${v.gain?'+'+v.gain:'0'}</b>${isSt&&v.cp?` <small>${v.cp}CP${v.per_cp!=null?'，每 CP '+v.per_cp:''}</small>`:''}${v.best&&v.gain?`<br><small class="mute">${esc(v.best)}</small>`:''}`).join('<br>'):'<span class="mute">—</span>';
+  let h=head+`<p style="margin:4px 0 8px">${esc(d.faction)}，對手是另一張表。不開分隊時：射擊一輪殺 ${b.kill_s} 分、近戰 ${b.kill_m} 分；被射 ${b.lost_s} 分、被近戰 ${b.lost_m} 分。</p><div class="scroll"><table class="thr"><thead><tr><th class="r">分隊</th><th>總表變化<br><small>殺分 射／近；被殺</small></th><th style="min-width:180px">一直有效的規則</th><th style="min-width:180px">有條件的規則</th><th style="min-width:200px">戰略</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const ds=r.kill_s-b.kill_s,dm=r.kill_m-b.kill_m,dl=(r.lost_s+r.lost_m)-(b.lost_s+b.lost_m);
+    const chg=ds||dm||dl?`射 ${sgn(ds)}／近 ${sgn(dm)}${dl?`<br>被殺 ${sgn(dl)}`:''}`:'<span class="mute">不變</span>';
+    h+=`<tr><td class="r" data-l="分隊"><span>${esc(r.name)}${r.on_now?'<br><small>（表上用的）</small>':''}${r.unread?`<br><small class="mute">另有 ${r.unread} 條沒算</small>`:''}</span></td><td data-l="總表變化">${chg}</td><td data-l="一直有效" style="text-align:left"><span>${li(r.on,false)}</span></td><td data-l="有條件" style="text-align:left"><span>${li(r.cond,false)}</span></td><td data-l="戰略" style="text-align:left"><span>${li(r.st,true)}</span></td></tr>`;
+  });
+  return h+`</tbody></table></div><small>值＝一輪多殺的分＋少被殺的分。規則＝所有符合的單位加總；戰略＝用在最划算的一隊（灰色小字）。「總表變化」只算一直有效的規則。近戰照上面「近戰是衝鋒」的勾選算。另有幾條沒算＝原文有、但不影響傷害或程式算不了的規則和戰略。排序：一直有效的規則加總大的在前。</small><p><button id="dc_${side}">重算</button></p></div>`;
+}
+async function dcCall(req){
+  if(window.localCalc) return await localCalc(req,()=>{});
+  const r=await fetch('/api/calc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(req)});
+  const j=await r.json();
+  if(!r.ok) throw new Error(j.error||r.status);
+  return j;
+}
+async function runDetCmp(side){
+  const a=$('a').value,b=$('b').value,opt={abil:over};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
+  const tick=()=>new Promise(r=>setTimeout(r,30));
+  DC[side]={running:true};DCrun[side]='讀分隊清單…';render();await tick();
+  try{
+    const L=await dcCall({a,b,opt,detcmp:side,det:'list'});
+    if(L.error) throw new Error(L.error);
+    const rows=[];
+    for(let i=0;i<L.dets.length;i++){
+      DCrun[side]=`${i+1}／${L.dets.length}：${L.dets[i].name}`;render();await tick();
+      const j=await dcCall({a,b,opt,detcmp:side,det:L.dets[i].id,base:L.base});
+      if(j.error) throw new Error(j.error);
+      rows.push(...j.rows);
+    }
+    DC[side]={faction:L.faction,base:L.base,rows};
+  }catch(e){DC[side]={error:'算不出來：'+e.message}}
+  DCrun[side]='';render();
+}
 // 總覽用的精簡版：只有分數和警告
 function sideMini(s,cls,tag,sum){
   let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
@@ -274,6 +325,7 @@ function render(){
   else body=`<div class="grid">${sideCard(R.a,'la','A',R.sum_ab,R.b,'a')}${sideCard(R.b,'lb','B',R.sum_ba,R.a,'b')}</div>
   <p class="mute" style="font-size:12px;margin-top:-4px">* 殺分：每個單位都打自己最賺的那個目標，加起來的平均殺分。同一個目標會被重複算，只能拿來比兩邊大小。</p>
   ${valuesCard('A','la',R.values&&R.values.a)}${valuesCard('B','lb',R.values&&R.values.b)}
+  ${detCmpCard('A','la','a')}${detCmpCard('B','lb','b')}
   ${seg}${note}
   ${matrix('A 打 B','la',R.a,R.b,R.ab,pab,R.hz_ab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba,R.hz_ba)}`;
   $('out').innerHTML=tabs+body;
@@ -281,6 +333,7 @@ function render(){
   document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',c.dataset.tip.length>80?9000:4000)});
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('button[id^="wv_"]').forEach(b=>b.onclick=()=>{window.wantVals=true;go()});
+  document.querySelectorAll('button[id^="dc_"]').forEach(b=>b.onclick=()=>runDetCmp(b.id.slice(3)));
   document.querySelectorAll('.seg button[data-v]').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
   document.querySelectorAll('input[data-sc]').forEach(c=>c.onchange=()=>{const k=c.dataset.sc,v=+c.value;SC[k]=c.checked?[...new Set([...SC[k],v])]:SC[k].filter(x=>x!==v);SR=null;render()});
   document.querySelectorAll('.seg button[data-scm]').forEach(b=>b.onclick=()=>{SC.melee=b.dataset.scm==='1';SR=null;render()});
@@ -300,7 +353,7 @@ async function go(){
   if(!a.trim()||!b.trim()){$('msg').textContent='兩張軍表都要貼。';return}
   try{localStorage.setItem('mu_a',a);localStorage.setItem('mu_b',b)}catch(e){}
   const same=a===last.a&&b===last.b&&!!R;
-  if(a!==last.a||b!==last.b){SC.att=[];SC.tgt=[]} SR=null;
+  if(a!==last.a||b!==last.b){SC.att=[];SC.tgt=[];DC.a=null;DC.b=null} SR=null;
   if(a!==last.a){over.a={};last.a=a} if(b!==last.b){over.b={};last.b=b}
   const opt={abil:over,values:!!window.wantVals};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
   $('go').disabled=true;
