@@ -3,3 +3,4 @@ __pycache__/
 sample_*.txt
 unknown_zh.txt
 _native.json
+meta/

@@ -1457,6 +1457,9 @@ def compare(text_a, text_b, opt, db):
     apply_dets(b, over.get('b') or {}, db)
     hab, hba = [], []
     ab, ba = matrix(a, b, opt, hab), matrix(b, a, opt, hba)
+    if opt.get('lite'):                                 # 「打全 meta」只要兩邊的殺分摘要（2026-11-17）
+        return dict(sum_ab=summary(a, b, ab, hab), sum_ba=summary(b, a, ba, hba), a_points=a['points'], b_points=b['points'],
+                    a_units=len(a['units']), b_units=len(b['units']), b_unknown=len(b['unknown']))
     vals = dict(a=option_values(a, b, opt, db), b=option_values(b, a, opt, db)) if opt.get('values') else None
 
     def side(l):
@@ -2065,7 +2068,7 @@ def api(req, db):
         return scenario(ta, tb, opt, db,
                         dict(att=[int(x) for x in sc.get('att', [])], tgt=[int(x) for x in sc.get('tgt', [])], melee=bool(sc.get('melee')), goal=sc.get('goal', 'points')))
     ro = req.get('opt') or {}
-    opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values')}
+    opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still', 'values', 'lite')}
     ab = ro.get('abil') or {}
     opt['abil'] = {sd: {str(k): bool(v) for k, v in (ab.get(sd) or {}).items()} for sd in ('a', 'b')}
     if req.get('detcmp') in ('a', 'b'):                  # 「比較所有分隊」（2026-11-17）：B 的就把兩張表對調

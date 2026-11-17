@@ -65,7 +65,7 @@ td.c{cursor:pointer}
 <div class="card">
   <div class="grid">
     <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
-    <div><label class="t lb" for="b">對方軍表（B）</label><textarea id="b" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
+    <div><label class="t lb" for="b">對方軍表（B）</label><select id="metasel" style="display:none;width:100%;margin:2px 0 4px"></select><div id="metanote" class="mute" style="font-size:12px"></div><textarea id="b" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
   </div>
   <div class="opts" style="margin-top:8px">
     <button id="go">計算</button>
@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611171105"></script>
+<script src="browser.js?v=202611171119"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -261,6 +261,56 @@ async function runDetCmp(side){
   }catch(e){DC[side]={error:'算不出來：'+e.message}}
   DCrun[side]='';render();
 }
+// GT 前段代表表（2026-11-17）：只有家裡那台伺服器有 meta.json（tools/meta_build.py 產生，資料來自 listhammer.info）；公開版抓不到就不顯示
+let META=null;
+const MW={rows:null,run:''};
+function metaCredit(b){return `代表表：${esc(b.player)}，${esc(b.event)}（${esc(b.date)}，${esc(b.result)}）。同組 ${b.n} 張、合計 ${esc(b.record)}。資料來源 <a href="${META.source}" target="_blank" rel="noopener">listhammer.info</a>（${esc(META.updated)} 更新）`}
+function metaPick(key,run){
+  const [i,j]=key.split('.').map(Number),x=META.factions[i].builds[j];
+  $('b').value=x.list_text;$('metasel').value=key;$('metanote').innerHTML=metaCredit(x);
+  if(run) go();
+}
+async function loadMeta(){
+  try{const r=await fetch('meta.json',{cache:'no-store'});if(!r.ok)return;META=await r.json()}catch(e){META=null;return}
+  if(!META||!META.factions||!META.factions.length){META=null;return}
+  const s=$('metasel');
+  let h='<option value="">從 GT 前段（全勝／只輸一場）的代表表選對手…</option>';
+  META.factions.forEach((f,i)=>{h+=`<optgroup label="${esc(f.faction)}（最近 ${f.total} 張）">`+f.builds.map((b,j)=>`<option value="${i}.${j}">${esc(f.faction)}：${esc(b.combo)}（${b.n} 張，${esc(b.record)}）</option>`).join('')+'</optgroup>'});
+  s.innerHTML=h;s.style.display='';
+  s.onchange=()=>{if(s.value)metaPick(s.value,false);else $('metanote').innerHTML=''};
+  if(R) render();
+}
+function metaCard(){
+  if(!META) return '';
+  const head=`<div class="card"><h2 class="la">A 打全 meta</h2>`;
+  const btn=MW.run?`<button disabled>計算中…</button> <small>${esc(MW.run)}</small>`:'<button id="mw_go">開始算</button> <small class="mute">約一分鐘。</small>';
+  if(!MW.rows) return head+`<p>拿 A 對每個陣營 GT 前段最常見組合的代表表各算一次（${META.factions.length} 個陣營），看打誰順、打誰吃虧。<br>${btn}</p></div>`;
+  const rows=MW.rows.slice().sort((x,y)=>y.edge-x.edge);
+  const col=e=>e>0.1?'#1a8f4a':e<-0.1?'#c0392b':'inherit';
+  let h=head+`<div class="scroll"><table class="thr"><thead><tr><th class="r">對手</th><th>我殺對面<br><small>射／近；佔對面總分</small></th><th>對面殺我<br><small>射／近；佔我總分</small></th><th>差</th><th></th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    h+=`<tr><td class="r" data-l="對手"><span>${esc(r.faction)}<br><small class="mute">${esc(r.combo)}（${r.n} 張）</small></span></td><td data-l="我殺對面">${r.ks}／${r.km}<br><small>${pct(r.mine)}%</small></td><td data-l="對面殺我">${r.ls}／${r.lm}<br><small>${pct(r.theirs)}%</small></td><td data-l="差"><b style="color:${col(r.edge)}">${r.edge>0?'+':''}${Math.round(r.edge*100)}</b></td><td data-l=""><button data-mwpick="${r.key}">當 B 打打看</button></td></tr>`;
+  });
+  return h+`</tbody></table></div><small>每個陣營只算最常見那一組的代表表（一張真實的得獎表）。我殺對面＝A 每個單位射擊、近戰各打最賺的目標，一輪殺分加起來（同一個目標會重複算，只能比大小）；佔對面總分＝（射＋近）÷ 對面總分。差＝我方 % − 對面 %，正的代表這場比較順。沒算位置、先後手、目標點。資料來源 listhammer.info（${esc(META.updated)} 更新）。</small><p>${btn.replace('開始算','重算')}</p></div>`;
+}
+async function runMeta(){
+  const a=$('a').value;
+  if(!a.trim()||!META) return;
+  const opt={abil:{a:over.a||{},b:{}},lite:true};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
+  const tick=()=>new Promise(r=>setTimeout(r,30));
+  MW.rows=null;const rows=[];
+  for(let i=0;i<META.factions.length;i++){
+    const f=META.factions[i],b=f.builds[0];
+    MW.run=`${i+1}／${META.factions.length}：${f.faction}`;render();await tick();
+    try{
+      const j=await dcCall({a,b:b.list_text,opt});
+      if(j.error||!j.sum_ab) continue;
+      const sa=j.sum_ab,sb=j.sum_ba,mine=(sa.shoot_pts+sa.melee_pts)/(j.b_points||1),theirs=(sb.shoot_pts+sb.melee_pts)/(j.a_points||1);
+      rows.push({key:i+'.0',faction:f.faction,combo:b.combo,n:b.n,ks:sa.shoot_pts,km:sa.melee_pts,ls:sb.shoot_pts,lm:sb.melee_pts,mine,theirs,edge:mine-theirs});
+    }catch(e){}
+  }
+  MW.rows=rows;MW.run='';render();
+}
 // 總覽用的精簡版：只有分數和警告
 function sideMini(s,cls,tag,sum){
   let h=`<div class="card"><h2 class="${cls}">${tag}：${esc(s.name||'（沒名字）')} <small>${esc(s.faction)}</small></h2>
@@ -317,6 +367,7 @@ function render(){
   const tabs=`<div class="card"><div class="opts seg">${[['sum','總覽'],['test','單位測試（分槍）'],['data','規則和數據']].map(([k,t])=>`<button data-v="${k}" class="${view===k?'on':''}">${t}</button>`).join('')}</div></div>`;
   let body='';
   if(view==='sum') body=`<div class="grid">${sideMini(R.a,'la','A',R.sum_ab)}${sideMini(R.b,'lb','B',R.sum_ba)}</div>
+  ${metaCard()}
   ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
   <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>
   <small>威脅＝它射擊和近戰各打最賺的目標，一輪平均殺幾分。要花＝從打它最痛的單位加起，加到剛好打掉為止的分數。優先分數＝威脅 ÷ 要花 × 100。近戰威脅是假設它衝得到。</small></div></div>
@@ -334,6 +385,8 @@ function render(){
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
   document.querySelectorAll('button[id^="wv_"]').forEach(b=>b.onclick=()=>{window.wantVals=true;go()});
   document.querySelectorAll('button[id^="dc_"]').forEach(b=>b.onclick=()=>runDetCmp(b.id.slice(3)));
+  const mg=$('mw_go'); if(mg) mg.onclick=runMeta;
+  document.querySelectorAll('button[data-mwpick]').forEach(b=>b.onclick=()=>metaPick(b.dataset.mwpick,true));
   document.querySelectorAll('.seg button[data-v]').forEach(b=>b.onclick=()=>{view=b.dataset.v;render()});
   document.querySelectorAll('input[data-sc]').forEach(c=>c.onchange=()=>{const k=c.dataset.sc,v=+c.value;SC[k]=c.checked?[...new Set([...SC[k],v])]:SC[k].filter(x=>x!==v);SR=null;render()});
   document.querySelectorAll('.seg button[data-scm]').forEach(b=>b.onclick=()=>{SC.melee=b.dataset.scm==='1';SR=null;render()});
@@ -353,7 +406,7 @@ async function go(){
   if(!a.trim()||!b.trim()){$('msg').textContent='兩張軍表都要貼。';return}
   try{localStorage.setItem('mu_a',a);localStorage.setItem('mu_b',b)}catch(e){}
   const same=a===last.a&&b===last.b&&!!R;
-  if(a!==last.a||b!==last.b){SC.att=[];SC.tgt=[];DC.a=null;DC.b=null} SR=null;
+  if(a!==last.a||b!==last.b){SC.att=[];SC.tgt=[];DC.a=null;DC.b=null} if(a!==last.a){MW.rows=null} SR=null;
   if(a!==last.a){over.a={};last.a=a} if(b!==last.b){over.b={};last.b=b}
   const opt={abil:over,values:!!window.wantVals};['half','cover','charge','still'].forEach(k=>opt[k]=$(k).checked);
   $('go').disabled=true;
@@ -395,6 +448,7 @@ async function tr(){                                       // 英文軍表翻成
 $('tr').onclick=tr;
 ['half','cover','charge','still'].forEach(k=>$(k).onchange=()=>{if(R)go()});
 try{$('a').value=localStorage.getItem('mu_a')||'';$('b').value=localStorage.getItem('mu_b')||''}catch(e){}
+loadMeta();
 </script>
 </body>
 </html>
