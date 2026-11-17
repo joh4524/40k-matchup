@@ -58,7 +58,7 @@ DET = {
     ],
     # Kroot Raiding Party
     '000000967': [
-        R('BOARDING BLADES', '戰略', [T('Boarding Blades', 'att', [('ap', 1)], scope='melee', why='重傷時再 +1 AP 未算')], cp='1', need=['KROOT']),
+        R('BOARDING BLADES', '戰略', [T('Boarding Blades', 'att', [('ap', 1), ('crit_ap', 1)], scope='melee', why='爆擊造傷時 AP 再多 1')], cp='1', need=['KROOT']),
     ],
     # Auxiliary Cadre
     '000001005': [

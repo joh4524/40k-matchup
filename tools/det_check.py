@@ -29,8 +29,8 @@ sheets = [s for s in db.sheets.values() if s['faction'] == fid]
 kws = set().union(*[s['kw'] for s in sheets]) if sheets else set()
 names = [s['name'].lower() for s in sheets]
 
-ATT = {'hit', 'wound', 'ap', 'dmg', 'attacks', 'strength', 'rr_hit', 'rr_wound', 'crit_hit', 'crit_wound', 'ign', 'mw', 'rr1', 'kw', 'skill', 'tgt_t'}
-DEF = {'hit', 'wound', 'ap', 'dmg', 'inv', 'fnp', 'half', 'cover', 'sv', 'sv3'}
+ATT = {'hit', 'wound', 'ap', 'dmg', 'attacks', 'strength', 'rr_hit', 'rr_wound', 'crit_hit', 'crit_wound', 'ign', 'mw', 'rr1', 'kw', 'skill', 'tgt_t', 'crit_ap', 'rr_dmg', 'rr1d', 'mw_pm', 'mw_cap'}
+DEF = {'hit', 'wound', 'ap', 'dmg', 'inv', 'fnp', 'half', 'cover', 'sv', 'sv3', 'mw_chg', 'mw_chg_pm', 'mw_cap'}
 CONDS = {None, 'charge', 'half', 'still', 's_gt_t', 't_gt_t'}
 
 for k in dets:
@@ -73,7 +73,7 @@ def chk_tag(t, where):
         k, v = e
         if k not in ok:
             E(f'{where}：{t["side"]} 不能用效果 {k!r}（可用 {sorted(ok)}）')
-        if k in ('rr_hit', 'rr_wound') and v not in ('1', 'all'):
+        if k in ('rr_hit', 'rr_wound', 'rr_dmg') and v not in ('1', 'all'):
             E(f'{where}：{k} 的值要是 \'1\' 或 \'all\'')
         if k == 'kw':
             if not engine.parse_kw(v):
@@ -95,7 +95,7 @@ def chk_tag(t, where):
                 base = engine.weapon_damage(w, tgt, {}, [], 4)
                 new = engine.weapon_damage(w, dict(tgt, dfx=[dict(t, cond=None)]), {}, [], 4)
             moved |= abs(new - base) > 1e-9
-        if not moved and not any(k in ('mw', 'rr1', 'crit_hit', 'crit_wound') for k, v in t['effs']):   # 爆擊門檻要武器有 Lethal／Sustained／Dev 才有差
+        if not moved and not any(k in ('mw', 'rr1', 'crit_hit', 'crit_wound', 'crit_ap', 'rr_dmg', 'rr1d', 'mw_pm', 'mw_cap', 'mw_chg', 'mw_chg_pm') for k, v in t['effs']):   # 爆擊門檻要武器有 Lethal／Sustained／Dev 才有差
             W(f'{where}：用範例武器算，這個標記沒有改變任何傷害（確認效果方向和 scope）')
     except Exception as e:
         E(f'{where}：計算時出錯 {type(e).__name__}: {e}')

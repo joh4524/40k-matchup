@@ -159,6 +159,7 @@ DET['000000946'] = [
 ]
 
 ENH = {
+    'Warp Tracer': [T('Warp Tracer', 'att', [('kw', 'IGNORES COVER')], scope='ranged', on=False, why='帶的模型射完後選一隊被打中的：本階段不能有掩體（實際全軍打它都算，這裡只給帶的這隊）')],
     'Intoxicating Elixir': [T('Intoxicating Elixir', 'def', [('fnp', 5)], on=True, unitwide=False)],
     'Talisman of Burning Blood': [T('Talisman of Burning Blood', 'att', [('attacks', 1), ('strength', 1)], scope='melee', on=True, unitwide=False, why='Dark Pact 後改為 D3 加成沒算')],
     'Eager for Vengeance': [T('Eager for Vengeance', 'att', [('hit', 1)], on=False, why='只打 focus of hatred，且本回合 Fell Back')],

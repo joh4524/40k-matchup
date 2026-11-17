@@ -75,6 +75,11 @@ ENH = {    # 強化：key = 強化英文名（照原文，不含括號）
 | 可以無視命中／造傷／BS 的修正 | `('ign', 1)` |
 | 目標（敵人）T 減 1 | `('tgt_t', 1)` |
 | 目標（敵人）的 Save 變差 1（worsen the Save of enemy models） | `('ap', 1)`（效果一樣：都不影響無敵保護） |
+| on a Critical Wound, improve the Armour Penetration by 1 | `('crit_ap', 1)`（只有爆擊造傷那幾發 AP 再好 1）|
+| re-roll the Damage roll／re-roll a Damage roll of 1 | `('rr_dmg', 'all')`／`('rr_dmg', '1')` |
+| re-roll one Damage roll（每次只重骰一顆傷害骰） | `('rr1d', 1)`（和 `('rr1', 2)` 一起寫：一顆命中、一顆造傷、一顆傷害骰）|
+| 目標（敵人）cannot have the Benefit of Cover | `('kw', 'IGNORES COVER')`，scope='ranged'（效果一樣；選一隊敵人的寫 why，on=False）|
+| 衝鋒結束後，這隊每個模型擲 D6、4+ 造成 1 致命傷（最多 6） | `('mw_pm', 0.5), ('mw_cap', 6)`，scope='melee', cond='charge'（mw_pm＝每個模型的平均致命傷：2+=5/6、3+=2/3、4+=1/2、5+=1/3）|
 | 另外造成 D3 致命傷（每次這單位攻擊一輪） | `('mw', 2)`（填平均值：D3=2、D6=3.5；有擲骰門檻要乘機率，例：每個模型擲 D6、4+ 造成 1 致命傷 → 寫平均總數並在 why 說明） |
 
 被攻擊方（side='def'）：
@@ -90,6 +95,8 @@ ENH = {    # 強化：key = 強化英文名（照原文，不含括號）
 | Benefit of Cover | `('cover', 1)` |
 | Stealth（第十一版 Stealth 等於掩體：攻擊方 BS 變差 1）| `('cover', 1)`；同時有 Benefit of Cover 和 Stealth 也只寫一個 `('cover', 1)`（不重複算）|
 | improve the Save by 1 | `('sv', 1)`；寫「不能好過 3+」的用 `('sv3', 1)` |
+| 敵人衝鋒到這隊身邊，敵人吃致命傷（固定擲幾顆） | `('mw_chg', 平均值)`，scope='melee'（例：擲 6 顆 D6 每個 5+ 一點 → 2）|
+| 敵人衝鋒到這隊身邊，敵人每個模型擲 D6 吃致命傷（最多 6） | `('mw_chg_pm', 每個模型平均值), ('mw_cap', 6)`，scope='melee' |
 
 ### 不要標記（直接跳過，不寫成 R）
 

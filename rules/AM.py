@@ -23,6 +23,7 @@ DET = {
     # Embarked Regiment
     '000000927': [
         R('Duck and Cover', '戰略', [T('Duck and Cover', 'def', [('hit', -1)], why='要隔著開啟的艙門')], cp='1', need_not=['OGRYN']),
+        R('Against the Odds', '戰略', [T('Against the Odds', 'att', [('crit_ap', 2)], why='爆擊造傷時 AP 再好 2')], cp='1', need=['ASTRA MILITARUM'], need_not=['OGRYN']),
     ],
     # Tempestus Boarding Regiment
     '000000928': [
@@ -39,6 +40,9 @@ DET = {
     '000001010': [
         R('Artillery Support: Smoke Shells', '規則', [T('Smoke Shells', 'def', [('cover', 1)], scope='ranged', why='Stealth（程式當成掩體）；選到的單位才有')],
           note='每回合三選一；Creeping Barrage / Incendiary Bombardment 未計算'),
+        R('Artillery Support: Scattered', '規則', [T('Scattered', 'att', [('kw', 'IGNORES COVER')], scope='ranged', why='選到的敵方單位 scattered：不能有掩體（全軍打它都算）')],
+          note='跟 Smoke Shells 是三選一'),
+        R('Minefield', '戰略', [T('Minefield', 'def', [('mw_chg_pm', 1 / 3), ('mw_cap', 6)], scope='melee', why='對方衝鋒到這隊身邊：對方每個模型 5+ 吃 1 點致命傷，最多 6 點')], cp='1', need=['PLATOON']),
         R('Furious Fusillade', '戰略', [T('Furious Fusillade', 'att', [('attacks', 1)], scope='ranged', cond='half')], cp='1', need=['PLATOON']),
         R('Flare Burst', '戰略', [T('Flare Burst', 'att', [('rr_hit', 'all')], scope='ranged', why='只限目標在 12" 內')], cp='1', need=['CHARACTER']),
     ],
@@ -71,11 +75,13 @@ DET = {
     '000001149': [
         R('Accuracy Under Pressure', '戰略', [T('Accuracy Under Pressure', 'att', [('rr_hit', 'all')])], cp='2'),
         R('Engine of Wrath', '戰略', [T('Engine of Wrath', 'att', [('attacks', 6), ('ap', 2)], scope='melee', why='只打被選的那一隊')], cp='1', need=['TITANIC']),
+        R('Shattering Salvo', '戰略', [T('Shattering Salvo', 'att', [('kw', 'IGNORES COVER')], scope='ranged', why='TITANIC 射完後選一隊被打中的：本階段不能有掩體（全軍打它都算）')], cp='1'),
     ],
     # Armoured Infantry
     '000001150': [
         R('Opening Salvo', '戰略', [T('Opening Salvo', 'att', [('wound', 1)], why='要本回合從運輸載具下車')], cp='1'),
-        R('Combined Fire', '戰略', [T('Combined Fire', 'att', [('strength', 2)], why='只限 Armoured Skirmisher（Squadron 非砲兵）打被選的那一隊；Benefit of Cover 移除未算')], cp='1', need=['SQUADRON']),
+        R('Combined Fire', '戰略', [T('Combined Fire', 'att', [('strength', 2)], why='只限 Armoured Skirmisher（Squadron 非砲兵）打被選的那一隊')], cp='1', need=['SQUADRON']),
+        R('Combined Fire：不能有掩體', '戰略', [T('Combined Fire（掩體）', 'att', [('kw', 'IGNORES COVER')], scope='ranged', why='被選的那一隊本階段不能有掩體（全軍打它都算）')], cp='1', note='跟上一條是同一張戰略'),
         R('Supporting Ordnance', '戰略', [T('Supporting Ordnance', 'att', [('rr_hit', 'all')], tkw=MV)], cp='1', need=['SQUADRON']),
     ],
     # Abhuman Auxiliaries
@@ -89,6 +95,7 @@ DET = {
 }
 
 ENH = {
+    'Titan Killer': [T('Titan Killer', 'att', [('rr_dmg', 'all')], scope='ranged', on=True, unitwide=False)],
     'Drill Commander': [T('Drill Commander', 'att', [('crit_hit', 5)], scope='ranged', cond='still', on=True)],
     'Legacy Sidearm': [T('Legacy Sidearm', 'att', [('attacks', 2)], scope='ranged', weapon='pistol', on=True, unitwide=False)],
     'Stalwart’s Honours': [T('Stalwart’s Honours', 'def', [('sv3', 1)], on=False, why='單位受命令時同時受 Take Cover!；Save 不能好過 3+')],

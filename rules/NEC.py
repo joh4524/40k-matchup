@@ -55,7 +55,7 @@ DET = {
     ],
     # Tomb Ship Complement
     '000000959': [
-        # Conquest Protocols：Critical Wound 時 AP+1，程式沒有對應標記，不算
+        R('Conquest Protocols', '規則', [T('Conquest Protocols', 'att', [('crit_ap', 1)], why='自己或目標在目標點範圍內：爆擊造傷時 AP 再好 1')], need=['NECRONS'], on=False),
         R('Concentrated Atomisation', '戰略', [T('Concentrated Atomisation', 'att', [('rr_hit', 'all')], scope='ranged')], cp='1', names=['Necron Warriors', 'Immortals']),
         R('Disruption Fields', '戰略', [T('Disruption Fields', 'att', [('strength', 1)], scope='melee')], cp='1'),
         R('Unwavering Defence', '戰略', [T('Unwavering Defence', 'att', [('kw', 'SUSTAINED HITS 2')], scope='melee', why='要 Set to Defend 且還沒打過')], cp='1'),
@@ -134,9 +134,9 @@ ENH = {
     'Nether-realm Casket': [T('Nether-realm Casket', 'def', [('cover', 1)], on=True, why='Stealth')],
     'Phasal Subjugator (Aura)': [T('Phasal Subjugator', 'att', [('hit', 1)], on=True, why='光環 6"，只給非 CHARACTER 的 NECRONS 單位')],
     'Enaegic Dermal Bond': [T('Enaegic Dermal Bond', 'def', [('fnp', 4)], on=True, unitwide=False)],
-    # Annihilation Legion（Ingrained Superiority 是 Critical Wound AP+1，無對應標記）
+    # Annihilation Legion
     'Eternal Madness': [],
-    'Ingrained Superiority': [],
+    'Ingrained Superiority': [T('Ingrained Superiority', 'att', [('crit_ap', 1)], on=True, why='爆擊造傷時 AP 再好 1')],
     'Soulless Reaper': [],
     'Eldritch Nightmare': [],
     # Canoptek Court

@@ -51,6 +51,7 @@ DET = {
     ],
     '000001054': [   # Death Lord’s Chosen
         R('GRIM REAPERS', '戰略', [T('Grim Reapers', 'att', [('rr_hit', 'all')], tkw_not=MV)], cp='1', need=['TERMINATOR']),
+        R('SICKENING IMPACT', '戰略', [T('Sickening Impact', 'att', [('mw_pm', 5 / 6), ('mw_cap', 6)], scope='melee', cond='charge', why='衝鋒結束：每個模型 2+ 造成 1 點致命傷，最多 6')], cp='1', need=['TERMINATOR']),
     ],
     '000001168': [   # Contagion Engines
         R('FRESH VECTORS', '戰略', [T('Fresh Vectors', 'att', [('rr_wound', '1')])], cp='1', names=['Bloat-drone', 'Helbrute', 'Blight-hauler'],

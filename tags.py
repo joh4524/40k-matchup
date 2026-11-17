@@ -28,7 +28,8 @@ EXCL = re.compile(r"\(excluding ([A-Z][A-Z\- ]+?(?:,? (?:and|or) [A-Z][A-Z\- ]+?
 TKW = re.compile(r"targets (?:an? |one or more )?(?:enemy )?(?:unit that can )?((?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*)(?:,? (?:or|and) (?:[A-Z][A-Z\-]+(?: [A-Z][A-Z\-]+)*))*)")
 NAMES = dict(hit='命中', wound='造傷', rr_hit='命中重骰', rr_wound='造傷重骰', ap='AP', dmg='傷害', attacks='攻擊數', strength='S',
              crit_hit='爆擊命中', inv='無敵保護', fnp='FNP', half='傷害減半', cover='算有掩體',
-             crit_wound='爆擊造傷', skill='BS/WS 提升', sv='保護提升', sv3='保護提升（最多到 3+）', tgt_t='目標 T 降低')
+             crit_wound='爆擊造傷', skill='BS/WS 提升', sv='保護提升', sv3='保護提升（最多到 3+）', tgt_t='目標 T 降低',
+             crit_ap='爆擊造傷時 AP', rr_dmg='傷害骰重骰')
 
 
 def clean(t):
@@ -101,8 +102,18 @@ def label(t):
     for k, v in t['effs']:
         if k == 'kw':
             parts.append(f'[{v}]')
-        elif k in ('rr_hit', 'rr_wound'):
+        elif k in ('rr_hit', 'rr_wound', 'rr_dmg'):
             parts.append(NAMES[k] + ('（只重骰 1）' if v == '1' else ''))
+        elif k == 'rr1d':
+            parts.append('重骰一顆傷害骰')
+        elif k == 'mw_pm':
+            parts.append(f'每個模型另外致命傷 {v:.2f}')
+        elif k == 'mw_cap':
+            parts.append(f'致命傷最多 {v} 點')
+        elif k == 'mw_chg':
+            parts.append(f'被衝鋒時對方吃致命傷 {v:.1f}')
+        elif k == 'mw_chg_pm':
+            parts.append(f'被衝鋒時對方每個模型吃致命傷 {v:.2f}')
         elif k in ('inv', 'fnp', 'crit_hit', 'crit_wound'):
             parts.append(f'{NAMES[k]} {v}+')
         elif k in ('half', 'cover'):

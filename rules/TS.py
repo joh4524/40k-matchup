@@ -54,12 +54,15 @@ DET = {
         # Inexorable Advance (Assault)、Infernal Fusillade (Psychic 標籤)、Revenge of the Rubricae 不算
     ],
     '000001065': [
-        R('Warpfire Infusion (base)', '規則', [T('Warpfire Infusion', 'att', [('rr1', 1)], why='重骰一顆命中或一顆造傷或一次傷害骰；傷害骰沒算')], on=True, need=TS + ['VEHICLE']),
-        R('Warpfire Infusion (near Psyker)', '規則', [T('Warpfire Infusion near Psyker', 'att', [('rr1', 1)], why='6" 內有 Thousand Sons Psyker：命中、造傷各重骰一顆（與上條合計 2）；傷害骰沒算')], on=False, need=TS + ['VEHICLE']),
+        R('Warpfire Infusion (base)', '規則', [T('Warpfire Infusion', 'att', [('rr1', 1)], why='重骰一顆命中或造傷或傷害骰，三選一（照命中／造傷算）')], on=True, need=TS + ['VEHICLE']),
+        R('Warpfire Infusion (near Psyker)', '規則', [T('Warpfire Infusion near Psyker', 'att', [('rr1', 1), ('rr1d', 1)], why='6" 內有 Thousand Sons Psyker：跟上一條合計命中、造傷、傷害骰各重骰一顆')], on=False, need=TS + ['VEHICLE']),
         R('Ensorcelled Infusion', '戰略', [T('Ensorcelled Infusion', 'att', [('wound', 1)], scope='ranged', why='要在 6" 內有 Thousand Sons Psyker 單位')], cp='2', need=TS + ['VEHICLE']),
         R('Hex-marked Armour', '戰略', [T('Hex-marked Armour', 'def', [('ap', -1)])], cp='1', need=TS + ['VEHICLE']),
         R('Malevolent Animus', '戰略', [T('Malevolent Animus', 'att', [('ign', 1)], why='可無視命中／造傷／BS 修正；要在 6" 內有 Thousand Sons Psyker')], cp='1', need=TS + ['VEHICLE']),
-        # Mutate Landscape、Warpflame Gargoyles（衝鋒階段致命傷）、Deadly Demise 不算
+        R('Warpflame Gargoyles', '戰略', [T('Warpflame Gargoyles', 'def', [('mw_chg', 2)], scope='melee', why='對方衝鋒到這台身邊：擲 6 顆 D6，每個 5+ 對方吃 1 點致命傷')], cp='1', need=TS + ['VEHICLE']),
+        R('Mutate Landscape', '戰略', [T('Mutate Landscape', 'def', [('mw_chg', 1)], scope='melee', why='在被 mutate 的目標點範圍內：對方移動／衝鋒進來 4+ 吃 D3 致命傷')], cp='1',
+          note='效果在目標點上，不限哪一隊；勾了代表被衝的這隊站在那個目標點上'),
+        # Deadly Demise 不算
     ],
     '000001170': [],   # 只有回血、重生、致命傷 FNP、移動相關
     '000001171': [

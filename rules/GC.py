@@ -84,6 +84,7 @@ DET = {
 }
 
 ENH = {
+    'Inspired to Greatness': [T('Inspired to Greatness', 'att', [('rr_dmg', 'all')], on=True)],
     'A Chink in Their Armour': [T('A Chink in Their Armour', 'att', [('kw', 'LETHAL HITS')], scope='ranged', on=False, why='只限以增援登場後到下個近戰階段結束')],
     'Assassination Edict': [T('Assassination Edict', 'att', [('hit', 1)], tkw=['CHARACTER'], on=True)],
     'Denunciator of Tyrants': [T('Denunciator of Tyrants', 'att', [('hit', 1), ('wound', 1)], tkw=['CHARACTER'], on=True)],

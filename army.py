@@ -9,6 +9,8 @@
   ('ign', 1)   可以無視命中、造傷、BS 的修正（只會無視壞的）
   ('mw', x)    每次這個單位攻擊（射擊或近戰一輪）另外造成平均 x 點致命傷
   ('rr1', n)   「重骰一顆命中／一顆造傷」：近似成多 n 次最好武器的攻擊
+  ('rr1d', 1)  「重骰一顆傷害骰」；('rr_dmg', 'all'/'1') 傷害骰全部重骰／重骰 1；('crit_ap', n) 爆擊造傷時 AP 再好 n（2026-11-17）
+  ('mw_pm', p) 每個模型平均 p 點致命傷（('mw_cap', n) 上限）；def 的 ('mw_chg', x)／('mw_chg_pm', p)：對方衝鋒進來吃致命傷
   pick='組名'  同一組的選項每次攻擊只能挑一個，程式會對每個目標自動挑最好的
 """
 from manual import T
@@ -47,7 +49,7 @@ DET = {
         R('Priority Quarry', '規則', [T('Priority Quarry', 'att', [('rr_hit', '1')], why='只打被選為 quarry 的兩隊')], need=['ANATHEMA PSYKANA']),
         R('Focused Fear', '戰略', [T('Focused Fear', 'def', [('ap', -1)])], cp='1', need=['ANATHEMA PSYKANA']),
         R('Blades of the Vigilators', '戰略', [T('Blades of the Vigilators', 'def', [('wound', -1)])], cp='1', names=['Vigilator', 'Aleya', 'Knight-Centura']),
-        R('Punishment of the Prosecutors', '戰略', [T('Punishment of the Prosecutors', 'att', [('ap', 1)], scope='ranged', why='爆擊造傷再多 AP 1 沒算')], cp='1', names=['Prosecutor']),
+        R('Punishment of the Prosecutors', '戰略', [T('Punishment of the Prosecutors', 'att', [('ap', 1), ('crit_ap', 1)], scope='ranged', why='爆擊造傷時 AP 再多 1')], cp='1', names=['Prosecutor']),
     ],
     'Null Maiden Vigil': [
         R('Psy-chaff Volley', '戰略', [T('Psy-chaff Volley', 'att', [('ap', 1)], why='全軍打被 Prosecutor 標記的那一隊')], cp='1'),
@@ -72,7 +74,7 @@ DET = {
                                     T('Lethal Hits', 'att', [('kw', 'LETHAL HITS')], scope='melee', pick='mastery')], on=True,
           note='每次打架二選一，程式對每個目標自動挑好的'),
         R('In Auramite Clad', '戰略', [T('In Auramite Clad', 'def', [('ap', -1)])], cp='1', names_not=['Custodian Wardens']),
-        R('Prime Target', '戰略', [T('Prime Target', 'att', [('rr1', 2)], scope='ranged', why='重骰一顆命中、一顆造傷，約等於多 2 次攻擊；重骰傷害骰沒算')], cp='1'),
+        R('Prime Target', '戰略', [T('Prime Target', 'att', [('rr1', 2), ('rr1d', 1)], scope='ranged', why='重骰一顆命中、一顆造傷、一顆傷害骰')], cp='1'),
     ],
     'Honoured Companions': [
         R('Companion’s Watch', '規則', [T('Companion’s Watch', 'att', [('rr_wound', '1')], why=OBJ)], need=['TRUSTED SENTINEL']),

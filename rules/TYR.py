@@ -100,12 +100,12 @@ DET = {
 ENH = {
     # Invasion Fleet
     'Adaptive Biology': [T('Adaptive Biology', 'def', [('fnp', 5)], on=True, unitwide=False, why='低於起始傷口後升為 FNP 4+，這裡只算 5+')],
-    # Perfectly Adapted：每回合重骰一顆骰，不標記
+    'Perfectly Adapted': [T('Perfectly Adapted', 'att', [('rr1', 2), ('rr1d', 1)], on=True, unitwide=False, why='每回合一次：重骰一顆命中、一顆造傷、一顆傷害骰（帶的模型自己）')],
     # Crusher Stampede
     'Monstrous Nemesis': [T('Monstrous Nemesis', 'att', [('wound', 1)], scope='melee', tkw=['MONSTER', 'VEHICLE'], on=True, unitwide=False)],
     # Unending Swarm
     'Naturalised Camouflage': [T('Naturalised Camouflage', 'def', [('cover', 1)], scope='ranged', on=False, why='只給第一回合選的最多三個 Endless Multitude 單位')],
-    # Piercing Talons：只在重擊造傷才 +1 AP，不標記
+    'Piercing Talons': [T('Piercing Talons', 'att', [('crit_ap', 1)], on=True, why='爆擊造傷時 AP 再好 1')],
     # Assimilation Swarm
     'Parasitic Biomorphology': [T('Parasitic Biomorphology', 'att', [('strength', 1)], scope='melee', on=True,
                                   why='首次在附近 Harvester 旁殺掉敵方單位後再 +1 Attacks，沒算')],

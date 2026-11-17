@@ -38,7 +38,7 @@ DET = {
     # Armoured Warhost
     '000000990': [
         # Skilled Crews = ASSAULT only, no damage effect
-        R('Soulsight', '戰略', [T('Soulsight', 'att', [('rr1', 2)], scope='ranged', why='重骰一顆命中、一顆造傷；重骰傷害骰沒算')], cp='1', need=['AELDARI', 'VEHICLE']),
+        R('Soulsight', '戰略', [T('Soulsight', 'att', [('rr1', 2), ('rr1d', 1)], scope='ranged', why='重骰一顆命中、一顆造傷、一顆傷害骰')], cp='1', need=['AELDARI', 'VEHICLE']),
     ],
     # Warhost
     '000001017': [
@@ -74,7 +74,7 @@ DET = {
     ],
     # Seer Council
     '000001023': [
-        R('Fate Inescapable', '戰略', [T('Fate Inescapable', 'att', [('kw', 'IGNORES COVER')], scope='ranged', why='暴擊造傷 AP+1 沒算')], cp='1', need=['ASURYANI', 'INFANTRY'], need_not=WC),
+        R('Fate Inescapable', '戰略', [T('Fate Inescapable', 'att', [('kw', 'IGNORES COVER'), ('crit_ap', 1)], scope='ranged', why='爆擊造傷時 AP 再好 1')], cp='1', need=['ASURYANI', 'INFANTRY'], need_not=WC),
         R('Forewarned', '戰略', [T('Forewarned', 'def', [('hit', -1), ('wound', -1)], scope='melee')], cp='1', need=['ASURYANI', 'INFANTRY'], need_not=WC),
     ],
     # Aspect Host
@@ -109,6 +109,7 @@ DET = {
         R('Pirates’ Due', '戰略', [T('Pirates’ Due', 'att', [('rr_wound', '1')], scope='melee')], cp='1', need=['AELDARI']),
         R('Pirates’ Due (Anhrathe)', '戰略', [T('Pirates’ Due', 'att', [('rr_wound', 'all')], scope='melee', why='只打在目標點範圍內的敵軍')], cp='1', need=['ANHRATHE']),
         R('Cloak and Shadow', '戰略', [T('Cloak and Shadow', 'def', [('cover', 1)], scope='ranged', why='要在自己控制的目標點範圍內；另限 18" 內才能被射擊（沒算）')], cp='1', need=['AELDARI', 'INFANTRY']),
+        R('Relentless Raiders', '規則', [T('Relentless Raiders', 'def', [('mw_chg', 5 / 3)], scope='melee', why='在自己控制的目標點範圍內：對方衝鋒進來 2+ 吃 D3 致命傷')], on=False),
         R('Outcast Ambush', '戰略', [T('Outcast Ambush', 'att', [('kw', 'IGNORES COVER'), ('kw', 'RAPID FIRE 1'), ('ap', 1)], scope='ranged')], cp='1', names=['Rangers', 'Shroud Runners']),
     ],
     # Fateful Performance
@@ -123,8 +124,10 @@ DET = {
 }
 
 ENH = {
+    'Breath of Vaul': [T('Breath of Vaul', 'att', [('rr_dmg', 'all')], scope='ranged', weapon='fusion gun', on=False, why='要帶 Storm Guardians；fusion gun 重骰傷害骰（flamer 重骰攻擊數沒算）')],
+    'Cegorach’s Coil': [T('Cegorach’s Coil', 'att', [('mw_pm', 0.5), ('mw_cap', 6)], scope='melee', cond='charge', on=True, why='衝鋒結束：這隊每個模型 4+ 造成 1 點致命傷，最多 6')],
     'Runes of Sanctuary (Psychic)': [T('Runes of Sanctuary', 'def', [('ap', -1)], scope='ranged', on=False, why='每回合一次，給 9" 內被選為目標的友軍')],
-    'Grace of Khaine': [T('Grace of Khaine', 'att', [('rr_hit', '1'), ('rr_wound', '1')], on=True, unitwide=False, why='傷害骰重骰 1 沒算')],
+    'Grace of Khaine': [T('Grace of Khaine', 'att', [('rr_hit', '1'), ('rr_wound', '1'), ('rr_dmg', '1')], on=True, unitwide=False)],
     'Path of Eldanesh': [T('Path of Eldanesh', 'att', [('ap', 1)], scope='melee', on=False, unitwide=False, why='要在開艙門的那回合')],
     'Guiding Presence': [T('Guiding Presence', 'att', [('hit', 1)], scope='ranged', on=False, why='給 6" 內被選的友軍載具')],
     'Psychic Destroyer': [T('Psychic Destroyer', 'att', [('dmg', 1)], scope='ranged', wkw='PSYCHIC', on=True, unitwide=False)],

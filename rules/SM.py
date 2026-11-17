@@ -53,7 +53,8 @@ DET = {
     ] + kill_team_strats() + [aoc()],
     '000000835': [   # Inner Circle Task Force
         R('Vowed Target', '規則', [T('Vowed Target', 'att', [('wound', 1)], why='只打在誓約目標點範圍內的敵人')], need=['DEATHWING', 'INFANTRY']),
-        # Wrath of the Lion（致命傷隨模型數）、Duty unto Death 不標記
+        R('Wrath of the Lion', '戰略', [T('Wrath of the Lion', 'att', [('mw_pm', 2 / 3), ('mw_cap', 6)], scope='melee', cond='charge', why='衝鋒結束：每個模型 3+ 造成 1 點致命傷，最多 6')], cp='1', need=['DEATHWING']),
+        # Duty unto Death 不標記
     ],
     '000000905': [   # Boarding Strike
         R('Drive Home the Blade', '規則', [T('Drive Home the Blade', 'att', [('kw', 'SUSTAINED HITS 1')], scope='ranged', why='要在開著的艙門 1" 內，只打門另一側選的敵隊')], need=AA),
@@ -133,11 +134,11 @@ DET = {
     '000001209': [   # Marshal’s Household
         R('Faith-fuelled Resolve', '規則', [T('Faith-fuelled Resolve', 'att', [('attacks', 1)], scope='melee', why='要在目標點範圍內')], names=['Sword Brethren']),
         R('Slayers of Abominations', '戰略', [T('Slayers of Abominations', 'att', [('strength', 2)], scope='melee', tkw=MV)], cp='1', names=['Sword Brethren']),
-        # Blade of Detestation 致命傷隨模型數，不標記
+        R('Blade of Detestation', '戰略', [T('Blade of Detestation', 'att', [('mw_pm', 0.5), ('mw_cap', 6)], scope='melee', cond='charge', why='衝鋒結束：每個模型 4+ 造成 1 點致命傷，最多 6')], cp='1', names=['Sword Brethren']),
     ],
     '000001214': [   # Encarmine Speartip
         R('Blinding Blurs of Vengeance', '戰略', [T('Blinding Blurs of Vengeance', 'def', [('cover', 1)], scope='ranged', why='Stealth')], cp='1', names=['Sanguinary Guard']),
-        # Judgement of the Golden Host 致命傷隨模型數，不標記
+        R('Judgement of the Golden Host', '戰略', [T('Judgement of the Golden Host', 'att', [('mw_pm', 2 / 3)], scope='melee', cond='charge', why='衝鋒結束：每個模型 3+ 造成 1 點致命傷')], cp='1', names=['Sanguinary Guard']),
     ],
     '000001215': [   # Wrath of the Doomed
         R('Death Begets Vengeance', '戰略', [T('Death Begets Vengeance', 'att', [('wound', 1)], why='只打被標記為 hated 的敵隊')], cp='1', need=['DEATH COMPANY']),
@@ -163,8 +164,8 @@ DET = {
         R('Angels Defiant', '戰略', [T('Angels Defiant', 'def', [('wound', -1)], cond='s_gt_t')], cp='1', names=['Crusader Squad']),
     ],
     '000001232': [   # Medusa’s Wrath
-        R('Armoured Wrath', '規則', [T('Armoured Wrath', 'att', [('rr1', 1)], why='重骰一顆命中或造傷（傷害骰沒算）')], on=True, need=AA),
-        R('Armoured Wrath (Feirros)', '規則', [T('Armoured Wrath', 'att', [('rr1', 2)], why='額外再多重骰兩顆（合計命中、造傷、傷害各一）；要在 Cannok Var／Iron Father Feirros 6" 內')], need=AA),
+        R('Armoured Wrath', '規則', [T('Armoured Wrath', 'att', [('rr1', 1)], why='重骰一顆命中或造傷或傷害骰，三選一（照命中／造傷算）')], on=True, need=AA),
+        R('Armoured Wrath (Feirros)', '規則', [T('Armoured Wrath', 'att', [('rr1', 1), ('rr1d', 1)], why='跟上一條合計命中、造傷、傷害骰各重骰一顆；要在 Cannok Var／Iron Father Feirros 6" 內')], need=AA),
         R('Ancient Fury', '戰略', [T('Ancient Fury', 'att', [('hit', 1)])], cp='1', need=AA + ['DREADNOUGHT'], note='+1 T 沒算'),
         R('Unbowed Conviction', '戰略', [T('Unbowed Conviction', 'att', [('ign', 1)], why='只有低於起始人數才能用')], cp='1', need=AA),
         R('Methodical Brutality', '戰略', [T('Methodical Brutality', 'att', [('kw', 'SUSTAINED HITS 1')])], cp='1', need=AA),
@@ -196,7 +197,7 @@ DET = {
     '000001239': [   # Gravis Linebreaker Force
         R('Walking Fortress', '規則', [T('Walking Fortress', 'att', [('hit', 1)], scope='ranged', why='只有本回合普通移動過；也失去 [HEAVY]')], need=['GRAVIS']),
         R('Annihilating Force', '戰略', [T('Annihilating Force', 'att', [('kw', 'LETHAL HITS')])], cp='1', need=['GRAVIS']),
-        # Armoured Impact 致命傷隨模型數，不標記
+        R('Armoured Impact', '戰略', [T('Armoured Impact', 'att', [('mw_pm', 2 / 3)], scope='melee', cond='charge', why='衝鋒結束：每個模型 3+ 造成 1 點致命傷')], cp='1', need=['GRAVIS']),
     ],
     '000001240': [   # Devastator Brethren
         aoc(),
@@ -224,6 +225,7 @@ DET = {
 }
 
 ENH = {
+    'Augury Servo-host': [T('Augury Servo-host', 'att', [('kw', 'IGNORES COVER')], scope='ranged', on=False, why='選 18" 內一隊敵人不能有掩體（實際全軍打它都算，這裡只給帶的這隊）')],
     # Gladius
     'Standard of the Emperor Ascendant': [
         T('Standard of the Emperor Ascendant', 'def', [('fnp', 5)], on=True, unitwide=False),

@@ -74,11 +74,24 @@ def mean(expr):
 
 
 @functools.lru_cache(None)
-def lost_dist(dexpr, bonus, fnp, reduce=0, half=False):
-    """一發沒擋住的攻擊實際讓模型掉幾傷的分布 {k: 機率}（還沒套「不溢傷」；FNP 每點各骰）"""
+def dist_rr(expr, rr=''):
+    """傷害骰可以重骰時的分布（2026-11-17）：rr='all' 骰到比平均低就整個重骰；rr='1' 骰到最小值（單顆骰的 1）才重骰。固定傷害沒差。"""
+    d = dist(expr)
+    if not rr or len(d) < 2:
+        return d
+    m = sum(v * p for v, p in d.items())
+    lo = min(d)
+    bad = {v for v in d if (v < m if rr == 'all' else v == lo)}
+    pb = sum(d[v] for v in bad)
+    return {v: (0.0 if v in bad else p) + pb * p for v, p in d.items()}
+
+
+@functools.lru_cache(None)
+def lost_dist(dexpr, bonus, fnp, reduce=0, half=False, rr=''):
+    """一發沒擋住的攻擊實際讓模型掉幾傷的分布 {k: 機率}（還沒套「不溢傷」；FNP 每點各骰）。rr：傷害骰重骰（見 dist_rr）"""
     keep = (fnp - 1) / 6 if fnp else 1.0
     out = {}
-    for d, p in dist(dexpr).items():
+    for d, p in dist_rr(dexpr, rr).items():
         d += bonus
         if half:
             d = math.ceil(d / 2)
@@ -151,11 +164,11 @@ def allocate(models, shots, stats=False, vals=None, dvals=None):
     return tot - left
 
 
-def eff_damage(dexpr, bonus, w, fnp, reduce=0, half=False):
-    """一次沒擋住的攻擊，平均讓一個 W 傷的模型掉幾傷（多的傷害不會溢到別的模型；FNP 每點各骰）"""
+def eff_damage(dexpr, bonus, w, fnp, reduce=0, half=False, rr=''):
+    """一次沒擋住的攻擊，平均讓一個 W 傷的模型掉幾傷（多的傷害不會溢到別的模型；FNP 每點各骰）。rr：傷害骰重骰（見 dist_rr）"""
     keep = (fnp - 1) / 6 if fnp else 1.0
     tot = 0.0
-    for d, p in dist(dexpr).items():
+    for d, p in dist_rr(dexpr, rr).items():
         d += bonus
         if half:
             d = math.ceil(d / 2)
@@ -390,7 +403,8 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     """一把武器（一個模型拿的一把）對目標造成的期望傷數（已考慮保護、FNP、傷害不溢出、勾選的能力）"""
     tkw, ranged = tgt['kw'], not w['melee']
     kw = w['kw']
-    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, crit_wound=6, ign=0, mw=0, rr1=0, skill=0, tgt_t=0)
+    am = dict(hit=0, wound=0, ap=0, dmg=0, attacks=0, strength=0, rr_hit=None, rr_wound=None, crit_hit=6, crit_wound=6, ign=0, mw=0, rr1=0, skill=0, tgt_t=0,
+              crit_ap=0, rr_dmg=None, rr1d=0, mw_pm=0, mw_cap=0)
     for t in fx:
         if applies(t, w, tgt, opt, 0, aT):
             for k, v in t['effs']:
@@ -398,7 +412,7 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
                     kw = dict(kw)
                     for kk, vv in parse_kw(v).items():
                         kw[kk] = kw.get(kk, []) + vv if kk == 'anti' else vv
-                elif k in ('rr_hit', 'rr_wound'):
+                elif k in ('rr_hit', 'rr_wound', 'rr_dmg'):
                     am[k] = 'all' if 'all' in (v, am[k]) else '1'
                 elif k in ('crit_hit', 'crit_wound'):
                     am[k] = min(am[k], v)
@@ -477,15 +491,23 @@ def weapon_damage(w, tgt, opt, fx=(), aT=0, detail=False):
     if dm['inv']:
         need = min(need, dm['inv'])
     p_fail = min(1.0, max(1 / 6, (need - 1) / 6))
+    # 「爆擊造傷時 AP 再好 1」（2026-11-17）：爆擊造傷那幾發用更好的 AP 擲保護，多打穿的部分另外算（DEVASTATING 已經不用擲保護就不算）
+    crit_x = 0.0
+    if am['crit_ap'] and not has('DEVASTATING WOUNDS'):
+        need_c = sv + max(0, abs(num(w['AP'])) + am['ap'] + am['crit_ap'] + dm['ap'])
+        if dm['inv']:
+            need_c = min(need_c, dm['inv'])
+        crit_x = crit_w * max(0.0, min(1.0, max(1 / 6, (need_c - 1) / 6)) - p_fail)
     bonus = (int(mean(kw['MELTA'][0])) if (half and 'MELTA' in kw) else 0) + am['dmg']
-    ev = norm_w * p_fail + mortal                      # 平均幾發沒擋住（含 DEVASTATING 的致命傷，一樣不溢傷）
-    exp = ev * eff_damage(w['D'], bonus, tgt['W'], dm['fnp'], -dm['dmg'], dm['half'])
+    rrd = am['rr_dmg'] or ''
+    ev = norm_w * p_fail + mortal + crit_x             # 平均幾發沒擋住（含 DEVASTATING 的致命傷，一樣不溢傷）
+    exp = ev * eff_damage(w['D'], bonus, tgt['W'], dm['fnp'], -dm['dmg'], dm['half'], rrd)
     if detail == 'rr1':                                 # 給「重骰一顆」用：每次攻擊的命中率、每次攻擊要骰幾顆造傷、每顆造傷成功率
         return exp, a, (crit_h + norm_h) / a if a else 0, to_wound / a if a else 0, p_crit + p_norm, qe_h, qe_w
     if detail == 'sv':                                  # 給 05.04「保護骰從小到大分配」用：要擲幾顆保護骰、致命傷幾發、幾點以下擋不住
-        return norm_w, mortal, min(7, max(2, need)), a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
+        return norm_w, mortal + crit_x, min(7, max(2, need)), a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'], rrd)
     if detail:
-        return exp, ev, a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'])
+        return exp, ev, a, lost_dist(w['D'], bonus, dm['fnp'], -dm['dmg'], dm['half'], rrd)
     return exp
 
 
@@ -496,16 +518,17 @@ def pool_shots(w, tgt, opt, fx, aT, cnt, keys, scale=1.0):
     再來是「有的組擋得住、有的擋不住」的點數，一個點數一段、由小到大。每一組的總打穿數跟原本一樣。
     近似：每一段當成獨立的 n 次嘗試（沒算同一批骰子之間的負相關）。所有組保護一樣時，跟原本的算法完全相同。"""
     info = {k: weapon_damage(w, dict(tgt, Sv=k[0], inv=k[1]), opt, fx, aT, detail='sv') for k in keys}
-    nsave, mortal, _, a, kd = next(iter(info.values()))
-    nsave, mortal = nsave * cnt * scale, mortal * cnt * scale
+    nsave, _, _, a, kd = next(iter(info.values()))
+    nsave = nsave * cnt * scale
+    mort = {k: v[1] * cnt * scale for k, v in info.items()}      # 每種保護各自的「一定打穿」：致命傷＋爆擊造傷多的 AP 多打穿的（2026-11-17）
     need = {k: v[2] for k, v in info.items()}
-    ev = {k: mortal + nsave * (need[k] - 1) / 6 for k in keys}
+    ev = {k: mort[k] + nsave * (need[k] - 1) / 6 for k in keys}
     top = max(ev.values()) if ev else 0
     if top <= 0:
         return [], kd, a
     trials = max(a * cnt * scale, top)
     lo, hi = min(need.values()), max(need.values())
-    subs = [(trials, {k: (mortal + nsave * (lo - 1) / 6) / trials for k in keys})]
+    subs = [(trials, {k: (mort[k] + nsave * (lo - 1) / 6) / trials for k in keys})]
     for v in range(lo, hi):
         subs.append((trials, {k: (nsave / 6 / trials if need[k] > v else 0.0) for k in keys}))
     return subs, kd, a
@@ -556,6 +579,53 @@ def rr1_equiv(w, tgt, opt, fx, aT, cnt):
     return eq, exp * cnt / n
 
 
+def dmg_rr_gain(w, tgt, opt, fx, aT, cnt):
+    """「重骰一顆傷害骰」（Prime Target、Armoured Wrath、Warpfire Infusion…，2026-11-17）：
+    這一輪至少一發沒擋住的機率 × 重骰一次平均多掉的血（骰到比平均低才重骰）。回傳多幾傷。"""
+    exp, ev, a, kd = weapon_damage(w, tgt, opt, fx, aT, detail=True)
+    if ev <= 0 or cnt <= 0:
+        return 0.0
+    t = dict(name='_rr1d', side='att', scope='all', effs=[('rr_dmg', 'all')], tkw=[], tkw_not=[], weapon=None, cond=None)
+    gain = (weapon_damage(w, tgt, opt, list(fx) + [t], aT) - exp) / ev
+    return (1 - math.exp(-ev * cnt)) * gain
+
+
+def tag_mw(t, nmodels):
+    """一個標記「另外造成的致命傷」：固定的 ('mw', x) ＋ 每個模型擲骰的 ('mw_pm', p)（上限 ('mw_cap', n)，例：衝鋒後每個模型 4+ 一點、最多 6 點）"""
+    x = sum(v for k, v in t['effs'] if k == 'mw')
+    pm = sum(v for k, v in t['effs'] if k == 'mw_pm')
+    cap = max([v for k, v in t['effs'] if k == 'mw_cap'] or [0])
+    if pm:
+        x += min(cap or 1e9, pm * nmodels)
+    return x
+
+
+def ppw_of(u):
+    """這隊最便宜的每點傷值幾分（致命傷照接傷順序，護衛先扛）"""
+    gs = u.get('groups') or []
+    return min((g.get('pts_each', 0) / max(1, g['model']['W']) for g in gs), default=0.0)
+
+
+def chg_mw(tgt, att):
+    """att 衝鋒進 tgt 時，tgt 的防守規則讓 att 吃幾點致命傷（2026-11-17：Minefield、Warpflame Gargoyles…）。已扣 att 的 FNP。
+    ('mw_chg', x)：固定平均 x 點；('mw_chg_pm', p)：衝鋒那隊每個模型 p 點（上限 ('mw_cap', n)）"""
+    x = pm = cap = 0
+    for t in tgt.get('dfx', ()):
+        if t['side'] != 'def' or t['scope'] == 'ranged':
+            continue
+        for k, v in t['effs']:
+            if k == 'mw_chg':
+                x += v
+            elif k == 'mw_chg_pm':
+                pm += v
+            elif k == 'mw_cap':
+                cap = max(cap, v)
+    if pm:
+        x += min(cap or 1e9, pm * sum(g['count'] for g in att['groups']))
+    f = att.get('fnp') or 0
+    return x * (f - 1) / 6 if f else x
+
+
 def unit_damage(att, tgt, melee, opt, hi=False, info=None):
     """整個單位打一輪（射擊或近戰）對目標的期望傷數。有「二選一」的規則（pick）時，每個選法都算一次取最好的。
     info（dict）：填 haz＝這輪開了幾把 [HAZARDOUS] 武器（2026-11-16 對戰總表也算危險武器自傷）"""
@@ -597,7 +667,8 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False, info=None):
                 best = max(ps, key=lambda p: weapon_damage(p, tgt, opt, fx, g['model']['T']) - (hw if 'HAZARDOUS' in p['kw'] else 0))
                 entries.append((weapon_damage(best, tgt, opt, fx, g['model']['T']), cnt, best))
         # 「另外造成致命傷」「重骰一顆骰」：整個單位一次，不是每把武器
-        mw = rr1 = 0
+        mw = rr1 = rr1d = 0
+        nmod = sum(gg['count'] for gg in att['groups'])
         for t in fx:
             if t['side'] != 'att' or t['scope'] not in ('all', sc):
                 continue
@@ -607,17 +678,25 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False, info=None):
                 continue
             if t['cond'] == 'charge' and not (melee and opt.get('charge')):
                 continue
+            mw += tag_mw(t, nmod)
             for k, v in t['effs']:
-                mw += v if k == 'mw' else 0
                 rr1 += v if k == 'rr1' else 0
+                rr1d += v if k == 'rr1d' else 0
+        g_extra = 0.0                                  # 這組模型的「整隊一次」加成；每組都帶著整隊的標記，所以各組取最大，不相加
         if mw:
-            extra = max(extra, mw * (1 - (7 - tgt['fnp']) / 6 if tgt['fnp'] else 1))
-        if rr1 and entries:                            # 重骰一顆：用在最划算的那把武器上
+            g_extra += mw * (1 - (7 - tgt['fnp']) / 6 if tgt['fnp'] else 1)
+        if (rr1 or rr1d) and entries:                  # 重骰一顆（命中／造傷／傷害骰）：用在最划算的那把武器上
             best_rr = 0.0
             for d, c, w in entries:
-                eq, per = rr1_equiv(w, tgt, opt, fx, g['model']['T'], c)
-                best_rr = max(best_rr, eq * per)
-            extra = max(extra, rr1 / 2 * best_rr)
+                v = 0.0
+                if rr1:
+                    eq, per = rr1_equiv(w, tgt, opt, fx, g['model']['T'], c)
+                    v += rr1 / 2 * eq * per
+                if rr1d:
+                    v += min(1, rr1d) * dmg_rr_gain(w, tgt, opt, fx, g['model']['T'], c)
+                best_rr = max(best_rr, v)
+            g_extra += best_rr
+        extra = max(extra, g_extra)
         if melee:
             chosen_e = [(d, c, w) for d, c, w in entries if 'EXTRA ATTACKS' in w['kw']]
             left = g['count']                          # 每個模型只用一把近戰武器：挑最好的
@@ -636,6 +715,8 @@ def _unit_damage(att, tgt, melee, opt, chosen, hi=False, info=None):
         used += [(w, c, fx, g['model']['T']) for d, c, w in chosen_e]
     if info is not None:
         info['haz'] = nhaz
+        if melee and opt.get('charge'):
+            info['chg_mw'] = chg_mw(tgt, att)          # 衝鋒進去被對方的規則咬的致命傷（2026-11-17）
     if used and needs_alloc(tgt, used, opt):
         total = alloc_best(tgt, used, opt, hi)
     return min(total + extra, tgt['wounds'])
@@ -1294,7 +1375,7 @@ def matrix(a, b, opt, hz=None):
             w = t['wounds'] or 1
             i1, i2 = {}, {}
             cell = [round(unit_damage(x, t, False, opt, info=i1) / w, 3), round(unit_damage(x, t, True, opt, info=i2) / w, 3)]
-            hrow.append([round(i1.get('haz', 0) * hp, 1), round(i2.get('haz', 0) * hp, 1)])
+            hrow.append([round(i1.get('haz', 0) * hp, 1), round(i2.get('haz', 0) * hp + i2.get('chg_mw', 0) * ppw_of(x), 1)])   # 近戰的自傷另含衝鋒吃的致命傷
             if len({g[1] for g in t['wgroups'] if not g[2]}) > 1:     # 非角色的模型 W 不只一種時，防守方怎麼接才有差
                 cell += [round(unit_damage(x, t, False, opt, True) / w, 3), round(unit_damage(x, t, True, opt, True) / w, 3)]   # 防守方接得差時
             row.append(cell)
@@ -1481,7 +1562,7 @@ def haz_pts(u):
     return mw * ppw / 3
 
 
-def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0, haz_w=0.0):
+def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0, haz_w=0.0, extra_d=0):
     """一把（或 cnt 把一樣的）武器打 tgt：挑最好的模式，回傳每種保護的 (發數, 每發打穿機率, 掉血分布, 平均 D)。
     haz_w：[HAZARDOUS] 模式每把的代價（換算成目標的傷數），挑模式時扣掉（2026-11-16：電漿超載不是免費的）"""
     best = None
@@ -1497,8 +1578,12 @@ def _shot_for(w, fx, aT, tgt, opt, cnt, extra=0, haz_w=0.0):
             best = (tot, p, sv, a, kd, score)
     tot, p, sv, a, kd, score = best
     scale = 1.0
-    if extra and a * cnt > 0:                           # 「重骰一顆」換算成多幾次攻擊（Magna Imperator 等），每發機率不變
-        scale = 1 + extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0] / (a * cnt)
+    if (extra or extra_d) and a * cnt > 0:              # 「重骰一顆」換算成多幾次攻擊（Magna Imperator 等），每發機率不變
+        add = extra / 2 * rr1_equiv(p, tgt, opt, fx, aT, cnt)[0] if extra else 0.0
+        if extra_d:                                     # 重骰一顆傷害骰（2026-11-17）：多掉的血換算成攻擊數
+            per = weapon_damage(p, tgt, opt, fx, aT) / a if a else 0
+            add += dmg_rr_gain(p, tgt, opt, fx, aT, cnt) / per if per > 0 else 0.0
+        scale = 1 + add / (a * cnt)
     subs, kd, a = pool_shots(p, tgt, opt, fx, aT, cnt, sorted(sv), scale)   # 05.04：保護骰從小到大分配
     return dict(name=p['name'], subs=subs, kd=kd, md=sum(k * pp for k, pp in kd.items()), exp=tot * cnt,
                 score=score * cnt, haz=cnt if 'HAZARDOUS' in p['kw'] else 0)
@@ -1698,6 +1783,8 @@ def scenario(text_a, text_b, opt, db, sel):
                 ents = ex + use
             rr1 = sum(v for t in fx if t['side'] == 'att' and t['scope'] in ('all', 'melee' if melee else 'ranged')
                       for k, v in t['effs'] if k == 'rr1')
+            rr1d = min(1, sum(v for t in fx if t['side'] == 'att' and t['scope'] in ('all', 'melee' if melee else 'ranged')
+                              for k, v in t['effs'] if k == 'rr1d'))
             first = len(items)
             for c, ps in ents:
                 fxs = [fx + [t] for t in picks] or [fx]
@@ -1705,14 +1792,17 @@ def scenario(text_a, text_b, opt, db, sel):
                 step = max(1, -(-n // 10))              # 同一種武器最多拆 10 份
                 while n > 0:
                     k = min(step, n)
-                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0, haz_pts=haz_pts(u)))
+                    items.append(dict(u=i, ps=ps, fxs=fxs, aT=g['model']['T'], n=k, extra=0, extra_d=0, haz_pts=haz_pts(u)))
                     n -= k
-            if rr1 and len(items) > first and not u.get('_rr1'):    # 一個單位只算一次，加在這組最強的那把
+            if (rr1 or rr1d) and len(items) > first and not u.get('_rr1'):    # 一個單位只算一次，加在這組最強的那把
                 def rrv(k):                             # 用在「重骰一顆」最划算的那把（整種武器一起算）
                     tot_n = sum(x['n'] for x in items[first:] if x['ps'] is items[k]['ps'])
-                    return max(e * per for p in items[k]['ps'] for t in tgts for e, per in [rr1_equiv(p, t, opt, items[k]['fxs'][0], items[k]['aT'], tot_n)])
+                    f0, aT0 = items[k]['fxs'][0], items[k]['aT']
+                    return max((rr1 / 2 * e * per if rr1 else 0) + (rr1d * dmg_rr_gain(p, t, opt, f0, aT0, tot_n) if rr1d else 0)
+                               for p in items[k]['ps'] for t in tgts for e, per in [rr1_equiv(p, t, opt, f0, aT0, tot_n)])
                 bi = max(range(first, len(items)), key=rrv)
                 items[bi]['extra'] = rr1
+                items[bi]['extra_d'] = rr1d
                 u['_rr1'] = True
     # 「另外造成致命傷」（例：帝皇親選的 Rendax 加碼）：每個單位一項，當成一把可以指定目標的「武器」（2026-11-16 使用者：致命傷沒算）
     sc_ = 'melee' if melee else 'ranged'
@@ -1720,12 +1810,12 @@ def scenario(text_a, text_b, opt, db, sel):
         seen = set()
         for g in a['units'][i]['groups']:
             for t in g.get('fx', []):
-                if t['side'] == 'att' and t['scope'] in ('all', sc_) and t['name'] not in seen and any(k == 'mw' for k, v in t['effs']):
+                if t['side'] == 'att' and t['scope'] in ('all', sc_) and t['name'] not in seen and any(k in ('mw', 'mw_pm') for k, v in t['effs']):
                     if t['cond'] == 'charge' and not (melee and opt.get('charge')):
                         continue
                     seen.add(t['name'])
-                    items.append(dict(u=i, ps=[], fxs=[[]], aT=g['model']['T'], n=1, extra=0, haz_pts=0.0, mw_tag=t,
-                                      mw=sum(v for k, v in t['effs'] if k == 'mw')))
+                    items.append(dict(u=i, ps=[], fxs=[[]], aT=g['model']['T'], n=1, extra=0, extra_d=0, haz_pts=0.0, mw_tag=t,
+                                      mw=tag_mw(t, sum(gg['count'] for gg in a['units'][i]['groups']))))
     if not items:
         return dict(error='選的單位沒有可用的' + ('近戰' if melee else '射擊') + '武器')
     cache = {}
@@ -1736,7 +1826,7 @@ def scenario(text_a, text_b, opt, db, sel):
                 cache[key] = _mw_shot(it['mw_tag'], it['mw'], tgts[j])
                 return cache[key]
             hw = it['haz_pts'] / max(1e-9, pts[j] / max(1, tgts[j]['wounds']))     # 危險武器的代價換算成目標的傷數
-            s_ = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra'], hw) for f in it['fxs']), key=lambda s: s['score'])
+            s_ = max((_shot_for(it['ps'], f, it['aT'], tgts[j], opt, it['n'], it['extra'], hw, it.get('extra_d', 0)) for f in it['fxs']), key=lambda s: s['score'])
             s_['haz_pts'] = s_['haz'] * it['haz_pts']
             cache[key] = s_
         return cache[key]
@@ -1796,8 +1886,18 @@ def scenario(text_a, text_b, opt, db, sel):
         k = int(dn)
         removed = sum(pm[:k]) + (dn - k) * (pm[k] if k < len(pm) else 0)
         return max(0.0, 1 - removed / tot_o)
+    # 衝鋒進去被對方的規則咬（2026-11-17：Minefield、Warpflame Gargoyles…）：每個「我方單位→目標」只算一次，換成分數
+    chg = {}
+    if melee and opt.get('charge'):
+        for i in atk:
+            for jj in range(len(tg)):
+                x = chg_mw(tgts[jj], a['units'][i])
+                if x > 0:
+                    chg[(i, jj)] = x * ppw_of(a['units'][i])
+    def chg_cost(asg):
+        return sum(chg.get(p, 0.0) for p in {(it['u'], x) for it, x in zip(items, asg) if x is not None and x >= 0})
     def value(asg):
-        tot = 0.0
+        tot = -chg_cost(asg)
         for j in range(len(tg)):
             v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it, x in zip(items, asg) if x == j], pts[j])
             tot += (pw * worth[j] + 0.01 * v if wipe else v) - rem_frac(j, dn) * back[j]
@@ -1855,12 +1955,12 @@ def scenario(text_a, text_b, opt, db, sel):
     for j in range(len(tg)):
         v, pw, dn, df = _target_value(tgts[j], [shot(it, j) for it in items], pts[j])
         bk = rem_frac(j, dn) * back[j] + sum(back[k] for k in range(len(tg)) if k != j)      # 沒打的目標全力反打
-        hz = sum(shot(it, j)['haz_pts'] for it in items)
+        hz = sum(shot(it, j)['haz_pts'] for it in items) + chg_cost([j] * len(items))
         alt.append(dict(name=lab(b, tg[j]), value=round(v), p_wipe=round(pw, 3), dead=round(dn, 2), models=tgts[j]['models'], back=round(bk), hazard=round(hz, 1), net=round(v - bk - hz), kdist=tgts[j].get('_kdist', [])))
     tot_pts = sum(t['value'] for t in res_t)
     tot_back = sum(t['back'] for t in res_t)
-    tot_haz = sum(shot(it, j)['haz_pts'] for it, j in zip(items, asg))
-    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), back=round(tot_back), hazard=round(tot_haz, 1), net=round(tot_pts - tot_back - tot_haz), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
+    tot_haz = sum(shot(it, j)['haz_pts'] for it, j in zip(items, asg)) + chg_cost(asg)
+    out = dict(melee=melee, goal='wipe' if wipe else 'points', total=round(tot_pts), back=round(tot_back), hazard=round(tot_haz, 1), chg=round(chg_cost(asg), 1), net=round(tot_pts - tot_back - tot_haz), targets=res_t, plan=[dict(unit=k[0], weapon=k[1], target=k[2], n=n) for k, n in plan_.items()], focus=alt)
     # 用了「每場一次」的能力：另外算不用的話會怎樣，讓使用者決定要不要省（2026-11-15 使用者要求）
     once = [(x['key'], x['name']) for i in atk for x in a['units'][i]['abil'] if x['on'] and x.get('once')]
     if once and not opt.get('_noonce'):

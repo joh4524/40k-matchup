@@ -101,7 +101,7 @@ ENH = {
         T('Lethal Hits', 'att', [('kw', 'LETHAL HITS')], on=True, unitwide=False, pick='mc', why='不含 Psychic 武器'),
         T('Sustained Hits 1', 'att', [('kw', 'SUSTAINED HITS 1')], on=True, unitwide=False, pick='mc', why='不含 Psychic 武器'),
     ],
-    'Gûlyk’s Stars': [T('Gûlyk’s Stars', 'att', [('mw', 1.17)], on=False, unitwide=False, why='帶的模型衝鋒結束後擲 D6：2-4 造 1 致命傷、5+ 造 2（平均約 1.17）')],
+    'Gûlyk’s Stars': [T('Gûlyk’s Stars', 'att', [('mw', 7 / 6)], scope='melee', cond='charge', on=True, unitwide=False, why='帶的模型衝鋒結束後擲 D6：2-4 造 1 致命傷、5+ 造 2（平均約 1.17）')],
     'Bastion Shield': [T('Bastion Shield', 'def', [('ap', -1)], scope='ranged', on=False, why='攻擊者在 12" 內（花 1YP 變 18"）')],
     'Oathbound Speculator': [
         T('Oathbound Speculator', 'att', [('rr_wound', '1')], on=True),

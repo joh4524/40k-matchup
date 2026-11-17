@@ -30,6 +30,7 @@ DET = {
         R('TRUESILVER CHANNELLING', '戰略', [T('Truesilver Channelling', 'att', [('kw', 'DEVASTATING WOUNDS')], scope='melee', wkw='PSYCHIC')], cp='2', need=['INFANTRY']),
     ],
     '000001082': [   # Hallowed Conclave
+        R('GRIND THEM UNDERFOOT', '戰略', [T('Grind Them Underfoot', 'att', [('mw_pm', 0.5), ('mw_cap', 6)], scope='melee', cond='charge', why='衝鋒結束：每個模型 4+ 造成 1 點致命傷，最多 6')], cp='1', need=['TERMINATOR']),
         R('GIANTS OF THE BATTLEFIELD', '戰略', [T('Giants of the Battlefield', 'att', [('attacks', 1)], scope='melee')], cp='1', need=['TERMINATOR']),
         R('POINT-BLANK PURGATION', '戰略', [T('Point-Blank Purgation', 'att', [('kw', 'TWIN-LINKED')], scope='ranged', weapon='storm bolter')], cp='1', need=['INFANTRY']),
         R('SHINING RESOLVE', '戰略', [T('Shining Resolve', 'def', [('wound', -1)], scope='ranged', cond='s_gt_t')], cp='1', need=['INFANTRY']),

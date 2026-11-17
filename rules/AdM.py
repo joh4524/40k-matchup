@@ -114,7 +114,8 @@ DET = {
             T('Sustained Hits 1', 'att', [('kw', 'SUSTAINED HITS 1')], scope='ranged', pick='wrath'),
             T('Lethal Hits', 'att', [('kw', 'LETHAL HITS')], scope='ranged', pick='wrath'),
         ], cp='1', need=['SKITARII'], note='二選一；也可三個一起拿但武器變 HAZARDOUS（沒算）'),
-        # Precision Onslaught：致命傷數要看模型數，不算；Threat-cogitation：重骰傷害骰，不算
+        R('Precision Onslaught', '戰略', [T('Precision Onslaught', 'att', [('mw_pm', 0.5)], scope='melee', cond='charge', why='衝鋒結束：每個模型 4+ 造成 1 點致命傷')], cp='1', need=['SICARIAN']),
+        R('Threat-cogitation Targeters', '戰略', [T('Threat-cogitation Targeters', 'att', [('rr_dmg', 'all')], scope='ranged', tkw=MV)], cp='1', need=['SKITARII', 'VEHICLE']),
     ],
     '000001158': [
         R('Defect Scrutiny', '戰略', [T('Defect Scrutiny', 'att', [('kw', 'IGNORES COVER')], scope='ranged', why='只打被選的敵方單位')], cp='1'),
