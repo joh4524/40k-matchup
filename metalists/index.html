@@ -4,50 +4,140 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>40K Meta 表</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f6f5f1;--card:#fff;--ink:#1d1d1b;--mute:#6b6a64;--line:#e3e1d9;--acc:#8a5a00;--acc2:#f3e7cf;--up:#1f7a3a;--down:#a33;--spine:#8a5a00;--flex:#3d5f8a;--tech:#777}
-@media (prefers-color-scheme:dark){:root{--bg:#141412;--card:#1e1e1b;--ink:#ecebe6;--mute:#9c9a92;--line:#33322d;--acc:#e0a84a;--acc2:#3a2f1c;--up:#5cc27a;--down:#e07070;--spine:#e0a84a;--flex:#86a9d6;--tech:#999}}
+:root{
+  --bg:#0e0e10;--bg2:#141417;--card:#1a1a1e;--card2:#222227;--ink:#ece8df;--mute:#9b978d;--faint:#5e5b55;--line:#2c2b30;
+  --gold:#d4a64a;--gold2:#8a6a26;--up:#5cc58a;--down:#e06a6a;
+  --imp:#d4a64a;--cha:#c8463f;--xen:#3fae8c;
+  --spine:#d4a64a;--flex:#6f97c9;--tech:#7d7a73;
+  --shadow:0 1px 0 rgba(255,255,255,.03) inset,0 8px 24px rgba(0,0,0,.35);
+}
+@media (prefers-color-scheme:light){:root{
+  --bg:#f3efe6;--bg2:#ebe6da;--card:#fffdf8;--card2:#f6f2e9;--ink:#1f1d19;--mute:#6c675d;--faint:#a8a296;--line:#e0d9ca;
+  --gold:#9a6b12;--gold2:#c9a25a;--up:#1f7a46;--down:#b03a3a;--imp:#a8780f;--cha:#a8302a;--xen:#1f7f64;
+  --spine:#9a6b12;--flex:#3d6a9e;--tech:#8a857b;--shadow:0 1px 2px rgba(60,45,10,.06),0 6px 18px rgba(60,45,10,.06);
+}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
-main{max-width:980px;margin:0 auto;padding:16px}
-a{color:var(--acc)}
-h1{font-size:22px;margin:4px 0}
-h2{font-size:18px;margin:22px 0 8px}
-h3{font-size:16px;margin:16px 0 6px}
-.eyebrow{font-size:12px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Noto Sans TC",-apple-system,BlinkMacSystemFont,"PingFang TC","Microsoft JhengHei",sans-serif}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(1200px 500px at 50% -200px,color-mix(in srgb,var(--gold) 14%,transparent),transparent 70%)}
+main{position:relative;max-width:1040px;margin:0 auto;padding:20px 16px 40px}
+a{color:var(--gold);text-decoration:none}
+a:hover{text-decoration:underline}
+.num,.big{font-family:Oswald,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .mute{color:var(--mute)}
 .small{font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
-table{border-collapse:collapse;width:100%}
-th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
-th{font-size:12px;color:var(--mute);font-weight:600}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.click{cursor:pointer}
-tr.click:hover{background:var(--acc2)}
-.scroll{overflow-x:auto}
-.tag{display:inline-block;font-size:11px;border-radius:4px;padding:0 5px;margin-left:4px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
-.tier{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:1px 6px;color:#fff}
-.t-主幹{background:var(--spine)}.t-彈性{background:var(--flex)}.t-針對{background:var(--tech)}
-.bar{height:6px;background:var(--line);border-radius:3px;min-width:60px}
-.bar i{display:block;height:6px;background:var(--acc);border-radius:3px}
-.up{color:var(--up)}.down{color:var(--down)}
-.builds{display:flex;flex-wrap:wrap;gap:8px}
-.bt{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font:inherit;flex:1 1 260px}
-.bt.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
-.bt b{display:block}
-.stats{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0}
-.stats div{min-width:90px}
-.stats b{display:block;font-size:20px}
-details{border-top:1px solid var(--line);padding:6px 0}
-summary{cursor:pointer}
-pre{white-space:pre-wrap;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:420px;overflow:auto}
-.units{font-size:13px}
+.xs{font-size:12px}
+.topnav{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;margin-bottom:18px}
+.topnav a{color:var(--mute)}
+.eyebrow{font:600 12px/1 Oswald,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
+h1{font:900 34px/1.15 "Noto Serif TC",serif;margin:8px 0 6px;letter-spacing:.02em}
+h1 .en{display:block;font:500 15px/1.4 Oswald,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--mute);margin-top:4px}
+h2{font:700 20px/1.3 "Noto Serif TC",serif;margin:34px 0 4px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h2 .count{font:500 14px Oswald,"Noto Sans TC",sans-serif;color:var(--mute)}
+.lead{color:var(--mute);font-size:14px;max-width:720px;margin:0 0 12px}
+.rule{height:1px;background:linear-gradient(90deg,var(--gold2),transparent);margin:6px 0 14px;border:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:18px 0 6px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .big{font-size:28px;line-height:1;display:block;color:var(--ink);margin-bottom:4px}
+.stat .lbl{font-size:12px;color:var(--mute)}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0 10px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{background:var(--gold);border-color:var(--gold);color:#1a1406;font-weight:700}
+input[type=search]{flex:1 1 200px;min-width:0;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+input[type=search]:focus{outline:2px solid var(--gold2);outline-offset:1px}
+.rank{list-style:none;margin:0;padding:6px}
+.row{display:grid;grid-template-columns:44px 1fr minmax(120px,34%) 92px;gap:12px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;border-left:3px solid transparent}
+.row:hover{background:var(--card2)}
+.row + .row{border-top:1px solid var(--line)}
+.row.imp{border-left-color:var(--imp)}.row.cha{border-left-color:var(--cha)}.row.xen{border-left-color:var(--xen)}
+.row .pos{font:600 22px Oswald,sans-serif;color:var(--faint);text-align:center}
+.row:nth-child(-n+3) .pos{color:var(--gold)}
+.row .nm{min-width:0}
+.row .nm b{font-size:16px;font-weight:700}
+.row .nm .en{font:500 12px Oswald,sans-serif;letter-spacing:.06em;color:var(--mute);text-transform:uppercase;margin-left:6px}
+.row .nm .sub{font-size:12px;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meter{display:flex;align-items:center;gap:8px}
+.meter .track{flex:1;height:8px;background:var(--bg2);border-radius:99px;overflow:hidden}
+.meter .fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.meter .v{font:600 15px Oswald,sans-serif;min-width:40px;text-align:right}
+.meter .v:empty{display:none}
+.mom{font:500 13px Oswald,sans-serif;text-align:right;white-space:nowrap;color:var(--mute)}
+.mom .a{font-size:11px;padding:1px 6px;border-radius:99px;margin-left:4px}
+.mom .a.up{color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)}
+.mom .a.down{color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)}
+.mom .a.eq{color:var(--mute);background:var(--bg2)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin:8px 2px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.hero{padding:20px 20px 16px;border-left:4px solid var(--gold);margin-top:6px}
+.hero.imp{border-left-color:var(--imp)}.hero.cha{border-left-color:var(--cha)}.hero.xen{border-left-color:var(--xen)}
+.builds{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.bt{position:relative;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px 14px 14px;font:inherit;cursor:pointer;overflow:hidden}
+.bt:hover{border-color:var(--gold2)}
+.bt.on{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.bt b{display:block;font-size:14px;line-height:1.35}
+.bt .meta{font-size:12px;color:var(--mute);margin-top:6px}
+.bt .pct{font:600 22px Oswald,sans-serif;color:var(--gold);float:right;margin-left:8px;line-height:1}
+.bt .strip{position:absolute;left:0;bottom:0;height:3px;background:var(--gold)}
+details.more{margin-top:10px}
+details.more>summary{cursor:pointer;color:var(--mute);font-size:13px;padding:6px 0}
+.tier{margin-top:14px}
+.tier-h{display:flex;align-items:center;gap:8px;font-weight:700;margin:0 0 6px}
+.badge{font:600 12px/1 "Noto Sans TC",sans-serif;padding:4px 8px;border-radius:6px;color:#141210}
+.b-主幹{background:var(--spine)}.b-彈性{background:var(--flex);color:#fff}.b-針對{background:var(--tech);color:#fff}
+.units{list-style:none;margin:0;padding:4px 14px}
+.u,.uh{display:grid;grid-template-columns:1fr minmax(110px,30%) 64px 64px;gap:12px;align-items:center}
+.u{padding:9px 0}
+.u + .u{border-top:1px solid var(--line)}
+.u .n{font-weight:500}
+.u .zh{font-size:12px;color:var(--mute)}
+.u .k{font:500 14px Oswald,sans-serif;text-align:right;color:var(--mute)}
+.u .k b{color:var(--ink);font-weight:600}
+.uh{padding:8px 14px 0;font-size:11px;color:var(--faint);letter-spacing:.06em}
+.uh span:nth-child(n+3){text-align:right}
+.tag{display:inline-block;font-size:10px;border:1px solid var(--line);color:var(--mute);border-radius:4px;padding:0 4px;margin-left:5px;vertical-align:1px}
+.lists{display:grid;gap:10px}
+.lc{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.lc>summary{list-style:none;cursor:pointer;padding:12px 14px;display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center}
+.lc>summary::-webkit-details-marker{display:none}
+.lc[open]>summary{border-bottom:1px solid var(--line);background:var(--card2)}
+.rec{font:600 20px Oswald,sans-serif;text-align:center;border-radius:8px;padding:6px 0;background:var(--bg2)}
+.rec.perfect{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.lc .who{min-width:0}
+.lc .who b{font-size:15px}
+.lc .who .ev{font-size:12px;color:var(--mute)}
+.lc .side{text-align:right;font-size:12px;color:var(--mute);white-space:nowrap}
+.lc .side .big{font-size:18px;color:var(--ink);display:block}
+.lc .body{padding:12px 14px}
+.lc .det{font-size:13px;margin-bottom:8px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.pill{font-size:12px;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+.pill .num{color:var(--mute);margin-left:4px}
+.lbl2{display:inline-block;font:700 11px "Noto Sans TC",sans-serif;border-radius:4px;padding:2px 6px;background:var(--gold);color:#1a1406;margin-left:6px;vertical-align:2px}
+pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:420px;overflow:auto;margin:0}
+details.raw>summary{cursor:pointer;font-size:12px;color:var(--mute);margin:4px 0 8px}
 .warn{color:var(--down)}
-.back{display:inline-block;margin:4px 0 8px}
-footer{margin:28px 0 10px;font-size:13px;color:var(--mute)}
-footer li{margin:3px 0}
-input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;margin:6px 0}
-@media (max-width:600px){.hide-s{display:none}th,td{padding:5px 4px}}
+footer{margin:40px 0 0;padding-top:16px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mute)}
+footer ul{padding-left:18px;margin:0}
+footer li{margin:4px 0}
+.empty{padding:16px;color:var(--mute)}
+@media (max-width:640px){
+  h1{font-size:28px}
+  .row{grid-template-columns:30px 1fr 74px;gap:4px 8px;padding:10px 6px}
+  .row .pos{font-size:18px}
+  .row .meter{grid-column:2 / 4;grid-row:2}
+  .row .meter .track{height:6px}
+  .row .mom{grid-row:1;grid-column:3}
+  .u,.uh{grid-template-columns:1fr 64px 46px;gap:8px}
+  .u .bar,.uh .bar{display:none}
+  .lc>summary{grid-template-columns:54px 1fr}
+  .lc .side{grid-column:2;text-align:left}
+  .lc .side .big{display:inline;font-size:14px;margin-right:4px}
+}
 </style>
 </head>
 <body>
@@ -58,7 +148,17 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<"
 const pct = (x) => Math.round(x * 100) + "%";
 const rec = (r) => r[0] + "-" + r[1] + (r[2] ? "-" + r[2] : "");
 let INDEX = null;
+let ALLY = "all";
 const CACHE = {};
+
+// 陣營分三邊，只用來上色和篩選
+const SIDE = {
+  imp: ["adepta-sororitas", "adeptus-custodes", "adeptus-mechanicus", "astra-militarum", "black-templars", "blood-angels", "dark-angels", "deathwatch", "grey-knights", "imperial-agents", "imperial-knights", "space-marines", "space-wolves"],
+  cha: ["chaos-daemons", "chaos-knights", "chaos-space-marines", "death-guard", "emperors-children", "thousand-sons", "world-eaters"],
+  xen: ["aeldari", "drukhari", "genestealer-cult", "leagues-of-votann", "necrons", "orks", "tau-empire", "tyranids"],
+};
+const sideOf = (slug) => Object.keys(SIDE).find((k) => SIDE[k].includes(slug)) || "imp";
+const SIDE_ZH = {all: "全部", imp: "帝國", cha: "混沌", xen: "異形"};
 
 async function getJSON(u) {
   const r = await fetch(u, {cache: "no-store"});
@@ -66,113 +166,156 @@ async function getJSON(u) {
   return r.json();
 }
 
-function fname(f) {
-  return (f.zh ? esc(f.zh) + " " : "") + '<span class="mute small">' + esc(f.name) + "</span>";
+function meter(x, label) {
+  return '<div class="meter"><div class="track"><div class="fill" style="width:' + Math.max(2, Math.round(x * 100)) + '%"></div></div><span class="v num">' + label + "</span></div>";
 }
 
-function unitName(u) {
-  const zh = u.zh ? '<div class="small mute">' + esc(u.zh) + (u.src === "自譯" ? '<span class="tag">自譯</span>' : "") + "</div>" : "";
-  return esc(u.n) + zh;
+function mom(a, b) {
+  const cls = a > b ? "up" : (a < b ? "down" : "eq");
+  const sym = a > b ? "▲" : (a < b ? "▼" : "＝");
+  return '<div class="mom">' + a + " / " + b + '<span class="a ' + cls + '">' + sym + "</span></div>";
 }
 
-function bar(x) {
-  return '<div class="bar"><i style="width:' + Math.round(x * 100) + '%"></i></div>';
+function topnav(back) {
+  return '<nav class="topnav">' + (back ? '<a href="#">← 全部陣營</a>' : '<a href="../">← 軍表對戰計算</a>') + '<span class="mute">更新 ' + esc(INDEX.built) + "</span></nav>";
 }
 
-// 首頁：陣營排名照 metamerge 的算法（GT、全勝或只輸一場、6 週）；後面幾欄是我們 4 勝以上的統計
+// 首頁：排名照 Meta Merge（GT、全勝或只輸一場、6 週）
 function home() {
-  const fs = [...INDEX.factions].sort((a, b) => b.gt - a.gt || b.n - a.n);
-  const tot = fs.reduce((s, f) => s + f.gt, 0) || 1;
-  let h = '<a class="back" href="../">← 軍表對戰計算</a><div class="eyebrow">Warhammer 40,000 · 11th edition</div><h1>40K Meta 表</h1>';
-  h += '<p class="mute small">更新 ' + esc(INDEX.built) + '。資料：<a href="https://listhammer.info" target="_blank" rel="noopener">Listhammer</a>（經 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic</a>）</p>';
-  h += '<input type="search" id="q" placeholder="找陣營（中文或英文）">';
-  h += '<h2>陣營排名</h2><p class="small mute">算法跟 Meta Merge 一樣：' + esc(INDEX.feed || "") + ' 起的大型賽（GT），全勝或只輸一場的表，各陣營占幾成。這是好成績的占比，不是勝率；玩的人多的陣營自然多。點進陣營後的分隊和單位統計，照你的規則只算 4 勝以上、' + esc(INDEX.since) + ' 平衡之後（禁軍只算 10/21 新 Codex 之後）。</p>';
-  h += '<div class="card scroll"><table id="field"><thead><tr><th>#</th><th>陣營</th><th class="num">GT 好成績</th><th class="num">占比</th><th class="num">近 2 週 / 前 2 週</th><th class="num hide-s">4 勝以上</th><th class="num hide-s">全勝</th><th class="hide-s">最多人用的分隊</th></tr></thead><tbody>';
-  fs.forEach((f, i) => {
-    const mom = f.gt14 > f.gtp14 ? '<span class="up">▲</span>' : (f.gt14 < f.gtp14 ? '<span class="down">▼</span>' : "＝");
-    h += '<tr class="click" data-slug="' + f.slug + '" data-k="' + esc((f.zh + " " + f.name).toLowerCase()) + '"><td class="num">' + (i + 1) + "</td><td>" + fname(f) + '</td><td class="num">' + f.gt + '</td><td class="num">' + pct(f.gt / tot) + '<div class="hide-s" style="width:70px;margin-left:auto">' + bar(f.gt / fs[0].gt) + '</div></td><td class="num">' + f.gt14 + " / " + f.gtp14 + " " + mom + '</td><td class="num hide-s">' + f.n + '</td><td class="num hide-s">' + f.undefeated + '</td><td class="small hide-s">' + esc(f.top) + "</td></tr>";
+  const all = [...INDEX.factions].sort((a, b) => b.gt - a.gt || b.n - a.n);
+  const tot = all.reduce((s, f) => s + f.gt, 0) || 1;
+  const top = all[0].gt || 1;
+  let h = topnav(false);
+  h += '<div class="eyebrow">Warhammer 40,000 · 11th Edition</div><h1>40K Meta 表<span class="en">Tournament meta · all factions</span></h1>';
+  h += '<div class="stats"><div class="stat"><span class="big">' + tot + '</span><span class="lbl">張 GT 好成績軍表</span></div><div class="stat"><span class="big">' + all.length + '</span><span class="lbl">個陣營</span></div><div class="stat"><span class="big">' + esc((INDEX.feed || "").slice(5).replace("-", "/")) + '</span><span class="lbl">起算（約 6 週）</span></div><div class="stat"><span class="big">' + all.reduce((s, f) => s + f.n, 0) + '</span><span class="lbl">張 4 勝以上（陣營內頁）</span></div></div>';
+  h += '<h2>陣營排名</h2><hr class="rule">';
+  h += '<p class="lead">大型賽（GT）全勝或只輸一場的軍表，各陣營占幾成，算法跟 Meta Merge 一樣。這是好成績的占比，不是勝率；玩的人多的陣營自然多。右邊是近 2 週 / 前 2 週的張數。</p>';
+  h += '<div class="tools">' + Object.keys(SIDE_ZH).map((k) => '<button class="chip' + (ALLY === k ? " on" : "") + '" data-a="' + k + '">' + SIDE_ZH[k] + "</button>").join("") + '<input type="search" id="q" placeholder="找陣營（中文或英文）"></div>';
+  h += '<div class="card"><ol class="rank" id="field">';
+  all.forEach((f, i) => {
+    const s = sideOf(f.slug);
+    h += '<li class="row ' + s + '" data-slug="' + f.slug + '" data-s="' + s + '" data-k="' + esc((f.zh + " " + f.name).toLowerCase()) + '">';
+    h += '<span class="pos">' + (i + 1) + "</span>";
+    h += '<div class="nm"><b>' + esc(f.zh || f.name) + '</b><span class="en">' + esc(f.name) + '</span><div class="sub">' + f.gt + " 張 · 4 勝以上 " + f.n + " 張 · 全勝 " + f.undefeated + (f.top ? " · " + esc(f.top) : "") + "</div></div>";
+    h += meter(f.gt / top, pct(f.gt / tot));
+    h += mom(f.gt14, f.gtp14);
+    h += "</li>";
   });
-  h += "</tbody></table></div>";
+  h += "</ol></div>";
+  h += '<div class="legend"><span><i style="background:var(--imp)"></i>帝國</span><span><i style="background:var(--cha)"></i>混沌</span><span><i style="background:var(--xen)"></i>異形</span><span>長條：跟第一名比的長度</span></div>';
   h += notes();
   $("#app").innerHTML = h;
-  document.querySelectorAll("#field tr.click").forEach((tr) => tr.onclick = () => { location.hash = tr.dataset.slug; });
-  $("#q").oninput = (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    document.querySelectorAll("#field tbody tr").forEach((tr) => { tr.style.display = !q || tr.dataset.k.includes(q) ? "" : "none"; });
+  const filter = () => {
+    const q = $("#q").value.trim().toLowerCase();
+    document.querySelectorAll("#field .row").forEach((r) => { r.style.display = (ALLY === "all" || r.dataset.s === ALLY) && (!q || r.dataset.k.includes(q)) ? "" : "none"; });
   };
+  document.querySelectorAll("#field .row").forEach((r) => r.onclick = () => { location.hash = r.dataset.slug; });
+  document.querySelectorAll(".chip").forEach((c) => c.onclick = () => {
+    ALLY = c.dataset.a;
+    document.querySelectorAll(".chip").forEach((x) => x.classList.toggle("on", x === c));
+    filter();
+  });
+  $("#q").oninput = filter;
+  filter();
 }
 
-function unitTable(units) {
-  let h = '<div class="scroll"><table><thead><tr><th>分層</th><th>單位</th><th class="num">出場率</th><th class="hide-s"></th><th class="num">平均幾隊</th><th class="num">每隊點數</th></tr></thead><tbody>';
+function unitRows(units) {
+  let h = '<div class="uh"><span>單位</span><span class="bar">出場率</span><span>出場</span><span>每隊點</span></div><ul class="units">';
   for (const u of units) {
-    h += '<tr><td><span class="tier t-' + u.tier + '">' + u.tier + "</span></td><td>" + unitName(u) + '</td><td class="num">' + pct(u.rate) + '<div class="small mute">' + u.lists + ' 張</div></td><td class="hide-s" style="width:90px">' + bar(u.rate) + '</td><td class="num">' + u.copies + '</td><td class="num">' + u.pts + "</td></tr>";
+    const zh = u.zh ? '<div class="zh">' + esc(u.zh) + (u.src === "自譯" ? '<span class="tag">自譯</span>' : "") + "</div>" : "";
+    h += '<li class="u"><div><div class="n">' + esc(u.n) + "</div>" + zh + '</div><div class="bar">' + meter(u.rate, "") + '</div><div class="k"><b>' + pct(u.rate) + '</b><div class="xs">×' + u.copies + '</div></div><div class="k pts">' + u.pts + "</div></li>";
   }
-  return h + "</tbody></table></div>";
+  return h + "</ul>";
+}
+
+// 單位照主幹／彈性／針對分三段
+function unitTiers(units) {
+  const desc = {"主幹": "80% 以上的表都帶", "彈性": "35% 以上", "針對": "其他"};
+  let h = "";
+  for (const t of ["主幹", "彈性", "針對"]) {
+    const us = units.filter((u) => u.tier === t);
+    if (!us.length) continue;
+    h += '<div class="tier"><div class="tier-h"><span class="badge b-' + t + '">' + t + '</span><span class="small mute">' + desc[t] + " · " + us.length + " 種</span></div>";
+    h += '<div class="card">' + unitRows(us) + "</div></div>";
+  }
+  return h;
 }
 
 function listCard(l, label) {
-  const bad = l.u.length && (l.pts < 1950 || l.pts > 2000) ? ' <span class="warn small">⚠️ 分數加總 ' + l.pts + "，可能有單位沒讀到</span>" : "";
-  let h = '<details><summary><b>' + esc(l.player) + "</b> " + rec(l.rec) + (label ? ' <span class="tag">' + label + "</span>" : "") + '<div class="small mute">' + esc(l.event) + "（" + l.date.slice(5) + "，" + l.players + " 人）｜" + esc(l.det) + (l.disp ? "｜" + esc(l.disp) : "") + (l.u.length ? "｜" + l.pts + " 點" : '｜<span class="warn">讀不到內容（多半是圖片）</span>') + bad + "</div></summary>";
-  if (l.u.length) h += '<p class="units">' + l.u.map((x) => esc(x[0]) + " " + x[1]).join("、") + "</p>";
-  if (l.text) h += "<pre>" + esc(l.text) + "</pre>";
-  return h + "</details>";
+  const perfect = !l.rec[1] && !l.rec[2];
+  const bad = l.u.length && (l.pts < 1950 || l.pts > 2000) ? '<div class="warn xs">⚠️ 分數加總 ' + l.pts + "，可能有單位沒讀到</div>" : "";
+  let h = '<details class="lc"><summary><div class="rec' + (perfect ? " perfect" : "") + '">' + rec(l.rec) + "</div>";
+  h += '<div class="who"><b>' + esc(l.player) + "</b>" + (label ? '<span class="lbl2">' + label + "</span>" : "") + '<div class="ev">' + esc(l.event) + " · " + l.date.slice(5).replace("-", "/") + "</div></div>";
+  h += '<div class="side"><span class="big num">' + l.players + "</span>人" + (l.u.length ? " · " + l.pts + " 點" : "") + "</div></summary>";
+  h += '<div class="body"><div class="det">' + esc(l.det) + (l.disp ? ' <span class="mute">· ' + esc(l.disp) + "</span>" : "") + "</div>" + bad;
+  if (l.u.length) h += '<div class="pills">' + l.u.map((x) => '<span class="pill">' + esc(x[0]) + '<span class="num">' + x[1] + "</span></span>").join("") + "</div>";
+  else h += '<p class="warn small">讀不到內容（多半是上傳成圖片）</p>';
+  if (l.text) h += '<details class="raw"><summary>軍表原文</summary><pre>' + esc(l.text) + "</pre></details>";
+  return h + "</div></details>";
 }
 
 // 陣營頁：分隊組合、單位分層、代表軍表、全勝表、全部來源
 function faction(f, pick) {
   const b = f.builds[pick] || null;
   const byId = Object.fromEntries(f.lists.map((l) => [l.id, l]));
-  let h = '<a class="back" href="#">← 全部陣營</a><div class="eyebrow">Meta 表</div><h1>' + fname(f) + "</h1>";
-  h += '<div class="stats"><div><b>' + f.n + '</b><span class="small mute">張 4 勝以上</span></div><div><b>' + f.undefeated + '</b><span class="small mute">張全勝</span></div><div><b>' + (f.low14 ? "≥" : "") + f.last14 + '</b><span class="small mute">近 2 週</span></div><div><b>' + f.builds.length + '</b><span class="small mute">種分隊組合</span></div></div>';
-  h += '<p class="small mute">比賽日期 ' + esc(f.cover[0] || "—") + " ～ " + esc(f.cover[1] || "—") + "，" + esc(f.since) + " 起。完整資料從 " + esc(f.complete) + " 開始，更早的可能漏表。" + (f.unread ? "有 " + f.unread + " 張讀不到內容（多半是上傳成圖片），沒算進單位。" : "") + "</p>";
-  if (!f.builds.length) return h + '<p class="card">這段時間沒有讀得到的軍表。</p>' + notes();
-  h += '<h2>分隊組合</h2><div class="builds">';
-  h += '<button class="bt' + (pick < 0 ? " on" : "") + '" data-i="-1"><b>全部合起來</b><span class="small mute">' + f.parsed + " 張</span></button>";
-  const btn = (x, i) => '<button class="bt' + (i === pick ? " on" : "") + '" data-i="' + i + '"><b>' + esc(x.det) + '</b><span class="small mute">' + pct(x.share) + "（" + x.n + " 張），戰績合計 " + rec(x.rec) + "，最常見任務配置 " + esc(x.disp) + "</span></button>";
+  const s = sideOf(f.slug);
+  let h = topnav(true);
+  h += '<div class="card hero ' + s + '"><div class="eyebrow">Meta 表</div><h1>' + esc(f.zh || f.name) + '<span class="en">' + esc(f.name) + "</span></h1>";
+  h += '<p class="small mute" style="margin:0">比賽日期 ' + esc(f.cover[0] || "—") + " ～ " + esc(f.cover[1] || "—") + "。陣營內頁只算 4 勝以上、" + esc(f.since) + " 起的表。" + (f.unread ? " 有 " + f.unread + " 張讀不到內容（多半是圖片），沒算進單位。" : "") + "</p></div>";
+  h += '<div class="stats"><div class="stat"><span class="big">' + f.n + '</span><span class="lbl">張 4 勝以上</span></div><div class="stat"><span class="big">' + f.undefeated + '</span><span class="lbl">張全勝</span></div><div class="stat"><span class="big">' + f.gt + '</span><span class="lbl">張 GT 好成績（排名用）</span></div><div class="stat"><span class="big">' + f.builds.length + '</span><span class="lbl">種分隊組合</span></div></div>';
+  if (!f.builds.length) return h + '<p class="card empty">這段時間沒有讀得到的軍表。</p>' + notes();
+  h += '<h2>分隊組合<span class="count">' + f.parsed + ' 張</span></h2><hr class="rule">';
+  const btn = (x, i) => '<button class="bt' + (i === pick ? " on" : "") + '" data-i="' + i + '"><span class="pct">' + pct(x.share) + "</span><b>" + esc(x.det) + '</b><div class="meta">' + x.n + " 張 · 戰績 " + rec(x.rec) + " · " + esc(x.disp) + '</div><span class="strip" style="width:' + Math.round(x.share * 100) + '%"></span></button>';
   const singles = [];
+  h += '<div class="builds"><button class="bt' + (pick < 0 ? " on" : "") + '" data-i="-1"><span class="pct">100%</span><b>全部合起來</b><div class="meta">' + f.parsed + " 張</div></button>";
   f.builds.forEach((x, i) => {
     if (x.n >= 2 || f.builds.length <= 6) h += btn(x, i);
     else singles.push(btn(x, i));
   });
   h += "</div>";
   // 只有 1 張的組合收起來，選到其中一個時展開
-  if (singles.length) h += "<details" + (pick >= 0 && f.builds[pick].n < 2 ? " open" : "") + '><summary class="small">其他 ' + singles.length + ' 種組合（各只有 1 張，只能當例子）</summary><div class="builds">' + singles.join("") + "</div></details>";
+  if (singles.length) h += '<details class="more"' + (pick >= 0 && f.builds[pick].n < 2 ? " open" : "") + "><summary>其他 " + singles.length + ' 種組合（各只有 1 張，只能當例子）</summary><div class="builds">' + singles.join("") + "</div></details>";
   const units = b ? b.units : f.units;
   const n = b ? b.n : f.parsed;
-  h += "<h2>單位（" + (b ? esc(b.det) : "全部分隊") + "，" + n + " 張）</h2>";
-  h += '<p class="small mute">主幹：80% 以上的表都帶；彈性：35% 以上；針對：其他。平均幾隊是「有帶的表」平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
-  h += '<div class="card">' + unitTable(units) + "</div>";
+  h += '<h2>單位<span class="count">' + (b ? esc(b.det) + " · " : "全部分隊 · ") + n + ' 張</span></h2><hr class="rule">';
+  h += '<p class="lead">出場率是這些表裡有帶的比例，×幾 是有帶的表平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
+  h += unitTiers(units);
   if (b) {
-    h += "<h2>代表軍表</h2><p class=\"small mute\">跟同組其他表最像的一張，是真實軍表，不是拼出來的。</p>";
-    h += '<div class="card">' + listCard(byId[b.typical], "最典型") + (b.best !== b.typical ? listCard(byId[b.best], "戰績最好") : "") + "</div>";
+    h += '<h2>代表軍表</h2><hr class="rule"><p class="lead">「最典型」是跟同組其他表最像的一張，都是真實軍表，不是拼出來的。</p>';
+    h += '<div class="lists">' + listCard(byId[b.typical], "最典型") + (b.best !== b.typical ? listCard(byId[b.best], "戰績最好") : "") + "</div>";
   }
   const pool = f.lists.filter((l) => !b || l.det === b.det);
   const perfect = pool.filter((l) => !l.rec[1] && !l.rec[2]);
-  h += "<h2>全勝表（" + perfect.length + " 張，人數多的在前）</h2>";
-  h += perfect.length ? '<div class="card">' + perfect.map((l) => listCard(l)).join("") + "</div>" : '<p class="mute">沒有全勝的表。</p>';
-  h += "<h2>全部軍表（" + pool.length + " 張，人數多的在前）</h2><div class=\"card\">" + pool.map((l) => listCard(l)).join("") + "</div>";
+  h += '<h2>全勝表<span class="count">' + perfect.length + ' 張 · 人數多的在前</span></h2><hr class="rule">';
+  h += perfect.length ? '<div class="lists">' + perfect.map((l) => listCard(l)).join("") + "</div>" : '<p class="mute">沒有全勝的表。</p>';
+  h += '<h2>全部軍表<span class="count">' + pool.length + ' 張 · 人數多的在前</span></h2><hr class="rule"><div class="lists">' + pool.map((l) => listCard(l)).join("") + "</div>";
   return h + notes();
 }
 
 function notes() {
-  return '<footer><ul><li>這些是挑過的好成績軍表（4 勝以上）。戰績不能當勝率，出場率是在這些表裡的比例，不是全部玩家的使用率。</li><li>軍表來自 Listhammer：每天讀 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic Meta Merge</a> 的資料檔（6 週內全部的表），再加上 Listhammer 陣營頁最近 25 張。張數標「≥」代表那段時間的資料可能不完整。</li><li>單位中文名：標「自譯」的是我翻的，其他是官方 App 的中文名（簡轉繁）。陣營中文名是我翻的。</li><li>點數是軍表上寫的，不是現行點數。</li><li>資料來源 <a href="https://listhammer.info" target="_blank" rel="noopener">listhammer.info</a>（比賽來自 Best Coast Pairings、Tabletop Herald），經 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic Meta Merge</a> 整理。非官方，與 Games Workshop 無關。</li></ul></footer>';
+  return '<footer><ul><li>這些是挑過的好成績軍表。戰績不能當勝率，出場率是在這些表裡的比例，不是全部玩家的使用率。</li><li>單位中文名：標「自譯」的是我翻的，其他是官方 App 的中文名（簡轉繁）。陣營中文名是我翻的。點數是軍表上寫的，不是現行點數。</li><li>資料來源 <a href="https://listhammer.info" target="_blank" rel="noopener">listhammer.info</a>（比賽來自 Best Coast Pairings、Tabletop Herald），經 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic Meta Merge</a> 整理。非官方，與 Games Workshop 無關。</li></ul></footer>';
 }
 
 async function route() {
   const slug = decodeURIComponent(location.hash.slice(1)).split("/")[0];
-  if (!slug) return home();
+  if (!slug) {
+    home();
+    return;
+  }
   try {
     CACHE[slug] = CACHE[slug] || await getJSON("data/" + slug + ".json");
   } catch (e) {
-    $("#app").innerHTML = '<a class="back" href="#">← 全部陣營</a><p>找不到這個陣營。</p>';
+    $("#app").innerHTML = topnav(true) + '<p class="card empty">找不到這個陣營。</p>';
     return;
   }
   const f = CACHE[slug];
-  const show = (i) => {
+  const show = (i, keep) => {
+    const y = window.scrollY;
     $("#app").innerHTML = faction(f, i);
-    document.querySelectorAll(".bt").forEach((x) => x.onclick = () => show(+x.dataset.i));
+    document.querySelectorAll(".bt").forEach((x) => x.onclick = () => show(+x.dataset.i, true));
+    if (keep) window.scrollTo(0, y);
   };
-  show(f.builds.length ? 0 : -1);
+  show(f.builds.length ? 0 : -1, false);
   window.scrollTo(0, 0);
 }
 
@@ -180,7 +323,7 @@ async function route() {
   try {
     INDEX = await getJSON("data/index.json");
   } catch (e) {
-    $("#app").innerHTML = "<p>資料載入失敗：" + esc(e.message) + "</p>";
+    $("#app").innerHTML = '<p class="card empty">資料載入失敗：' + esc(e.message) + "</p>";
     return;
   }
   window.onhashchange = route;
