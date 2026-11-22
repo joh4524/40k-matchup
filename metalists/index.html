@@ -50,23 +50,12 @@ h2 .count{font:500 14px Oswald,"Noto Sans TC",sans-serif;color:var(--mute)}
 .chip.on{background:var(--gold);border-color:var(--gold);color:#1a1406;font-weight:700}
 input[type=search]{flex:1 1 200px;min-width:0;padding:8px 14px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
 input[type=search]:focus{outline:2px solid var(--gold2);outline-offset:1px}
-.rank{list-style:none;margin:0;padding:6px}
-.row{display:grid;grid-template-columns:44px 1fr minmax(120px,34%) 92px;gap:12px;align-items:center;padding:10px;border-radius:10px;cursor:pointer;border-left:3px solid transparent}
-.row:hover{background:var(--card2)}
-.row + .row{border-top:1px solid var(--line)}
-.row.imp{border-left-color:var(--imp)}.row.cha{border-left-color:var(--cha)}.row.xen{border-left-color:var(--xen)}
-.row .pos{font:600 22px Oswald,sans-serif;color:var(--faint);text-align:center}
-.row:nth-child(-n+3) .pos{color:var(--gold)}
-.row .nm{min-width:0}
-.row .nm b{font-size:16px;font-weight:700}
-.row .nm .en{font:500 12px Oswald,sans-serif;letter-spacing:.06em;color:var(--mute);text-transform:uppercase;margin-left:6px}
-.row .nm .sub{font-size:12px;color:var(--mute);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .meter{display:flex;align-items:center;gap:8px}
 .meter .track{flex:1;height:8px;background:var(--bg2);border-radius:99px;overflow:hidden}
 .meter .fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
 .meter .v{font:600 15px Oswald,sans-serif;min-width:40px;text-align:right}
 .meter .v:empty{display:none}
-.mom{font:500 13px Oswald,sans-serif;text-align:right;white-space:nowrap;color:var(--mute)}
+.mom{font:500 13px Oswald,sans-serif;text-align:right;white-space:nowrap}
 .mom .a{font-size:11px;padding:1px 6px;border-radius:99px;margin-left:4px}
 .mom .a.up{color:var(--up);background:color-mix(in srgb,var(--up) 14%,transparent)}
 .mom .a.down{color:var(--down);background:color-mix(in srgb,var(--down) 14%,transparent)}
@@ -125,13 +114,30 @@ footer{margin:40px 0 0;padding-top:16px;border-top:1px solid var(--line);font-si
 footer ul{padding-left:18px;margin:0}
 footer li{margin:4px 0}
 .empty{padding:16px;color:var(--mute)}
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{font:600 11.5px "Noto Sans TC",sans-serif;color:var(--mute);text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);white-space:nowrap;letter-spacing:.04em}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right;font-family:Oswald,"Noto Sans TC",sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl .r b{font-weight:600;font-size:15px}
+.tbl .sub{display:block;font-size:11.5px;color:var(--mute);font-family:"Noto Sans TC",sans-serif}
+.tbl tr.click{cursor:pointer}
+.tbl tr.click:hover td{background:var(--card2)}
+.tbl td.side{border-left:3px solid var(--imp)}
+.tbl td.side.cha{border-left-color:var(--cha)}.tbl td.side.xen{border-left-color:var(--xen)}
+.tbl .pos{font:600 18px Oswald,sans-serif;color:var(--faint);text-align:center;width:40px}
+.tbl tr:nth-child(-n+3) .pos{color:var(--gold)}
+.tbl .fn b{font-size:15px}
+.tbl .fn .en{display:block;font:500 11px Oswald,sans-serif;letter-spacing:.06em;color:var(--mute);text-transform:uppercase}
+.tbl .det{font-size:12px;color:var(--mute);max-width:260px}
+.tbl .minibar{height:5px;background:var(--bg2);border-radius:99px;margin-top:5px;min-width:60px}
+.tbl .minibar i{display:block;height:5px;border-radius:99px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+.tbl .tierrow td{background:var(--bg2);padding:7px 8px}
+.scroll{overflow-x:auto}
+@media (max-width:640px){.tbl .hs{display:none}.tbl td,.tbl th{padding:8px 5px}.tbl{font-size:13px}}
+
 @media (max-width:640px){
   h1{font-size:28px}
-  .row{grid-template-columns:30px 1fr 74px;gap:4px 8px;padding:10px 6px}
-  .row .pos{font-size:18px}
-  .row .meter{grid-column:2 / 4;grid-row:2}
-  .row .meter .track{height:6px}
-  .row .mom{grid-row:1;grid-column:3}
   .u,.uh{grid-template-columns:1fr 64px 46px;gap:8px}
   .u .bar,.uh .bar{display:none}
   .lc>summary{grid-template-columns:54px 1fr}
@@ -191,18 +197,17 @@ function home() {
   h += '<h2>陣營排名</h2><hr class="rule">';
   h += '<p class="lead">大型賽（GT）全勝或只輸一場的軍表，各陣營占幾成，算法跟 Meta Merge 一樣。這是好成績的占比，不是勝率；玩的人多的陣營自然多。右邊是近 2 週 / 前 2 週的張數。</p>';
   h += '<div class="tools">' + Object.keys(SIDE_ZH).map((k) => '<button class="chip' + (ALLY === k ? " on" : "") + '" data-a="' + k + '">' + SIDE_ZH[k] + "</button>").join("") + '<input type="search" id="q" placeholder="找陣營（中文或英文）"></div>';
-  h += '<div class="card"><ol class="rank" id="field">';
+  h += '<div class="card scroll"><table class="tbl" id="field"><thead><tr><th class="pos">#</th><th>陣營</th><th class="r">GT 好成績</th><th class="r">占比</th><th class="r">近 2 週 / 前 2 週</th><th class="r hs">4 勝以上</th><th class="r hs">全勝</th><th class="hs">最多人用的分隊</th></tr></thead><tbody>';
   all.forEach((f, i) => {
     const s = sideOf(f.slug);
-    h += '<li class="row ' + s + '" data-slug="' + f.slug + '" data-s="' + s + '" data-k="' + esc((f.zh + " " + f.name).toLowerCase()) + '">';
-    h += '<span class="pos">' + (i + 1) + "</span>";
-    h += '<div class="nm"><b>' + esc(f.zh || f.name) + '</b><span class="en">' + esc(f.name) + '</span><div class="sub">' + f.gt + " 張 · 4 勝以上 " + f.n + " 張 · 全勝 " + f.undefeated + (f.top ? " · " + esc(f.top) : "") + "</div></div>";
-    h += meter(f.gt / top, pct(f.gt / tot));
-    h += mom(f.gt14, f.gtp14);
-    h += "</li>";
+    const arrow = f.gt14 > f.gtp14 ? '<span class="a up">▲</span>' : (f.gt14 < f.gtp14 ? '<span class="a down">▼</span>' : '<span class="a eq">＝</span>');
+    h += '<tr class="click row" data-slug="' + f.slug + '" data-s="' + s + '" data-k="' + esc((f.zh + " " + f.name).toLowerCase()) + '">';
+    h += '<td class="pos side ' + s + '">' + (i + 1) + '</td><td class="fn"><b>' + esc(f.zh || f.name) + '</b><span class="en">' + esc(f.name) + "</span></td>";
+    h += '<td class="r"><b>' + f.gt + '</b></td><td class="r"><b>' + pct(f.gt / tot) + '</b><div class="minibar"><i style="width:' + Math.round(100 * f.gt / top) + '%"></i></div></td>';
+    h += '<td class="r mom">' + f.gt14 + " / " + f.gtp14 + arrow + '</td><td class="r hs">' + f.n + '</td><td class="r hs">' + f.undefeated + '</td><td class="det hs">' + esc(f.top) + "</td></tr>";
   });
-  h += "</ol></div>";
-  h += '<div class="legend"><span><i style="background:var(--imp)"></i>帝國</span><span><i style="background:var(--cha)"></i>混沌</span><span><i style="background:var(--xen)"></i>異形</span><span>長條：跟第一名比的長度</span></div>';
+  h += "</tbody></table></div>";
+  h += '<div class="legend"><span><i style="background:var(--imp)"></i>帝國</span><span><i style="background:var(--cha)"></i>混沌</span><span><i style="background:var(--xen)"></i>異形</span><span>占比下的長條：跟第一名比</span><span>4 勝以上、全勝：陣營內頁用的數字</span></div>';
   h += notes();
   $("#app").innerHTML = h;
   const filter = () => {
@@ -219,26 +224,20 @@ function home() {
   filter();
 }
 
-function unitRows(units) {
-  let h = '<div class="uh"><span>單位</span><span class="bar">出場率</span><span>出場</span><span>每隊點</span></div><ul class="units">';
-  for (const u of units) {
-    const zh = u.zh ? '<div class="zh">' + esc(u.zh) + (u.src === "自譯" ? '<span class="tag">自譯</span>' : "") + "</div>" : "";
-    h += '<li class="u"><div><div class="n">' + esc(u.n) + "</div>" + zh + '</div><div class="bar">' + meter(u.rate, "") + '</div><div class="k"><b>' + pct(u.rate) + '</b><div class="xs">×' + u.copies + '</div></div><div class="k pts">' + u.pts + "</div></li>";
-  }
-  return h + "</ul>";
-}
-
-// 單位照主幹／彈性／針對分三段
+// 單位表：一張表，照主幹／彈性／針對分段
 function unitTiers(units) {
   const desc = {"主幹": "80% 以上的表都帶", "彈性": "35% 以上", "針對": "其他"};
-  let h = "";
+  let h = '<div class="card scroll"><table class="tbl"><thead><tr><th>單位</th><th class="r">出場率</th><th class="r">張數</th><th class="r">平均幾隊</th><th class="r">每隊點數</th></tr></thead><tbody>';
   for (const t of ["主幹", "彈性", "針對"]) {
     const us = units.filter((u) => u.tier === t);
     if (!us.length) continue;
-    h += '<div class="tier"><div class="tier-h"><span class="badge b-' + t + '">' + t + '</span><span class="small mute">' + desc[t] + " · " + us.length + " 種</span></div>";
-    h += '<div class="card">' + unitRows(us) + "</div></div>";
+    h += '<tr class="tierrow"><td colspan="5"><span class="badge b-' + t + '">' + t + '</span> <span class="small mute">' + desc[t] + " · " + us.length + " 種</span></td></tr>";
+    for (const u of us) {
+      const zh = u.zh ? '<span class="sub">' + esc(u.zh) + (u.src === "自譯" ? '<span class="tag">自譯</span>' : "") + "</span>" : "";
+      h += "<tr><td>" + esc(u.n) + zh + '</td><td class="r"><b>' + pct(u.rate) + '</b><div class="minibar"><i style="width:' + Math.round(u.rate * 100) + '%"></i></div></td><td class="r">' + u.lists + '</td><td class="r">' + u.copies + '</td><td class="r">' + u.pts + "</td></tr>";
+    }
   }
-  return h;
+  return h + "</tbody></table></div>";
 }
 
 function listCard(l, label) {
@@ -278,7 +277,7 @@ function faction(f, pick) {
   const units = b ? b.units : f.units;
   const n = b ? b.n : f.parsed;
   h += '<h2>單位<span class="count">' + (b ? esc(b.det) + " · " : "全部分隊 · ") + n + ' 張</span></h2><hr class="rule">';
-  h += '<p class="lead">出場率是這些表裡有帶的比例，×幾 是有帶的表平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
+  h += '<p class="lead">出場率是這些表裡有帶的比例；平均幾隊是有帶的表平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
   h += unitTiers(units);
   if (b) {
     h += '<h2>代表軍表</h2><hr class="rule"><p class="lead">「最典型」是跟同組其他表最像的一張，都是真實軍表，不是拼出來的。</p>';
