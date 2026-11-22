@@ -61,7 +61,7 @@ td.c{cursor:pointer}
 </head>
 <body>
 <main>
-<h1>軍表對戰計算 <small>40K 第十一版</small></h1>
+<h1>軍表對戰計算 <small>40K 第十一版</small> <a id="metalink" href="metalists/" style="display:none;font-size:14px;font-weight:normal;margin-left:8px">全陣營 Meta 表 →</a></h1>
 <div class="card">
   <div class="grid">
     <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
@@ -449,6 +449,10 @@ $('tr').onclick=tr;
 ['half','cover','charge','still'].forEach(k=>$(k).onchange=()=>{if(R)go()});
 try{$('a').value=localStorage.getItem('mu_a')||'';$('b').value=localStorage.getItem('mu_b')||''}catch(e){}
 loadMeta();
+</script>
+<script>
+// HP 版才有全陣營 Meta 表（公開的 GitHub 版沒有），找得到才顯示連結
+fetch("metalists/data/index.json").then((r) => { if (r.ok) document.getElementById("metalink").style.display = ""; }).catch(() => {});
 </script>
 </body>
 </html>

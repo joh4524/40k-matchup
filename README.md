@@ -43,5 +43,6 @@ python3 update_zh_det.py    # 重做分隊、強化的中文名對照（data/zh_
 
 - 資料卡：[Wahapedia 資料匯出檔](https://wahapedia.ru/wh40k11ed/the-rules/data-export/)（Powered by Wahapedia）。
 - 中文單位名：官方點數網站 mfm.warhammer-community.com 的英文版和中文版。
+- 全陣營 Meta 表（`metalists/`）：比賽軍表來自 [Listhammer](https://listhammer.info)，經 [Lexmechanic Meta Merge](https://lexmechanic.com/metamerge) 整理；由 `~/metamerge/build.py` 每天產生。
 
 非官方工具，與 Games Workshop 無關。Warhammer 40,000 及相關名稱是 Games Workshop 的商標。

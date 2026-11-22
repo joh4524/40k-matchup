@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>40K Meta 表</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1d1d1b;--mute:#6b6a64;--line:#e3e1d9;--acc:#8a5a00;--acc2:#f3e7cf;--up:#1f7a3a;--down:#a33;--spine:#8a5a00;--flex:#3d5f8a;--tech:#777}
+@media (prefers-color-scheme:dark){:root{--bg:#141412;--card:#1e1e1b;--ink:#ecebe6;--mute:#9c9a92;--line:#33322d;--acc:#e0a84a;--acc2:#3a2f1c;--up:#5cc27a;--down:#e07070;--spine:#e0a84a;--flex:#86a9d6;--tech:#999}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+a{color:var(--acc)}
+h1{font-size:22px;margin:4px 0}
+h2{font-size:18px;margin:22px 0 8px}
+h3{font-size:16px;margin:16px 0 6px}
+.eyebrow{font-size:12px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
+.mute{color:var(--mute)}
+.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--mute);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover{background:var(--acc2)}
+.scroll{overflow-x:auto}
+.tag{display:inline-block;font-size:11px;border-radius:4px;padding:0 5px;margin-left:4px;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.tier{display:inline-block;font-size:12px;font-weight:700;border-radius:4px;padding:1px 6px;color:#fff}
+.t-主幹{background:var(--spine)}.t-彈性{background:var(--flex)}.t-針對{background:var(--tech)}
+.bar{height:6px;background:var(--line);border-radius:3px;min-width:60px}
+.bar i{display:block;height:6px;background:var(--acc);border-radius:3px}
+.up{color:var(--up)}.down{color:var(--down)}
+.builds{display:flex;flex-wrap:wrap;gap:8px}
+.bt{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 10px;text-align:left;cursor:pointer;font:inherit;flex:1 1 260px}
+.bt.on{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.bt b{display:block}
+.stats{display:flex;flex-wrap:wrap;gap:14px;margin:8px 0}
+.stats div{min-width:90px}
+.stats b{display:block;font-size:20px}
+details{border-top:1px solid var(--line);padding:6px 0}
+summary{cursor:pointer}
+pre{white-space:pre-wrap;font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:420px;overflow:auto}
+.units{font-size:13px}
+.warn{color:var(--down)}
+.back{display:inline-block;margin:4px 0 8px}
+footer{margin:28px 0 10px;font-size:13px;color:var(--mute)}
+footer li{margin:3px 0}
+input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;margin:6px 0}
+@media (max-width:600px){.hide-s{display:none}th,td{padding:5px 4px}}
+</style>
+</head>
+<body>
+<main id="app"><p class="mute">載入中…</p></main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pct = (x) => Math.round(x * 100) + "%";
+const rec = (r) => r[0] + "-" + r[1] + (r[2] ? "-" + r[2] : "");
+let INDEX = null;
+const CACHE = {};
+
+async function getJSON(u) {
+  const r = await fetch(u, {cache: "no-store"});
+  if (!r.ok) throw new Error(u + " " + r.status);
+  return r.json();
+}
+
+function fname(f) {
+  return (f.zh ? esc(f.zh) + " " : "") + '<span class="mute small">' + esc(f.name) + "</span>";
+}
+
+function unitName(u) {
+  const zh = u.zh ? '<div class="small mute">' + esc(u.zh) + (u.src === "自譯" ? '<span class="tag">自譯</span>' : "") + "</div>" : "";
+  return esc(u.n) + zh;
+}
+
+function bar(x) {
+  return '<div class="bar"><i style="width:' + Math.round(x * 100) + '%"></i></div>';
+}
+
+// 首頁：陣營排名照 metamerge 的算法（GT、全勝或只輸一場、6 週）；後面幾欄是我們 4 勝以上的統計
+function home() {
+  const fs = [...INDEX.factions].sort((a, b) => b.gt - a.gt || b.n - a.n);
+  const tot = fs.reduce((s, f) => s + f.gt, 0) || 1;
+  let h = '<a class="back" href="../">← 軍表對戰計算</a><div class="eyebrow">Warhammer 40,000 · 11th edition</div><h1>40K Meta 表</h1>';
+  h += '<p class="mute small">更新 ' + esc(INDEX.built) + '。資料：<a href="https://listhammer.info" target="_blank" rel="noopener">Listhammer</a>（經 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic</a>）</p>';
+  h += '<input type="search" id="q" placeholder="找陣營（中文或英文）">';
+  h += '<h2>陣營排名</h2><p class="small mute">算法跟 Meta Merge 一樣：' + esc(INDEX.feed || "") + ' 起的大型賽（GT），全勝或只輸一場的表，各陣營占幾成。這是好成績的占比，不是勝率；玩的人多的陣營自然多。點進陣營後的分隊和單位統計，照你的規則只算 4 勝以上、' + esc(INDEX.since) + ' 平衡之後（禁軍只算 10/21 新 Codex 之後）。</p>';
+  h += '<div class="card scroll"><table id="field"><thead><tr><th>#</th><th>陣營</th><th class="num">GT 好成績</th><th class="num">占比</th><th class="num">近 2 週 / 前 2 週</th><th class="num hide-s">4 勝以上</th><th class="num hide-s">全勝</th><th class="hide-s">最多人用的分隊</th></tr></thead><tbody>';
+  fs.forEach((f, i) => {
+    const mom = f.gt14 > f.gtp14 ? '<span class="up">▲</span>' : (f.gt14 < f.gtp14 ? '<span class="down">▼</span>' : "＝");
+    h += '<tr class="click" data-slug="' + f.slug + '" data-k="' + esc((f.zh + " " + f.name).toLowerCase()) + '"><td class="num">' + (i + 1) + "</td><td>" + fname(f) + '</td><td class="num">' + f.gt + '</td><td class="num">' + pct(f.gt / tot) + '<div class="hide-s" style="width:70px;margin-left:auto">' + bar(f.gt / fs[0].gt) + '</div></td><td class="num">' + f.gt14 + " / " + f.gtp14 + " " + mom + '</td><td class="num hide-s">' + f.n + '</td><td class="num hide-s">' + f.undefeated + '</td><td class="small hide-s">' + esc(f.top) + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+  h += notes();
+  $("#app").innerHTML = h;
+  document.querySelectorAll("#field tr.click").forEach((tr) => tr.onclick = () => { location.hash = tr.dataset.slug; });
+  $("#q").oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll("#field tbody tr").forEach((tr) => { tr.style.display = !q || tr.dataset.k.includes(q) ? "" : "none"; });
+  };
+}
+
+function unitTable(units) {
+  let h = '<div class="scroll"><table><thead><tr><th>分層</th><th>單位</th><th class="num">出場率</th><th class="hide-s"></th><th class="num">平均幾隊</th><th class="num">每隊點數</th></tr></thead><tbody>';
+  for (const u of units) {
+    h += '<tr><td><span class="tier t-' + u.tier + '">' + u.tier + "</span></td><td>" + unitName(u) + '</td><td class="num">' + pct(u.rate) + '<div class="small mute">' + u.lists + ' 張</div></td><td class="hide-s" style="width:90px">' + bar(u.rate) + '</td><td class="num">' + u.copies + '</td><td class="num">' + u.pts + "</td></tr>";
+  }
+  return h + "</tbody></table></div>";
+}
+
+function listCard(l, label) {
+  const bad = l.u.length && (l.pts < 1950 || l.pts > 2000) ? ' <span class="warn small">⚠️ 分數加總 ' + l.pts + "，可能有單位沒讀到</span>" : "";
+  let h = '<details><summary><b>' + esc(l.player) + "</b> " + rec(l.rec) + (label ? ' <span class="tag">' + label + "</span>" : "") + '<div class="small mute">' + esc(l.event) + "（" + l.date.slice(5) + "，" + l.players + " 人）｜" + esc(l.det) + (l.disp ? "｜" + esc(l.disp) : "") + (l.u.length ? "｜" + l.pts + " 點" : '｜<span class="warn">讀不到內容（多半是圖片）</span>') + bad + "</div></summary>";
+  if (l.u.length) h += '<p class="units">' + l.u.map((x) => esc(x[0]) + " " + x[1]).join("、") + "</p>";
+  if (l.text) h += "<pre>" + esc(l.text) + "</pre>";
+  return h + "</details>";
+}
+
+// 陣營頁：分隊組合、單位分層、代表軍表、全勝表、全部來源
+function faction(f, pick) {
+  const b = f.builds[pick] || null;
+  const byId = Object.fromEntries(f.lists.map((l) => [l.id, l]));
+  let h = '<a class="back" href="#">← 全部陣營</a><div class="eyebrow">Meta 表</div><h1>' + fname(f) + "</h1>";
+  h += '<div class="stats"><div><b>' + f.n + '</b><span class="small mute">張 4 勝以上</span></div><div><b>' + f.undefeated + '</b><span class="small mute">張全勝</span></div><div><b>' + (f.low14 ? "≥" : "") + f.last14 + '</b><span class="small mute">近 2 週</span></div><div><b>' + f.builds.length + '</b><span class="small mute">種分隊組合</span></div></div>';
+  h += '<p class="small mute">比賽日期 ' + esc(f.cover[0] || "—") + " ～ " + esc(f.cover[1] || "—") + "，" + esc(f.since) + " 起。完整資料從 " + esc(f.complete) + " 開始，更早的可能漏表。" + (f.unread ? "有 " + f.unread + " 張讀不到內容（多半是上傳成圖片），沒算進單位。" : "") + "</p>";
+  if (!f.builds.length) return h + '<p class="card">這段時間沒有讀得到的軍表。</p>' + notes();
+  h += '<h2>分隊組合</h2><div class="builds">';
+  h += '<button class="bt' + (pick < 0 ? " on" : "") + '" data-i="-1"><b>全部合起來</b><span class="small mute">' + f.parsed + " 張</span></button>";
+  const btn = (x, i) => '<button class="bt' + (i === pick ? " on" : "") + '" data-i="' + i + '"><b>' + esc(x.det) + '</b><span class="small mute">' + pct(x.share) + "（" + x.n + " 張），戰績合計 " + rec(x.rec) + "，最常見任務配置 " + esc(x.disp) + "</span></button>";
+  const singles = [];
+  f.builds.forEach((x, i) => {
+    if (x.n >= 2 || f.builds.length <= 6) h += btn(x, i);
+    else singles.push(btn(x, i));
+  });
+  h += "</div>";
+  // 只有 1 張的組合收起來，選到其中一個時展開
+  if (singles.length) h += "<details" + (pick >= 0 && f.builds[pick].n < 2 ? " open" : "") + '><summary class="small">其他 ' + singles.length + ' 種組合（各只有 1 張，只能當例子）</summary><div class="builds">' + singles.join("") + "</div></details>";
+  const units = b ? b.units : f.units;
+  const n = b ? b.n : f.parsed;
+  h += "<h2>單位（" + (b ? esc(b.det) : "全部分隊") + "，" + n + " 張）</h2>";
+  h += '<p class="small mute">主幹：80% 以上的表都帶；彈性：35% 以上；針對：其他。平均幾隊是「有帶的表」平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
+  h += '<div class="card">' + unitTable(units) + "</div>";
+  if (b) {
+    h += "<h2>代表軍表</h2><p class=\"small mute\">跟同組其他表最像的一張，是真實軍表，不是拼出來的。</p>";
+    h += '<div class="card">' + listCard(byId[b.typical], "最典型") + (b.best !== b.typical ? listCard(byId[b.best], "戰績最好") : "") + "</div>";
+  }
+  const pool = f.lists.filter((l) => !b || l.det === b.det);
+  const perfect = pool.filter((l) => !l.rec[1] && !l.rec[2]);
+  h += "<h2>全勝表（" + perfect.length + " 張，人數多的在前）</h2>";
+  h += perfect.length ? '<div class="card">' + perfect.map((l) => listCard(l)).join("") + "</div>" : '<p class="mute">沒有全勝的表。</p>';
+  h += "<h2>全部軍表（" + pool.length + " 張，人數多的在前）</h2><div class=\"card\">" + pool.map((l) => listCard(l)).join("") + "</div>";
+  return h + notes();
+}
+
+function notes() {
+  return '<footer><ul><li>這些是挑過的好成績軍表（4 勝以上）。戰績不能當勝率，出場率是在這些表裡的比例，不是全部玩家的使用率。</li><li>軍表來自 Listhammer：每天讀 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic Meta Merge</a> 的資料檔（6 週內全部的表），再加上 Listhammer 陣營頁最近 25 張。張數標「≥」代表那段時間的資料可能不完整。</li><li>單位中文名：標「自譯」的是我翻的，其他是官方 App 的中文名（簡轉繁）。陣營中文名是我翻的。</li><li>點數是軍表上寫的，不是現行點數。</li><li>資料來源 <a href="https://listhammer.info" target="_blank" rel="noopener">listhammer.info</a>（比賽來自 Best Coast Pairings、Tabletop Herald），經 <a href="https://lexmechanic.com/metamerge" target="_blank" rel="noopener">Lexmechanic Meta Merge</a> 整理。非官方，與 Games Workshop 無關。</li></ul></footer>';
+}
+
+async function route() {
+  const slug = decodeURIComponent(location.hash.slice(1)).split("/")[0];
+  if (!slug) return home();
+  try {
+    CACHE[slug] = CACHE[slug] || await getJSON("data/" + slug + ".json");
+  } catch (e) {
+    $("#app").innerHTML = '<a class="back" href="#">← 全部陣營</a><p>找不到這個陣營。</p>';
+    return;
+  }
+  const f = CACHE[slug];
+  const show = (i) => {
+    $("#app").innerHTML = faction(f, i);
+    document.querySelectorAll(".bt").forEach((x) => x.onclick = () => show(+x.dataset.i));
+  };
+  show(f.builds.length ? 0 : -1);
+  window.scrollTo(0, 0);
+}
+
+(async () => {
+  try {
+    INDEX = await getJSON("data/index.json");
+  } catch (e) {
+    $("#app").innerHTML = "<p>資料載入失敗：" + esc(e.message) + "</p>";
+    return;
+  }
+  window.onhashchange = route;
+  route();
+})();
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@ BIND = os.environ.get("MATCHUP_BIND", "127.0.0.1")
 PORT = int(os.environ.get("MATCHUP_PORT", "8090"))
 ALLOW = set(os.environ.get("MATCHUP_ALLOW", "127.0.0.1").split(","))
 DBX = engine.DB()
+META_SITE = (HERE / "metalists").resolve()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -32,6 +33,17 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, {"error": "forbidden"})
         if self.path in ("/", "/index.html"):
             return self.reply(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+        # 全陣營 meta 表網頁（~/metamerge/site，2026-11-22 使用者：「接在原本的網站上」）
+        path = self.path.split("?")[0]
+        if path == "/metalists":
+            self.send_response(301); self.send_header("Location", "/metalists/"); self.end_headers(); return
+        if path.startswith("/metalists/"):
+            rel = path[len("/metalists/"):] or "index.html"
+            f = (META_SITE / rel).resolve()
+            if META_SITE in f.parents and f.is_file():
+                ctype = "text/html; charset=utf-8" if f.suffix == ".html" else "application/json; charset=utf-8"
+                return self.reply(200, f.read_bytes(), ctype)
+            return self.reply(404, {"error": "not found"})
         if self.path.split("?")[0] == "/meta/meta.json" and (HERE / "meta" / "meta.json").exists():   # GT 前段代表表（tools/meta_build.py）
             return self.reply(200, (HERE / "meta" / "meta.json").read_bytes())
         self.reply(404, {"error": "not found"})
