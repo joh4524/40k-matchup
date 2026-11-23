@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>骰子機率</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.f{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.f label{display:flex;flex-direction:column;font-size:12px;color:var(--mute)}
+.f input,.f select{font:inherit;font-size:14px;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);margin-top:2px}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:13px}
+.kpi{display:flex;flex-wrap:wrap;gap:8px 22px;font-variant-numeric:tabular-nums}
+.kpi div b{font-size:20px;display:block}
+.kpi div span{font-size:12px;color:var(--mute)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+th,td{border:1px solid var(--line);padding:3px 6px;text-align:right}
+th{font-weight:600}
+td.bar{width:140px;text-align:left}
+td.bar i{display:block;height:9px;background:var(--a);border-radius:3px}
+small,.mute{color:var(--mute)}
+.dists{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>骰子機率 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行</a></h1>
+<div class="grid">
+<div class="card"><h2>攻擊方（一種武器）</h2>
+<div class="f">
+<label>幾把（模型數 × 每人幾把）<input id="n" value="10"></label>
+<label>A（每把攻擊次數，可寫 D6、2D3+1）<input id="A" value="2"></label>
+<label>BS／WS（幾+）<input id="BS" value="3"></label>
+<label>S<input id="S" value="4"></label>
+<label>AP（寫 1 或 -1 都可以）<input id="AP" value="1"></label>
+<label>D（可寫 D6+1）<input id="D" value="1"></label>
+<label>命中修正<select id="hm"><option value="0">0</option><option value="1">+1</option><option value="-1">-1</option></select></label>
+<label>造傷修正<select id="wm"><option value="0">0</option><option value="1">+1</option><option value="-1">-1</option></select></label>
+<label>重骰命中<select id="rh"><option value="">不重骰</option><option value="1">重骰 1</option><option value="all">失敗都重骰</option></select></label>
+<label>重骰造傷<select id="rw"><option value="">不重骰</option><option value="1">重骰 1</option><option value="all">失敗都重骰（Twin-linked）</option></select></label>
+<label>Sustained Hits（多幾發）<input id="sus" value="0"></label>
+<label>爆擊命中（幾+）<input id="ch" value="6"></label>
+<label>Anti-X（爆擊造傷幾+）<input id="cw" value="6"></label>
+<label>Melta（半射程多幾傷）<input id="melta" value="0"></label>
+</div>
+<div class="chk">
+<label><input type="checkbox" id="lethal"> Lethal Hits</label>
+<label><input type="checkbox" id="dev"> Devastating Wounds</label>
+<label><input type="checkbox" id="torrent"> Torrent（自動命中）</label>
+<label><input type="checkbox" id="blast"> Blast（每 5 隻多 1 次）</label>
+<label><input type="checkbox" id="half"> 在半射程內（Melta 生效）</label>
+<label><input type="checkbox" id="igc"> 無視掩體</label>
+</div></div>
+<div class="card"><h2>目標</h2>
+<div class="f">
+<label>幾隻模型<input id="tn" value="10"></label>
+<label>T<input id="T" value="4"></label>
+<label>每隻幾傷（W）<input id="W" value="2"></label>
+<label>保護（幾+）<input id="Sv" value="3"></label>
+<label>無敵（幾++，沒有就空白）<input id="inv" value=""></label>
+<label>FNP（幾+++，沒有就空白）<input id="fnp" value=""></label>
+</div>
+<div class="chk">
+<label><input type="checkbox" id="cover"> 在掩體裡（保護 +1）</label>
+<label><input type="checkbox" id="dred"> 傷害 -1</label>
+<label><input type="checkbox" id="dhalf"> 傷害減半</label>
+</div>
+<p class="small mute" style="margin:10px 0 0">算法照第十一版：命中、造傷修正合計最多 ±1；骰到 1 一定失敗、沒修正的 6 一定成功（爆擊）。Lethal Hits 爆擊直接造傷（不會觸發 Devastating）。Devastating Wounds 爆擊造傷變致命傷（不能保護），但跟其他傷害一樣不溢傷。掩體：保護 3+ 或更好、AP 0 時不加。傷害先減半、再 -1，最少 1。每一點傷害各擲一次 FNP。打掉模型：一發傷害只打一隻，多的不溢到下一隻。</p>
+</div>
+</div>
+<div class="card"><button id="go" style="font:inherit;padding:8px 18px;border-radius:8px;border:0;background:var(--a);color:#fff;font-weight:600">計算</button> <span id="msg" class="mute"></span></div>
+<div id="out"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const pct = (x) => (x * 100 >= 99.95 && x < 1 ? ">99.9" : x * 100 < 0.05 && x > 0 ? "<0.1" : (x * 100).toFixed(1));
+const num = (id, d) => { const v = parseInt(String($(id).value).replace(/[^0-9-]/g, ""), 10); return isNaN(v) ? d : v; };
+
+// 分佈用陣列表示：p[k]＝剛好 k 的機率
+function conv(a, b) {
+  const o = new Array(a.length + b.length - 1).fill(0);
+  a.forEach((x, i) => { if (x) b.forEach((y, j) => { o[i + j] += x * y; }); });
+  return o;
+}
+
+// 「D6」「2D3+1」「3」這類寫法 → 分佈
+function expr(s) {
+  const m = String(s).toUpperCase().replace(/\s/g, "").match(/^(\d*)D(3|6)([+-]\d+)?$|^(\d+)$/);
+  if (!m) throw new Error("看不懂「" + s + "」，請寫 3、D6、2D3+1 這種格式");
+  if (m[4] !== undefined) { const v = +m[4], o = new Array(v + 1).fill(0); o[v] = 1; return o; }
+  const n = +(m[1] || 1), f = +m[2], add = +(m[3] || 0);
+  let d = [1];
+  const one = [0].concat(new Array(f).fill(1 / f));
+  for (let i = 0; i < n; i++) d = conv(d, one);
+  if (add >= 0) return new Array(add).fill(0).concat(d);
+  const o = [0];
+  d.forEach((p, v) => { const w = Math.max(0, v + add); while (o.length <= w) o.push(0); o[w] += p; });
+  return o;
+}
+
+// 一顆 D6 的結果：need＝修正後要幾+，crit＝沒修正的幾+算爆擊，mod＝修正；回傳 [失敗, 普通成功, 爆擊]
+function roll(need, crit, mod) {
+  const r = [0, 0, 0];
+  for (let f = 1; f <= 6; f++) {
+    if (f === 1) { r[0] += 1 / 6; continue; }
+    if (f >= crit) { r[2] += 1 / 6; continue; }
+    if (f === 6 || f + mod >= need) r[1] += 1 / 6; else r[0] += 1 / 6;
+  }
+  return r;
+}
+
+// 重骰：「1」只重骰骰到 1 的、「all」失敗都重骰
+function reroll(r, how) {
+  if (!how) return r;
+  const redo = how === "all" ? r[0] : 1 / 6;
+  return [r[0] - redo + redo * r[0], r[1] + redo * r[1], r[2] + redo * r[2]];
+}
+
+function woundNeed(S, T) { return S >= 2 * T ? 2 : S > T ? 3 : S === T ? 4 : 2 * S <= T ? 6 : 5; }
+
+// 一發造成傷害時，經過減傷和 FNP 後實際扣幾點
+function packet(D, half, red, fnp) {
+  const o = [];
+  D.forEach((p, d) => {
+    if (!p) return;
+    let v = d;
+    if (d > 0 && half) v = Math.ceil(v / 2);
+    if (d > 0 && red) v = Math.max(1, v - 1);
+    const keep = fnp ? 1 - (7 - fnp) / 6 : 1;
+    let b = [1];
+    for (let i = 0; i < v; i++) b = conv(b, [1 - keep, keep]);
+    b.forEach((q, k) => { while (o.length <= k) o.push(0); o[k] += p * q; });
+  });
+  return o;
+}
+
+function mean(d) { return d.reduce((s, p, k) => s + p * k, 0); }
+
+function calc() {
+  const N = Math.max(0, num("n", 1)), BS = num("BS", 3), S = num("S", 4), AP = Math.abs(num("AP", 0)), hm = num("hm", 0), wm = num("wm", 0);
+  const T = num("T", 4), W = Math.max(1, num("W", 1)), TN = Math.max(1, num("tn", 1)), Sv = num("Sv", 7), inv = num("inv", 0), fnp = num("fnp", 0);
+  const sus = Math.max(0, num("sus", 0)), ch = Math.min(6, Math.max(2, num("ch", 6))), cw = Math.min(6, Math.max(2, num("cw", 6)));
+  const lethal = $("lethal").checked, dev = $("dev").checked, torrent = $("torrent").checked;
+  let A1 = expr($("A").value);
+  if ($("blast").checked) A1 = new Array(Math.floor(TN / 5)).fill(0).concat(A1);
+  let D = expr($("D").value);
+  if ($("half").checked && num("melta", 0) > 0) D = new Array(num("melta", 0)).fill(0).concat(D);
+  // 總攻擊次數：N 把武器各擲一次 A
+  let A = [1];
+  for (let i = 0; i < N; i++) A = conv(A, A1);
+  // 命中
+  const h = torrent ? [0, 1, 0] : reroll(roll(BS, ch, Math.max(-1, Math.min(1, hm))), $("rh").value);
+  // 造傷
+  const w = reroll(roll(woundNeed(S, T), cw, Math.max(-1, Math.min(1, wm))), $("rw").value);
+  // 保護：掩體 +1（保護 3+ 或更好且 AP 0 時不加），無敵不吃 AP
+  const cov = $("cover").checked && !$("igc").checked && !(Sv <= 3 && AP === 0) ? 1 : 0;
+  const arm = Sv - cov + AP, need = Math.min(arm, inv || 99);
+  const fail = need >= 7 ? 1 : Math.max(1, need - 1) / 6;
+  const P = packet(D, $("dhalf").checked, $("dred").checked, fnp);
+  // 每次攻擊擲命中的三種結果：[機率, 要擲造傷的命中數, Lethal 直接造傷數]
+  const outcomes = [[h[0], 0, 0], [h[1], 1, 0], [h[2], lethal ? sus : 1 + sus, lethal ? 1 : 0]];
+  return {A, outcomes, w, fail, need, P, dev, W, TN};
+}
+
+// 混合：機率 q 時加上分佈 d，其餘是 0
+function mix(q, d) { const o = d.map((x) => x * q); o[0] = (o[0] || 0) + 1 - q; return o; }
+
+// 主計算：命中、造傷、沒擋住、總傷害各自累加（彼此不用一起算）；打掉幾隻要照順序一發一發扣（不溢傷），所以另外追蹤 (打掉幾隻, 目前那隻受了幾傷)
+function run() {
+  const c = calc();
+  const maxA = c.A.length - 1;
+  const w1 = c.w[1], w2 = c.w[2], pw = w1 + w2;
+  // 一顆要擲造傷的命中沒被擋住的機率；Lethal 直接造傷沒被擋住的機率
+  const uHit = w1 * c.fail + w2 * (c.dev ? 1 : c.fail), uAuto = c.fail;
+  // 每次攻擊的 命中／造傷／沒擋住／傷害 分佈
+  const per = {hit: [0], wnd: [0], uns: [0], dmg: [0]};
+  const addTo = (k, d, p) => d.forEach((x, i) => { while (per[k].length <= i) per[k].push(0); per[k][i] += x * p; });
+  const pow = (d, n) => { let o = [1]; for (let i = 0; i < n; i++) o = conv(o, d); return o; };
+  per.hit[0] = 0;
+  c.outcomes.forEach(([p, hits, auto]) => {
+    if (!p) return;
+    addTo("hit", pow([0, 1], hits + auto), p);
+    addTo("wnd", conv(pow([1 - pw, pw], hits), pow([0, 1], auto)), p);
+    addTo("uns", conv(pow([1 - uHit, uHit], hits), pow([1 - uAuto, uAuto], auto)), p);
+    addTo("dmg", conv(pow(mix(uHit, c.P), hits), pow(mix(uAuto, c.P), auto)), p);
+  });
+  // 一發傷害包打進目標：不溢傷
+  const hitModel = (m, q) => {
+    const o = new Map();
+    m.forEach((p, key) => {
+      const [k, cur] = key.split("|").map(Number);
+      const put = (kk, cc, x) => { const s = kk + "|" + cc; o.set(s, (o.get(s) || 0) + x); };
+      put(k, cur, p * (1 - q));
+      c.P.forEach((r, v) => {
+        if (!r) return;
+        if (v === 0 || k >= c.TN) return put(k, cur, p * q * r);
+        if (cur + v >= c.W) put(k + 1, 0, p * q * r); else put(k, cur + v, p * q * r);
+      });
+    });
+    return o;
+  };
+  const attack = (m) => {
+    const o = new Map();
+    c.outcomes.forEach(([p, hits, auto]) => {
+      if (!p) return;
+      let x = new Map();
+      m.forEach((q, k) => x.set(k, q * p));
+      for (let i = 0; i < auto; i++) x = hitModel(x, uAuto);
+      for (let i = 0; i < hits; i++) x = hitModel(x, uHit);
+      x.forEach((q, k) => o.set(k, (o.get(k) || 0) + q));
+    });
+    return o;
+  };
+  const dist = {hit: [0], wnd: [0], uns: [0], dmg: [0], kill: [0]};
+  const acc = (k, d, p) => d.forEach((x, i) => { while (dist[k].length <= i) dist[k].push(0); dist[k][i] += x * p; });
+  let run1 = {hit: [1], wnd: [1], uns: [1], dmg: [1]}, km = new Map([["0|0", 1]]);
+  for (let a = 0; a <= maxA; a++) {
+    if (c.A[a]) {
+      ["hit", "wnd", "uns", "dmg"].forEach((k) => acc(k, run1[k], c.A[a]));
+      const kd = [];
+      km.forEach((p, key) => { const k = +key.split("|")[0]; while (kd.length <= k) kd.push(0); kd[k] += p; });
+      acc("kill", kd, c.A[a]);
+    }
+    if (a < maxA) {
+      ["hit", "wnd", "uns", "dmg"].forEach((k) => { run1[k] = conv(run1[k], per[k]); });
+      km = attack(km);
+    }
+  }
+  return {dist, c};
+}
+
+function distTable(title, d, unit) {
+  const m = mean(d);
+  let tail = 1, h = '<div><b>' + title + "</b> <small>平均 " + m.toFixed(2) + unit + '</small><div class="scroll"><table><thead><tr><th>' + unit + "</th><th>剛好</th><th>至少</th><th></th></tr></thead><tbody>";
+  const mx = Math.max(...d);
+  d.forEach((p, k) => {
+    if (tail > 0.0005 || p > 0.0005) h += "<tr><td>" + k + "</td><td>" + pct(p) + "%</td><td>" + pct(Math.max(0, tail)) + '%</td><td class="bar"><i style="width:' + (p / mx * 100).toFixed(1) + '%"></i></td></tr>';
+    tail -= p;
+  });
+  return h + "</tbody></table></div></div>";
+}
+
+function go() {
+  $("msg").textContent = "";
+  try {
+    const t0 = performance.now();
+    const {dist, c} = run();
+    const k = dist.kill, wipe = k[c.TN] || 0;
+    let h = '<div class="card"><div class="kpi">';
+    [["平均命中", mean(dist.hit).toFixed(2)], ["平均造傷", mean(dist.wnd).toFixed(2)], ["平均沒擋住", mean(dist.uns).toFixed(2)], ["平均傷害", mean(dist.dmg).toFixed(2)], ["平均打掉", mean(k).toFixed(2) + " 隻"], ["全滅機率", pct(wipe) + "%"]].forEach(([a, b]) => { h += "<div><b>" + b + "</b><span>" + a + "</span></div>"; });
+    h += '</div><p class="small mute" style="margin:8px 0 0">保護要 ' + (c.need >= 7 ? "（擋不住）" : Math.max(2, c.need) + "+") + "（每發沒擋住 " + pct(c.fail) + "%）。總攻擊次數平均 " + mean(c.A).toFixed(2) + "。</p></div>";
+    h += '<div class="card"><div class="dists">' + distTable("命中", dist.hit, " 發") + distTable("造傷", dist.wnd, " 發") + distTable("沒擋住（含致命傷）", dist.uns, " 發") + distTable("總傷害", dist.dmg, " 點") + distTable("打掉模型", k, " 隻") + "</div></div>";
+    $("out").innerHTML = h;
+    $("msg").textContent = "算了 " + Math.round(performance.now() - t0) + " 毫秒";
+  } catch (e) { $("msg").textContent = "算不出來：" + e.message; }
+}
+$("go").onclick = go;
+go();
+</script>
+</body>
+</html>
