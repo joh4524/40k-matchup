@@ -61,7 +61,7 @@ td.c{cursor:pointer}
 </head>
 <body>
 <main>
-<h1>軍表對戰計算 <small>40K 第十一版</small> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢 →</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行 →</a> <a href="dice.html" style="font-size:14px;font-weight:normal;margin-left:8px">骰子機率 →</a> <a id="metalink" href="metalists/" style="display:none;font-size:14px;font-weight:normal;margin-left:8px">全陣營 Meta 表 →</a></h1>
+<h1>軍表對戰計算 <small>40K 第十一版</small> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢 →</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行 →</a> <a href="dice.html" style="font-size:14px;font-weight:normal;margin-left:8px">骰子機率 →</a><a href="scout.html" style="font-size:14px;font-weight:normal;margin-left:8px">偵察小抄 →</a> <a id="metalink" href="metalists/" style="display:none;font-size:14px;font-weight:normal;margin-left:8px">全陣營 Meta 表 →</a></h1>
 <div class="card">
   <div class="grid">
     <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611240121"></script>
+<script src="browser.js?v=202611240226"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;

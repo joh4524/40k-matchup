@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>偵察和階段小抄</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00;--good:#1d7a3a;--chip:#eeece6}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050;--good:#6fd08c;--chip:#2e2e34}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+h3{font-size:14px;margin:10px 0 4px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea{width:100%;height:170px;font:12px/1.4 ui-monospace,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:0;background:var(--a);color:#fff;font-weight:600}
+.seg button{font-size:13px;font-weight:normal;background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:4px 12px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.opts{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:8px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%}
+th,td{border:1px solid var(--line);padding:5px 7px;text-align:center;vertical-align:top}
+th{font-weight:600;font-size:12px;line-height:1.3;vertical-align:bottom}
+td.l,th.l{text-align:left}
+small,.mute{color:var(--mute)}
+.chip{display:inline-block;background:var(--chip);border-radius:5px;padding:0 6px;margin:1px 2px 1px 0;font-size:12px;white-space:nowrap}
+.cp{display:inline-block;min-width:2.4em;text-align:center;border-radius:5px;background:var(--a);color:#fff;font-size:11px;font-weight:700;padding:0 4px;margin-right:4px}
+.cp.core{background:var(--mute)}
+.tag{color:var(--good);font-size:12px}
+.warn{color:var(--warn)}
+details{margin-top:2px}
+details summary{cursor:pointer;color:var(--a);font-size:12px}
+.txt{white-space:pre-wrap;font-size:12px;color:var(--mute);margin:2px 0 4px;text-align:left}
+.ph{display:grid;grid-template-columns:7em 1fr 1fr;border-top:1px solid var(--line)}
+.ph>div{padding:6px 8px;border-left:1px solid var(--line)}
+.ph>div:first-child{border-left:0;font-weight:700}
+.ph.head>div{font-size:12px;color:var(--mute);font-weight:600}
+.it{margin:0 0 5px;font-size:13px;line-height:1.4}
+.it .k{font-size:11px;color:var(--mute);margin-right:3px}
+.one{border-top:1px solid var(--line);padding:6px 8px}
+.err{color:var(--b);font-weight:600}
+@media (max-width:600px){main{padding:10px}.card{padding:10px}th,td{padding:3px 4px;font-size:11px}.ph{grid-template-columns:4.2em 1fr 1fr}.ph>div{padding:4px}.it{font-size:12px}}
+@media print{.noprint{display:none!important}body{background:#fff;color:#000;font-size:11px}main{max-width:none;padding:0}.card{border:0;padding:0}.it{font-size:10.5px;margin-bottom:3px}.ph{break-inside:avoid}details{display:none}}
+</style>
+</head>
+<body>
+<main>
+<h1 class="noprint">偵察和階段小抄 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行</a> <a href="dice.html" style="font-size:14px;font-weight:normal;margin-left:8px">骰子機率</a></h1>
+<div class="card noprint">
+<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表。<b>偵察</b>：對手每個單位走多遠、衝多遠、打多遠，有哪些能力，他的分隊能用哪些戰術卡、給哪些單位用。<b>階段小抄</b>：把戰術卡、規則、能力照「指揮 → 移動 → 射擊 → 衝鋒 → 格鬥」排好，自己回合、對方回合分兩欄，可以印出來放桌邊。</p>
+<textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
+<div class="opts"><button id="go">讀這張表</button><span id="msg" class="mute"></span></div>
+</div>
+<div class="opts seg noprint" id="tab" style="margin-bottom:10px;display:none"><button data-v="scout" class="on">偵察</button><button data-v="plan">階段小抄</button><span id="planopt" style="display:none"><label class="small"><input type="checkbox" id="nocore"> 不列核心戰術卡</label> <button id="print" style="padding:4px 12px;font-size:13px">列印</button></span></div>
+<div id="out"></div>
+<p class="mute noprint" style="font-size:12px" id="foot"></p>
+</main>
+<script src="browser.js?v=202611240226"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const PH = {pre: "開戰前", cmd: "指揮", move: "移動", shoot: "射擊", charge: "衝鋒", fight: "格鬥", any: "任何階段", always: "常駐"};
+const TURN = {me: "自己回合", opp: "對方回合", both: "雙方回合"};
+let J = null, TAB = "scout";
+
+// 名字：有中文放中文、英文放小字；沒中文只放英文
+function nm(o, small) {
+  if (!o.zh) return esc(o.name);
+  return small ? esc(o.zh) + ' <small>' + esc(o.name) + "</small>" : esc(o.zh) + "<br><small>" + esc(o.name) + "</small>";
+}
+
+// 同名單位加編號（#1、#2），小抄和戰術卡清單才分得出來
+function labels(units) {
+  const cnt = {}, seen = {};
+  units.forEach((u) => cnt[u.name] = (cnt[u.name] || 0) + 1);
+  return units.map((u) => {
+    const base = u.zh || u.name;
+    if (cnt[u.name] < 2) return base;
+    seen[u.name] = (seen[u.name] || 0) + 1;
+    return base + " #" + seen[u.name];
+  });
+}
+
+// 能用的單位：全部就寫「全部」，超過一半就寫「全部，除了…」，比較短
+function whoList(idx, L) {
+  if (idx.length === L.length) return "全部";
+  if (idx.length > L.length / 2 && L.length - idx.length <= 4) return "全部，除了 " + L.filter((x, i) => !idx.includes(i)).map(esc).join("、");
+  return idx.map((i) => esc(L[i])).join("、");
+}
+
+function full(text) { return text ? '<details><summary>原文</summary><div class="txt">' + esc(text) + "</div></details>" : ""; }
+
+function phText(ph) { return ph.map(([k, t]) => PH[k] + (k === "always" || k === "pre" || k === "any" ? "" : "（" + TURN[t] + "）")).join("、"); }
+
+function armyCard(j) {
+  let h = '<div class="card"><h2>' + esc(j.name || "軍表") + ' <small>' + esc(j.faction) + "，" + j.points + " 分，" + j.units.length + " 個單位</small></h2>";
+  if (j.unknown.length) h += '<p class="warn">讀不到的單位：' + j.unknown.map(esc).join("、") + "</p>";
+  h += "<h3>軍隊規則</h3>" + (j.army.length ? j.army.map((x) => '<div class="it">' + nm(x, true) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") : '<p class="mute">沒有</p>');
+  h += "<h3>分隊</h3>" + (j.dets.length ? j.dets.map((d) => '<div class="it"><b>' + nm(d, true) + "</b>" + d.rules.map((x) => '<div style="margin-left:1em">規則：' + nm(x, true) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") + "</div>").join("") : '<p class="mute">軍表上讀不到分隊名，戰術卡只列核心的。</p>');
+  const enh = j.units.flatMap((u, i) => u.enh.map((e) => [labels(j.units)[i], e]));
+  if (enh.length) h += "<h3>強化</h3>" + enh.map(([u, e]) => '<div class="it">' + nm(e, true) + ' <span class="mute small">→ ' + esc(u) + " · " + phText(e.ph) + "</span>" + full(e.text) + "</div>").join("");
+  return h + "</div>";
+}
+
+function unitCard(j) {
+  const L = labels(j.units);
+  let h = '<div class="card"><h2>單位：走多遠、打多遠</h2><p class="mute small" style="margin:0 0 6px">衝鋒威脅＝移動＋2D6 衝鋒（平均 7、最多 12）；射擊威脅＝移動＋最遠的射程。沒算前進、地形、飛行和戰術卡加的移動。</p><div class="scroll"><table><thead><tr><th class="l">單位</th><th>分</th><th>M</th><th>衝鋒威脅<br>平均／最遠</th><th>射擊威脅<br><small>（最遠射程）</small></th><th>防禦</th><th class="l">核心能力</th><th class="l">其他能力</th></tr></thead><tbody>';
+  j.units.forEach((u, i) => {
+    const def = "T" + u.T + " " + u.Sv + "+" + (u.inv ? "／" + u.inv + "++" : "") + (u.fnp ? "／FNP " + u.fnp + "+" : "") + "<br><small>" + u.models + " 個模型，共 " + u.wounds + " 傷，OC " + u.OC + "</small>";
+    const core = u.core.map((c) => '<span class="chip" title="' + esc(c.note) + '">' + esc(c.zh || c.name) + (c.zh && c.param ? " " + esc(c.param) : "") + "</span>").join("") + (u.ds ? '<div class="small mute">落地後衝鋒要 9+（' + Math.round(u.ds_p * 100) + "%）</div>" : "");
+    const ab = u.abil.map((x) => '<div class="it">' + nm(x, true) + (x.src ? ' <span class="k">（' + esc(x.src) + "）</span>" : "") + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("");
+    h += '<tr><td class="l">' + esc(L[i]) + (u.zh ? "<br><small>" + esc(u.name) + "</small>" : "") + "</td><td>" + u.points + "</td><td>" + u.M + '"' + (u.fly ? "<br><small>飛行</small>" : "") + "</td><td><b>" + u.chg[0] + '"</b>／' + u.chg[1] + '"</td><td>' + (u.reach ? "<b>" + u.reach + '"</b><br><small>（' + u.rng + '"）</small>' : "—") + "</td><td>" + def + '</td><td class="l">' + core + '</td><td class="l">' + ab + "</td></tr>";
+  });
+  return h + "</tbody></table></div></div>";
+}
+
+function stratCard(j) {
+  const L = labels(j.units);
+  let h = '<div class="card"><h2>戰術卡（' + j.strats.length + ' 張）</h2><p class="mute small" style="margin:0 0 6px">能用的單位：照卡上指定的關鍵字比對，「全部」＝表上每個單位都行。綠字是計算器讀得懂的效果；核心戰術卡的說明是我們自己寫的摘要。</p><div class="scroll"><table><thead><tr><th class="l">戰術卡</th><th>CP</th><th>什麼時候</th><th class="l">能用的單位</th><th class="l">效果</th></tr></thead><tbody>';
+  j.strats.forEach((s) => {
+    const who = !s.units.length ? '<span class="mute">表上沒有單位能用</span>' : whoList(s.units, L);
+    const need = (s.need.length ? '<div class="small mute">要 ' + s.need.map(esc).join(" 或 ") + "</div>" : "") + (s.excl.length ? '<div class="small mute">不能是 ' + s.excl.map(esc).join("、") + "</div>" : "");
+    h += '<tr' + (s.units.length ? "" : ' style="opacity:.55"') + '><td class="l">' + nm(s) + '<div class="small mute">' + esc(s.det) + "</div></td><td>" + esc(s.cp) + "</td><td>" + s.phases.map((p) => PH[p]).join("／") + "<br><small>" + TURN[s.turn] + '</small></td><td class="l">' + who + need + '</td><td class="l">' + (s.note ? esc(s.note) : "") + (s.eff ? '<div class="tag">' + esc(s.eff) + "</div>" : "") + full(s.text) + "</td></tr>";
+  });
+  return h + "</tbody></table></div></div>";
+}
+
+// 小抄：每個階段一列，自己回合、對方回合兩欄；常駐和開戰前另外列
+function planCard(j) {
+  const L = labels(j.units), nocore = $("nocore").checked;
+  const box = {};
+  const put = (k, t, html) => {
+    const turns = t === "both" ? ["me", "opp"] : [t];
+    turns.forEach((x) => ((box[k] = box[k] || {me: [], opp: [], one: []})[k === "always" || k === "pre" || k === "any" ? "one" : x]).push(html));
+  };
+  j.strats.forEach((s) => {
+    if (!s.units.length || (nocore && s.core)) return;
+    const who = s.units.length === j.units.length ? "" : '<span class="k">→ ' + whoList(s.units, L) + "</span>";
+    const eff = s.note || s.eff;
+    const html = '<div class="it"><span class="cp' + (s.core ? " core" : "") + '">' + esc(s.cp) + "CP</span>" + nm(s, true) + (eff ? ' <span class="tag">' + esc(eff) + "</span>" : "") + " " + who + "</div>";
+    s.phases.forEach((p) => put(p, s.turn, html));
+  });
+  const rule = (kind, x, who) => x.ph.forEach(([k, t]) => put(k, t, '<div class="it"><span class="k">' + kind + "</span>" + nm(x, true) + (who ? ' <span class="k">→ ' + esc(who) + "</span>" : "") + "</div>"));
+  j.army.forEach((x) => rule("軍隊", x));
+  j.dets.forEach((d) => d.rules.forEach((x) => rule("分隊", x)));
+  // 同一個能力在好幾個單位上（例如兩隊一樣的）只列一次，後面列出所有單位
+  const grp = new Map();
+  j.units.forEach((u, i) => [["能力", u.abil], ["強化", u.enh]].forEach(([kind, xs]) => xs.forEach((x) => {
+    const key = kind + "|" + x.name;
+    if (!grp.has(key)) grp.set(key, {kind, x, who: []});
+    grp.get(key).who.push(i);
+  })));
+  grp.forEach((g) => rule(g.kind, g.x, g.who.map((i) => L[i]).join("、")));
+  let h = '<div class="card"><h2>' + esc(j.name || "軍表") + ' 階段小抄 <small>' + esc(j.faction) + "，" + j.points + " 分" + (j.dets.length ? "，" + j.dets.map((d) => esc(d.zh || d.name)).join("＋") : "") + '</small></h2>';
+  const one = (k) => box[k] && box[k].one.length ? '<div class="one"><b>' + PH[k] + "</b>" + (k === "always" ? ' <small class="mute">（光環、被動能力，隨時有效）</small>' : "") + '<div style="columns:2 260px;column-gap:16px;margin-top:4px">' + box[k].one.join("") + "</div></div>" : "";
+  h += one("pre");
+  h += '<div class="ph head"><div>階段</div><div>自己回合</div><div>對方回合</div></div>';
+  ["cmd", "move", "shoot", "charge", "fight"].forEach((k) => {
+    const b = box[k] || {me: [], opp: []};
+    h += '<div class="ph"><div>' + PH[k] + "</div><div>" + (b.me.join("") || '<span class="mute">—</span>') + "</div><div>" + (b.opp.join("") || '<span class="mute">—</span>') + "</div></div>";
+  });
+  h += one("any") + one("always");
+  return h + "</div>";
+}
+
+function render() {
+  if (!J) return;
+  $("tab").querySelectorAll("button[data-v]").forEach((b) => b.classList.toggle("on", b.dataset.v === TAB));
+  $("planopt").style.display = TAB === "plan" ? "" : "none";
+  $("out").innerHTML = TAB === "scout" ? armyCard(J) + unitCard(J) + stratCard(J) : planCard(J);
+}
+
+async function go() {
+  $("msg").textContent = "";
+  const a = $("a").value;
+  if (!a.trim()) { $("msg").textContent = "請先貼一張軍表。"; return; }
+  try { localStorage.setItem("sc_a", a); } catch (e) {}
+  $("go").disabled = true;
+  try {
+    let j;
+    // 規則原文只在自己架的伺服器版（HP）顯示；公開版只給名字、時機和中文摘要
+    const req = {scout: true, a, full: !window.localCalc};
+    if (window.localCalc) j = await localCalc(req, (t) => $("msg").textContent = t);
+    else {
+      const r = await fetch("/api/calc", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(req)});
+      j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.status);
+    }
+    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
+    else { J = j; $("tab").style.display = ""; render(); }
+    $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；核心能力、核心戰術卡的中文說明是我們自己寫的摘要。階段是照規則文字裡寫的階段自動分的，可能有分錯，以原文為準。" + (j.full ? "" : "規則原文只在 HP 版顯示。");
+  } catch (e) { $("msg").textContent = "讀不出來：" + e.message; }
+  $("go").disabled = false;
+}
+$("go").onclick = go;
+$("tab").querySelectorAll("button[data-v]").forEach((b) => b.onclick = () => { TAB = b.dataset.v; render(); });
+$("nocore").onchange = render;
+$("print").onclick = () => window.print();
+try { const s = localStorage.getItem("sc_a"); if (s) $("a").value = s; } catch (e) {}
+</script>
+</body>
+</html>

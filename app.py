@@ -35,6 +35,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/listcheck.html":   # 軍表健檢（2026-11-24）
             return self.reply(200, (HERE / "listcheck.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path.split("?")[0] == "/scout.html":   # 偵察和階段小抄（2026-11-24）
+            return self.reply(200, (HERE / "scout.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/dice.html":   # 骰子機率（2026-11-24）
             return self.reply(200, (HERE / "dice.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/leaderboards.html":   # 單位排行（2026-11-24）

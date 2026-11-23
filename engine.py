@@ -2150,8 +2150,246 @@ def listcheck(text, opt, db):
                 bench_n=bench.get('n', 0), bench_date=bench.get('date', ''), data_updated=db.updated)
 
 
+# ── 偵察／階段小抄（scout.html，2026-11-24）────────────────────────────────
+# 貼一張表 → 全軍規則、分隊規則、強化、能用的戰術卡、每個單位的威脅距離和能力，再照階段排成小抄。
+# 規則原文只在 HP 版（full=True）回傳；公開版只給名字、時機、CP、能用的單位，和計算器讀得懂的效果（中文）。
+SC_PH = (('pre', '開戰前／部署'), ('cmd', '指揮階段'), ('move', '移動階段'), ('shoot', '射擊階段'), ('charge', '衝鋒階段'), ('fight', '格鬥階段'), ('any', '任何階段'), ('always', '常駐'))
+SC_CORE = {                                              # 核心能力：自己寫的一句中文說明（不是抄規則原文）
+    'deadly demise': ('致命爆炸', '被消滅時擲 D6，6 的話 6" 內的單位都吃致命傷'),
+    'deep strike': ('深入打擊', '從預備隊降到離所有敵人 8" 以外的任何地方，敵方部署區也可以'),
+    'scouts': ('偵察', '開戰前可以先移動；也可從戰略預備隊直接放進自己部署區'),
+    'feel no pain': ('不覺疼痛', '每失去一點傷擲 D6，達到數值就不扣'),
+    'stealth': ('隱匿', '被射擊時算有掩體'),
+    'infiltrators': ('滲透', '部署時可放在離敵方部署區和敵人 8" 以外的任何地方'),
+    'damaged': ('受損', '剩下的傷降到數值以下時，攻擊命中 -1'),
+    'lone operative': ('獨行特工', '沒加入其他單位時，敵人在 12" 外看不到它，也不能用間接射擊打它'),
+    'firing deck': ('射擊甲板', '載具射擊時，裡面載的幾個模型可以一起開火'),
+    'hover': ('懸浮', '起飛時移動距離不用扣 2"'),
+    'fights first': ('先攻', '格鬥階段比一般單位先打'),
+    'super-heavy walker': ('超重型步行', '可以穿過 4" 以下的地形和非泰坦模型'),
+}
+SC_CORE_STRAT = {                                        # 第十一版核心戰術卡：自己寫的中文名和一句說明
+    'smokescreen': ('煙幕', '對方射擊階段開始時：SMOKE 單位，和被它擋住的單位，被射擊時算有掩體'),
+    'command re-roll': ('指揮重骰', '擲完骰後重骰一顆（命中、造傷、傷害、豁免、前進、衝鋒…；衝鋒要整組重骰）'),
+    'epic challenge': ('史詩挑戰', '角色單位被選去格鬥時：一個角色模型的近戰武器得到 [PRECISION]'),
+    'insane bravery': ('瘋狂勇氣', '一次戰鬥震撼檢定自動通過（每場一次）'),
+    'counteroffensive': ('反擊', '對方一個單位打完後：我方一個可格鬥的單位得到先攻，接著馬上打'),
+    'heroic intervention': ('英勇介入', '對方衝鋒階段結束時：12" 內沒交戰的單位反衝鋒（載具要是角色或步行者）'),
+    'explosives': ('爆破', '沒前進的 EXPLOSIVES／GRENADES 單位：8" 內一個敵人擲 6 顆 D6，每個 4+ 吃 1 致命傷'),
+    'crushing impact': ('碾壓衝擊', '怪獸／載具衝鋒到位後：擲 T 顆 D6，1 自己吃 1 致命傷，5+ 對方吃 1（最多 6）'),
+    'rapid ingress': ('快速進場', '對方移動階段結束時：戰略預備隊的一個單位進場（第一輪不行）'),
+    'fire overwatch': ('守望射擊', '對方移動階段結束時：一個沒交戰的單位用快速射擊開火'),
+}
+SC_SKIP = {'leader', 'support'}
+_SC = {}
+
+
+def _sc_txt(s):
+    s = re.sub(r'<p class="ShowFluff.*?</p>', '', s or '', flags=re.S)
+    s = re.sub(r'<br\s*/?>|</li>|</p>', '\n', s)
+    s = re.sub(r'<li>', '• ', s)
+    s = re.sub(r'<[^>]+>', ' ', s).replace('\xa0', ' ')
+    s = re.sub(r'[ \t]+', ' ', s)
+    return re.sub(r'\n\s*\n+', '\n', s).strip()
+
+
+def _sc_target(html):
+    """戰術卡 TARGET 段 → (需要的關鍵字, 排除的關鍵字)。每個都是「組」的清單，組＝格子的清單，格子＝可以替換的字（A/B）。
+    例：「ADEPTUS CUSTODES INFANTRY/MOUNTED unit」→ [[['ADEPTUS'],['CUSTODES'],['INFANTRY','MOUNTED']]]。
+    「或」分開的是不同組（符合一組就行）；「You can only select…」這種附加條件不看。"""
+    m = re.search(r'TARGET:(.*?)(?:EFFECT:|$)', html, re.S)
+    t = re.sub(r'<br\s*/?>.*', '', m[1] if m else '', flags=re.S)
+    t = re.split(r'\.\s', t)[0]
+    excl = []
+    for ex in re.findall(r'\(excluding(.*?)\)', t, re.S):
+        excl += _sc_groups(ex)[:1]
+    t = re.sub(r'\(excluding.*?\)', ' ', t, flags=re.S)
+    return _sc_groups(t), excl
+
+
+def _sc_groups(t):
+    toks = list(re.finditer(r'<span class="kwb">([^<]+)</span>', t))
+    groups, cur, last = [], None, None
+    for mt in toks:
+        gap = re.sub(r'<[^>]+>', ' ', t[last:mt.start()]) if last is not None else ''
+        w = [x.upper() for x in mt[1].split()]
+        if cur is not None and gap.strip() == '/':
+            cur[-1] += w[:1]
+            cur += [[x] for x in w[1:]]
+        elif cur is not None and not gap.strip():
+            cur += [[x] for x in w]
+        else:
+            if cur is not None and not re.search(r'\bor\b', gap):
+                break
+            cur = [[x] for x in w]
+            groups.append(cur)
+        last = mt.end()
+    return groups
+
+
+def _sc_fit(words, g):
+    return all(any(x in words for x in slot) for slot in g)
+
+
+def _sc_phases(t):
+    """一段規則文字 → (階段, 誰的回合) 清單。回合：me＝自己、opp＝對方、both。"""
+    low = t.lower().replace('’', "'")
+    out = []
+    for k, en in (('cmd', 'command phase'), ('move', 'movement phase'), ('shoot', 'shooting phase'), ('charge', 'charge phase'), ('fight', 'fight phase')):
+        if en not in low:
+            continue
+        me = re.search(r"\byour " + en, low)
+        op = re.search(r"opponent's " + en, low)
+        out.append((k, 'both' if (me and op) or not (me or op) else 'me' if me else 'opp'))
+    if not out:
+        for k, rx in (('charge', r'charge move|declares? a charge'), ('shoot', r'selected to shoot|ranged attack'), ('fight', r'selected to fight|melee attack')):
+            if re.search(rx, low):
+                out.append((k, 'me' if k == 'charge' else 'both'))
+    if not out and re.search(r'any phase', low):
+        out.append(('any', 'both'))
+    if not out and re.search(r'start of (?:the|each) battle round', low):
+        out.append(('cmd', 'me'))
+    if not out and re.search(r'deploy|pre-battle|muster|declare battle formations|start of the battle|first battle round', low):
+        out.append(('pre', 'me'))
+    return out or [('always', 'both')]
+
+
+def _sc_load(db):
+    if id(db) in _SC:
+        return _SC[id(db)]
+    ab = {r['id']: r for r in rd('Abilities')}
+    sheet_ab = {}
+    for r in rd('Datasheets_abilities'):
+        if r['type'] not in ('Datasheet', 'Wargear', 'Core', 'Faction', 'Primarch', 'Psychic'):
+            continue
+        a = ab.get(r['ability_id']) or {}
+        nm = (r['name'] or a.get('name', '')).strip()
+        if not nm:
+            continue
+        sheet_ab.setdefault(r['datasheet_id'], []).append(dict(name=nm, type=r['type'], param=(r['parameter'] or '').strip(), model=r['model'] or '',
+                                                                 id=r['ability_id'] or '', text=_sc_txt(r['description'] or a.get('description', ''))))
+    strats = {}
+    for r in rd_safe('Stratagems'):
+        ty = r.get('type') or ''
+        if 'boarding' in ty.lower():
+            continue
+        key = r.get('detachment_id') or ('core' if ty == 'Core Stratagem' else '')
+        if not key:
+            continue
+        d = _sc_txt(r.get('description'))
+        need, excl = _sc_target(r.get('description') or '')
+        ph = (r.get('phase') or '').lower()
+        phs = [k for k, en in (('cmd', 'command'), ('move', 'movement'), ('shoot', 'shooting'), ('charge', 'charge'), ('fight', 'fight')) if en in ph] or ['any']
+        tu = (r.get('turn') or '').lower()
+        strats.setdefault(key, []).append(dict(id=r.get('id', ''), name=(r.get('name') or '').title(), cp=r.get('cp_cost', ''), type=ty, phases=phs,
+                                               turn='me' if tu.startswith('your') else 'opp' if tu.startswith('opponent') else 'both',
+                                               need=need, excl=excl, text=d, det=r.get('detachment', '')))
+    det_ab = {}
+    for r in rd_safe('Detachment_abilities'):
+        det_ab.setdefault(r.get('detachment_id', ''), []).append(dict(name=r.get('name', ''), text=_sc_txt(r.get('description'))))
+    enh = {}
+    for r in rd_safe('Enhancements'):
+        enh.setdefault(enh_key(r.get('name', '')), []).append(dict(name=re.sub(r'\s*\(one per army\)', '', r.get('name', ''), flags=re.I), faction=r.get('faction_id', ''),
+                                                                    det=r.get('detachment_id', ''), text=_sc_txt(r.get('description'))))
+    tagmap = {}
+    for did, box in db.det_rules.items():
+        for x in box['rules']:
+            tagmap[x['id']] = '；'.join(tagger.label(t) for t in x['tags'])
+    try:                                                 # 繁體中文名（tools/zh_scout.py 產生）
+        with open(os.path.join(DATA, 'zh_scout.json'), encoding='utf-8') as f:
+            zh = json.load(f)
+    except OSError:
+        zh = {}
+    _SC[id(db)] = dict(ab=ab, sheet_ab=sheet_ab, strats=strats, det_ab=det_ab, enh=enh, tagmap=tagmap, zh=zh)
+    return _SC[id(db)]
+
+
+def _sc_range(w):
+    m = re.match(r'\s*(\d+)', str(w.get('range', '')))
+    return int(m[1]) if m and not w.get('melee') else 0
+
+
+def _p2d6(n):
+    return sum(1 for a in range(1, 7) for b in range(1, 7) if a + b >= n) / 36
+
+
+def scout(text, db, full=False):
+    L = _sc_load(db)
+    Z = L['zh']
+    zr = lambda n: Z.get('rules', {}).get(norm(n), '')
+
+    def zu(name):
+        if CJK.search(name):
+            return ''
+        ps = [Z.get('units', {}).get(norm(p), '') for p in name.split(' + ')]
+        return ' + '.join(ps) if all(ps) else ''
+
+    a = parse_list(text, db)
+    resolve(a, {})
+    fid = a.get('fid') or ''
+    units = []
+    for i, u in enumerate(a['units']):
+        t = target_of(u)
+        M = u['main']['M']
+        rng = max((_sc_range(w) for g in u['groups'] for c, ps in g['weapons'] for w in ps), default=0)
+        core, abil, seen = [], [], set()
+        for inf in u['info']:
+            sh = db.find(inf['src'], fid) or {}
+            for x in L['sheet_ab'].get(sh.get('id'), []):
+                low = norm(x['name'])
+                if low in SC_SKIP or (x['type'], low) in seen:
+                    continue
+                seen.add((x['type'], low))
+                if x['type'] == 'Core':
+                    zh, note = SC_CORE.get(low, ('', ''))
+                    prm = x['param'] + ('+' if low == 'feel no pain' and x['param'] and not x['param'].endswith('+') else '')
+                    core.append(dict(name=x['name'] + (' ' + prm if prm else ''), param=prm,
+                                     zh=zh, note=note, src=inf['src'] if len(u['info']) > 1 else '', model=x['model']))
+                elif x['type'] != 'Faction':
+                    abil.append(dict(name=x['name'], zh=zr(x['name']), src=inf['src'] if len(u['info']) > 1 else '', model=x['model'], ph=_sc_phases(x['text']), text=x['text'] if full else ''))
+        ds = any(c['name'].lower().startswith('deep strike') for c in core)
+        enh = []
+        for e in u['extra']:
+            k = enh_key(e)
+            rows = L['enh'].get(enh_key(db.zh_enh.get(k, k)), [])
+            row = next((r for r in rows if r['faction'] == fid), rows[0] if rows else None)
+            if row:
+                enh.append(dict(name=row['name'], zh=Z.get('enh', {}).get(norm(row['name']), ''), ph=_sc_phases(row['text']), text=row['text'] if full else ''))
+        units.append(dict(i=i, name=u['name'], zh=zu(u['name']), points=u['points'], M=M, T=t['T'], Sv=t['Sv'], inv=t['inv'], W=t['W'], wounds=t['wounds'], models=t['models'],
+                          fnp=t['fnp'], OC=sum(g['count'] * g['model']['OC'] for g in u['groups']), kw=sorted(u['kw']),
+                          fly='FLY' in u['kw'], rng=rng, chg=[M + 7, M + 12], reach=M + rng if rng else 0, ds=ds,
+                          ds_p=round(_p2d6(9), 3) if ds else 0, core=core, abil=abil, enh=enh,
+                          leaders=sorted(u['leaders']), body=sorted(u['body'])))
+    # 軍隊規則（陣營能力）
+    fab = set().union(*(u['fab'] for u in a['units'])) if a['units'] else set()
+    army = [dict(name=L['ab'][x]['name'], zh=zr(L['ab'][x]['name']), ph=_sc_phases(_sc_txt(L['ab'][x]['description'])), text=_sc_txt(L['ab'][x]['description']) if full else '')
+            for x in sorted(fab) if x in L['ab']]
+    dets = []
+    for did in a.get('det_auto', []):
+        nm = next((d['name'] for d in db.dets.get(fid, []) if d['id'] == did), did)
+        rules = [dict(name=r['name'], zh=zr(r['name']), ph=_sc_phases(r['text']), text=r['text'] if full else '') for r in L['det_ab'].get(did, [])]
+        dets.append(dict(id=did, name=nm, zh=Z.get('dets', {}).get(norm(nm), ''), rules=rules))
+    # 戰術卡：選到的分隊＋核心。哪些單位能用：TARGET 裡的粗體關鍵字（「或」分開的每一組要全部符合），陣營關鍵字大家都有就不看
+    allw = [{x for k in u['kw'] for x in k.split()} for u in a['units']]
+    common = set.intersection(*allw) if allw else set()
+    strats = []
+    for key in a.get('det_auto', []) + ['core']:
+        for s in L['strats'].get(key, []):
+            ok = [i for i, w in enumerate(allw) if (not s['need'] or any(_sc_fit(w, g) for g in s['need'])) and not any(_sc_fit(w, g) for g in s['excl'])]
+            groups = [' '.join('/'.join(sl) for sl in g if not all(x in common for x in sl)) for g in s['need']]
+            groups = [g for g in groups if g]
+            cz = SC_CORE_STRAT.get(norm(s['name']), ('', '')) if key == 'core' else ('', '')
+            strats.append(dict(name=s['name'], zh=cz[0] or zr(s['name']), note=cz[1], cp=s['cp'], phases=s['phases'], turn=s['turn'], det=s['det'] if key != 'core' else '核心',
+                               core=key == 'core', units=ok, need=groups, excl=[' '.join('/'.join(sl) for sl in g) for g in s['excl']], eff=L['tagmap'].get(s['id'], ''),
+                               text=s['text'] if full else ''))
+    return dict(name=a['name'], faction=a['faction'], fid=fid, points=a['points'], unknown=a['unknown'], warn=a.get('warn', []),
+                units=units, army=army, dets=dets, strats=strats, full=full, data_updated=db.updated, phases=SC_PH)
+
+
 def api(req, db):
     """網頁送來的 {a, b, opt} → 計算結果；{translate: true, a, b} → 兩張表翻成中文。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
+    if req.get('scout'):
+        return scout(str(req.get('a', '')), db, bool(req.get('full')))
     if req.get('listcheck'):
         ro = req.get('opt') or {}
         opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still')}
