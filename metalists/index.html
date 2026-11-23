@@ -118,6 +118,27 @@ function listCard(l, label) {
   return h + "</details>";
 }
 
+// 共識軍表（照 Lexmechanic Meta Merge）：每個單位取最常帶的隊數和點數，從最少人帶的刪到 2000 分內；附可複製的純文字
+function consensusCard(f, b) {
+  const c = b.consensus;
+  const txt = "共識軍表：" + f.name + (f.zh ? "（" + f.zh + "）" : "") + "\n" + b.det + "（" + b.n + " 張 4 勝以上）\n" + c.total + " 點\n\n" + c.units.map((u) => u.copies + "x " + u.n + (u.zh ? "（" + u.zh + "）" : "") + " — " + u.pts + (u.copies > 1 ? " ×" + u.copies + " = " + u.pts * u.copies : "") + " 點").join("\n");
+  let h = '<div class="scroll"><table><thead><tr><th>單位</th><th class="num">隊數</th><th class="num">每隊點數</th><th class="num">出場率</th></tr></thead><tbody>';
+  for (const u of c.units) h += "<tr><td>" + unitName(u) + '</td><td class="num">' + u.copies + '</td><td class="num">' + u.pts + '</td><td class="num">' + pct(u.rate) + "</td></tr>";
+  h += '<tr><td><b>合計</b></td><td></td><td class="num"><b>' + c.total + "</b></td><td></td></tr></tbody></table></div>";
+  if (c.dropped.length) h += '<p class="small mute">放不下而刪掉的（出場率 20% 以上）：' + c.dropped.map(esc).join("、") + "</p>";
+  h += '<p><button class="copy" data-t="' + esc(txt) + '">複製純文字</button> <span class="small mute copied"></span></p>';
+  return h;
+}
+
+// 複製：https 用 clipboard API；HP 的 http 頁面沒有，改用隱藏的 textarea
+function copyText(btn) {
+  const t = btn.dataset.t;
+  const done = () => { btn.nextElementSibling.textContent = "已複製"; };
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t).then(done);
+  const a = document.createElement("textarea");
+  a.value = t; document.body.appendChild(a); a.select(); document.execCommand("copy"); a.remove(); done();
+}
+
 // 陣營頁：分隊組合、單位分層、代表軍表、全勝表、全部來源
 function faction(f, pick) {
   const b = f.builds[pick] || null;
@@ -142,6 +163,10 @@ function faction(f, pick) {
   h += "<h2>單位（" + (b ? esc(b.det) : "全部分隊") + "，" + n + " 張）</h2>";
   h += '<p class="small mute">主幹：80% 以上的表都帶；彈性：35% 以上；針對：其他。平均幾隊是「有帶的表」平均帶幾隊。' + (n < 5 ? ' <span class="warn">張數很少，只能當例子。</span>' : "") + "</p>";
   h += '<div class="card">' + unitTable(units) + "</div>";
+  if (b && b.consensus) {
+    h += '<h2>共識軍表（' + b.consensus.total + ' 點）</h2><p class="small mute">不是真實軍表：每個單位取「有帶的表」最常帶的隊數和最常見的點數，照出場率排，從最少人帶的開始刪，刪到 2,000 分以內（照 Lexmechanic Meta Merge 的做法）。點數是軍表上寫的，不是現行點數；沒有讀裝備，裝備請看下面的代表軍表。5 張以上的組合才做。</p>';
+    h += '<div class="card">' + consensusCard(f, b) + "</div>";
+  }
   if (b) {
     h += "<h2>代表軍表</h2><p class=\"small mute\">跟同組其他表最像的一張，是真實軍表，不是拼出來的。</p>";
     h += '<div class="card">' + listCard(byId[b.typical], "最典型") + (b.best !== b.typical ? listCard(byId[b.best], "戰績最好") : "") + "</div>";
@@ -171,6 +196,7 @@ async function route() {
   const show = (i) => {
     $("#app").innerHTML = faction(f, i);
     document.querySelectorAll(".bt").forEach((x) => x.onclick = () => show(+x.dataset.i));
+    document.querySelectorAll(".copy").forEach((x) => x.onclick = () => copyText(x));
   };
   show(f.builds.length ? 0 : -1);
   window.scrollTo(0, 0);
