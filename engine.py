@@ -2051,8 +2051,77 @@ def scenario(text_a, text_b, opt, db, sel):
     return out
 
 
+# ---------- 軍表健檢（List Check，2026-11-24 使用者要做 Lexmechanic 的工具）----------
+# 拿一張表去打 6 種固定的標準目標，看每一類一輪能打掉幾個；跟 meta 表（data/listcheck_bench.json）比強弱，弱的那類推薦同陣營 meta 表裡最會打它的單位。
+# 標準目標用真的資料卡（照官方 App 格式寫一小張表給 parse_list 讀），點數只是佔位，不影響計算。
+LC_REFS = [
+    ('horde', '步兵海', 'Boyz ×20', "R (170 Points)\n\nOrks\n\nBoyz (170 Points)\n• 1x Boss Nob\n• 19x Boy\n"),
+    ('meq', '中裝步兵', 'Intercessor Squad ×10', "R (160 Points)\n\nSpace Marines\n\nIntercessor Squad (160 Points)\n• 1x Intercessor Sergeant\n• 9x Intercessor\n"),
+    ('elite', '終結者', 'Terminator Squad ×5', "R (170 Points)\n\nSpace Marines\n\nTerminator Squad (170 Points)\n• 1x Terminator Sergeant\n• 4x Terminator\n"),
+    ('tank', '坦克', 'Land Raider', "R (240 Points)\n\nSpace Marines\n\nLand Raider (240 Points)\n• 1x Land Raider\n"),
+    ('monster', '怪獸', 'Carnifex', "R (115 Points)\n\nTyranids\n\nCarnifex (115 Points)\n• 1x Carnifex\n"),
+    ('knight', '騎士', 'Knight Paladin', "R (375 Points)\n\nImperial Knights\n\nKnight Paladin (375 Points)\n• 1x Knight Paladin\n"),
+]
+_LC_T = {}
+
+
+def lc_targets(db):
+    if id(db) not in _LC_T:
+        out = []
+        for k, zh, desc, txt in LC_REFS:
+            l = parse_list(txt, db)
+            if l['units']:
+                out.append((k, zh, desc, target_of(l['units'][0])))
+        _LC_T[id(db)] = out
+    return _LC_T[id(db)]
+
+
+def lc_rows(lst, opt, db):
+    """每個單位打每種標準目標：[射擊打掉幾 %, 近戰打掉幾 %]（佔目標總傷數，0~1，可超過 1＝一輪能打掉不只一個）。"""
+    T = lc_targets(db)
+    return [[[round(unit_damage(u, t, False, opt) / (t['wounds'] or 1), 3), round(unit_damage(u, t, True, opt) / (t['wounds'] or 1), 3)] for k, zh, d, t in T]
+            for u in lst['units']]
+
+
+def lc_bench():
+    try:
+        with open(os.path.join(DATA, 'listcheck_bench.json'), encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def listcheck(text, opt, db):
+    a = parse_list(text, db)
+    over = opt.get('abil') or {}
+    resolve(a, over.get('a') or {})
+    apply_dets(a, over.get('a') or {}, db)
+    T = lc_targets(db)
+    rows = lc_rows(a, opt, db)
+    tot = [[round(sum(r[i][0] for r in rows), 2), round(sum(r[i][1] for r in rows), 2)] for i in range(len(T))]
+    bench = lc_bench()
+    b = bench.get('all', {})
+    verdict = []
+    for i, (k, zh, d, t) in enumerate(T):
+        q = b.get(k)
+        v = tot[i][0] + tot[i][1]
+        # 跟 meta 表比：低於 25% 分位＝弱、高於 75%＝強（meta 表是 4 勝以上的代表表）
+        verdict.append('' if not q else ('弱' if v < q[0] else '強' if v > q[2] else '普通'))
+    fac = bench.get('fac', {}).get(a['faction'], {})
+    fixes = {k: fac.get(k, [])[:3] for i, (k, zh, d, t) in enumerate(T) if verdict[i] == '弱'}
+    return dict(name=a['name'], faction=a['faction'], points=a['points'], unknown=a['unknown'], warn=a.get('warn', []),
+                units=[dict(name=u['name'], points=u['points']) for u in a['units']],
+                refs=[dict(key=k, zh=zh, desc=d, stat=f"T{t['T']}、{t['Sv']}+" + (f"／{t['inv']}++" if t['inv'] else '') + f"、共 {t['wounds']} 傷") for k, zh, d, t in T], rows=rows, tot=tot, bench=b, verdict=verdict, fixes=fixes,
+                bench_n=bench.get('n', 0), bench_date=bench.get('date', ''), data_updated=db.updated)
+
+
 def api(req, db):
     """網頁送來的 {a, b, opt} → 計算結果；{translate: true, a, b} → 兩張表翻成中文。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
+    if req.get('listcheck'):
+        ro = req.get('opt') or {}
+        opt = {k: bool(ro.get(k)) for k in ('half', 'cover', 'charge', 'still')}
+        opt['abil'] = {'a': {str(k): bool(v) for k, v in ((ro.get('abil') or {}).get('a') or {}).items()}, 'b': {}}
+        return listcheck(str(req.get('a', '')), opt, db)
     if req.get('translate'):
         return {k: translate_list(str(req.get(k, '')), db) for k in ('a', 'b')}
     if req.get('scenario'):

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>軍表健檢</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00;--good:#1d7a3a}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050;--good:#6fd08c}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea{width:100%;height:190px;font:12px/1.4 ui-monospace,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:0;background:var(--a);color:#fff;font-weight:600}
+.opts{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:8px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%}
+th,td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+th{font-weight:600;font-size:12px;line-height:1.3;vertical-align:bottom}
+td.l,th.l{text-align:left}
+small,.mute{color:var(--mute)}
+.v{display:inline-block;border-radius:4px;padding:0 7px;font-size:12px;font-weight:600}
+.v-弱{background:var(--b);color:#fff}.v-強{background:var(--good);color:#fff}.v-普通{border:1px solid var(--line);color:var(--mute)}
+.bar{position:relative;height:10px;background:var(--bg);border-radius:5px;min-width:120px}
+.bar i{position:absolute;top:0;bottom:0;background:var(--line);border-radius:5px}
+.bar b{position:absolute;top:-3px;width:3px;height:16px;background:var(--ink);border-radius:2px}
+.warn{color:var(--warn)}
+.err{color:var(--b);font-weight:600}
+@media (max-width:600px){main{padding:10px}.card{padding:10px}th,td{padding:3px 4px;font-size:11px}}
+</style>
+</head>
+<body>
+<main>
+<h1>軍表健檢 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a></h1>
+<div class="card">
+<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表，看它一輪能打掉多少「步兵海、中裝步兵、終結者、坦克、怪獸、騎士」，跟 meta 表（4 勝以上的表）比哪裡強、哪裡弱，弱的地方推薦同陣營的單位。</p>
+<textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
+<div class="opts"><button id="go">健檢</button><span id="msg" class="mute"></span></div>
+</div>
+<div id="out"></div>
+<p class="mute" style="font-size:12px">做法：每個單位對 6 種標準目標各算一次射擊、一次近戰的平均傷害（和對戰計算同一套程式，含已標記的軍隊規則、分隊規則），換算成「打掉那個目標的幾 %」，全軍加起來＝一輪能打掉幾個。一個單位打一個目標最多算 100%（打爆就沒有多的）。近戰假設衝得到，沒算射程、視線、移動和戰術卡。比較基準是 meta 表（Listhammer 4 勝以上、讀得到內容的表）跑同一套算法的 25%／50%／75% 分位：低於 25% 標「弱」、高於 75% 標「強」。<span id="upd"></span></p>
+</main>
+<script src="browser.js?v=202611240055"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pct = (x) => Math.round(x * 100);
+const f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+
+// 總表：每類目標全軍一輪打掉幾個，跟 meta 分位比
+function summaryCard(R) {
+  let h = '<div class="card"><h2>' + esc(R.name || "這張表") + ' <small>' + esc(R.faction) + "，" + R.points + ' 分</small></h2><div class="scroll"><table><thead><tr><th class="l">目標</th><th>射擊</th><th>近戰</th><th>合計<br><small>一輪打掉幾個</small></th><th class="l" style="min-width:150px">跟 meta 表比<br><small>灰條＝25%～75%，黑線＝這張表</small></th><th></th></tr></thead><tbody>';
+  R.refs.forEach((r, i) => {
+    const t = R.tot[i], v = t[0] + t[1], q = R.bench[r.key] || [];
+    h += '<tr><td class="l"><b>' + esc(r.zh) + "</b><br><small>" + esc(r.desc) + "，" + esc(r.stat) + "</small></td><td>" + f2(t[0]) + "</td><td>" + f2(t[1]) + "</td><td><b>" + f2(v) + "</b></td><td class=\"l\">" + benchBar(v, q) + "</td><td>" + (R.verdict[i] ? '<span class="v v-' + R.verdict[i] + '">' + R.verdict[i] + "</span>" : "") + "</td></tr>";
+  });
+  return h + "</tbody></table></div>" + weakText(R) + "</div>";
+}
+
+// 分位條：0 到 (75% 分位 × 1.6) 的刻度
+function benchBar(v, q) {
+  if (q.length < 3) return '<span class="mute">沒有基準</span>';
+  const mx = Math.max(q[2] * 1.6, v * 1.05), x = (n) => Math.min(100, n / mx * 100).toFixed(1) + "%";
+  return '<div class="bar"><i style="left:' + x(q[0]) + ";width:calc(" + x(q[2]) + " - " + x(q[0]) + ')"></i><b style="left:' + x(v) + '"></b></div><small>中位數 ' + f2(q[1]) + "（" + f2(q[0]) + "～" + f2(q[2]) + "）</small>";
+}
+
+// 一句話結論＋弱項推薦
+function weakText(R) {
+  const weak = R.refs.filter((r, i) => R.verdict[i] === "弱"), strong = R.refs.filter((r, i) => R.verdict[i] === "強");
+  let h = '<p style="margin:10px 0 4px"><b>' + (weak.length ? "比較弱：" + weak.map((r) => r.zh).join("、") : "沒有明顯的弱項") + "</b>" + (strong.length ? "；比較強：" + strong.map((r) => r.zh).join("、") : "") + "</p>";
+  const mine = new Set(R.units.map((u) => u.name));
+  weak.forEach((r) => {
+    const fx = R.fixes[r.key] || [];
+    if (!fx.length) return;
+    h += '<p style="margin:4px 0" class="small">補「' + esc(r.zh) + "」：同陣營 meta 表裡每 100 分最會打它的單位 — " + fx.map((u) => esc(u.name) + " <small>（" + u.points + " 分，一輪打掉 " + f2(u.shoot + u.melee) + " 個" + (mine.has(u.name) ? "，你已經有" : "") + "）</small>").join("、") + "</p>";
+  });
+  return h;
+}
+
+// 每個單位對每類目標：射擊 % ／近戰 %
+function unitCard(R) {
+  let h = '<div class="card"><h2>每個單位</h2><p class="small mute" style="margin:0 0 6px">格子＝一輪打掉那個目標幾 %（射擊／近戰），顏色越深越多。</p><div class="scroll"><table><thead><tr><th class="l">單位</th>' + R.refs.map((r) => "<th>" + esc(r.zh) + "</th>").join("") + "</tr></thead><tbody>";
+  R.units.forEach((u, i) => {
+    h += '<tr><td class="l">' + esc(u.name) + " <small>" + u.points + "</small></td>" + R.rows[i].map((c) => '<td style="background:' + shade(Math.max(c[0], c[1])) + '">' + pct(c[0]) + "<small>／" + pct(c[1]) + "</small></td>").join("") + "</tr>";
+  });
+  return h + "</tbody></table></div></div>";
+}
+
+function shade(v) { return v < 0.05 ? "transparent" : "hsla(140,60%,45%," + Math.min(0.55, v * 0.55).toFixed(2) + ")"; }
+
+async function go() {
+  $("msg").textContent = "";
+  const a = $("a").value;
+  if (!a.trim()) { $("msg").textContent = "請先貼一張軍表。"; return; }
+  try { localStorage.setItem("lc_a", a); } catch (e) {}
+  $("go").disabled = true;
+  try {
+    let j;
+    const req = {listcheck: true, a, opt: {}};
+    if (window.localCalc) j = await localCalc(req, (t) => $("msg").textContent = t);
+    else {
+      const r = await fetch("/api/calc", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(req)});
+      j = await r.json();
+      if (!r.ok) throw new Error(j.error || r.status);
+    }
+    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; }
+    else {
+      const warn = j.unknown.length ? '<p class="warn">讀不到的單位（沒算進去）：' + j.unknown.map(esc).join("、") + "</p>" : "";
+      $("out").innerHTML = warn + summaryCard(j) + unitCard(j);
+    }
+    $("upd").textContent = "比較基準：" + j.bench_n + " 張 meta 表（" + j.bench_date + "）；規則資料更新到 " + j.data_updated + "。";
+  } catch (e) { $("msg").textContent = "算不出來：" + e.message; }
+  $("go").disabled = false;
+}
+$("go").onclick = go;
+try { const s = localStorage.getItem("lc_a"); if (s) $("a").value = s; } catch (e) {}
+</script>
+</body>
+</html>

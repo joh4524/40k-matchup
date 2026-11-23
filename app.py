@@ -33,6 +33,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(403, {"error": "forbidden"})
         if self.path in ("/", "/index.html"):
             return self.reply(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path.split("?")[0] == "/listcheck.html":   # 軍表健檢（2026-11-24）
+            return self.reply(200, (HERE / "listcheck.html").read_bytes(), "text/html; charset=utf-8")
         # 全陣營 meta 表網頁（~/metamerge/site，2026-11-22 使用者：「接在原本的網站上」）
         path = self.path.split("?")[0]
         if path == "/metalists":
