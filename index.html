@@ -87,7 +87,7 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611171125"></script>
+<script src="browser.js?v=202611240039"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -200,6 +200,49 @@ function planCard(tag,cls,foeTag,att,def,m,thr){
   h+=`<p style="margin:8px 0 4px"><b>預計這一回合打掉 ${foeTag} 約 ${Math.round(pts)} 分</b>（全滅 ${hit.filter(x=>x.c>=.995).length} 個單位）</p><p style="margin:0">${hit.map(x=>`${esc(x.u.name)} <small>${pct(x.c)}%</small>`).join('、')||'<span class="mute">打不到任何單位</span>'}</p>
   <small>做法：每一步挑「多打掉最多${pv==='threat'?'威脅':'分數'}」的組合，打同一個目標的 % 直接相加、到 100% 為止（平均值，沒算運氣）。先排射擊、射擊打剩的再排近戰，近戰假設衝得到。「有效」＝扣掉已經被打掉的部分後真正有用的 %。沒算射程、視線、移動。</small></div>`;
   return h;
+}
+// 三回合模擬（2026-11-24 使用者「5」）：A 先手、B 先手各跑 3 個戰鬥回合（6 個玩家回合），每個玩家回合用上面「怎麼打」同樣的貪心分配，
+// 打的一方火力照存活比例縮小（線性近似），被打的單位扣到 0 為止。第一回合預設只有射擊（還衝不到），之後射擊＋近戰。平均值，不算運氣、射程、移動、目標點。
+let sm1=false;
+function simTurn(m,alive,hp,def,ph2){
+  const cur=hp.map(x=>1-x);
+  for(const ph of (ph2?[0,1]:[0])){
+    const left=new Set(alive.map((x,i)=>i).filter(i=>alive[i]>0.005&&m[i].some(c=>c[ph]>0.005)));
+    while(left.size){
+      let best=null;
+      left.forEach(i=>m[i].forEach((c,j)=>{const add=Math.min(1,cur[j]+c[ph]*alive[i])-Math.min(1,cur[j]);const g=add*def.units[j].points;if(g>0.0001&&(!best||g>best.g))best={i,j,g,add}}));
+      if(!best)break;
+      cur[best.j]+=best.add; left.delete(best.i);
+    }
+  }
+  return cur.map(x=>{const v=1-Math.min(1,x);return v<0.005?0:v});
+}
+function ptsLeft(side,hp){return Math.round(side.units.reduce((n,u,i)=>n+u.points*hp[i],0))}
+function sim(firstA){
+  let a=R.a.units.map(()=>1), b=R.b.units.map(()=>1); const rows=[];
+  for(let r=1;r<=3;r++) for(const sa of (firstA?[1,0]:[0,1])){
+    const ph2=r>1||sm1;
+    if(sa) b=simTurn(R.ab,a,b,R.b,ph2); else a=simTurn(R.ba,b,a,R.a,ph2);
+    rows.push({r,who:sa?'A':'B',a:ptsLeft(R.a,a),b:ptsLeft(R.b,b),da:a.filter(x=>!x).length,db:b.filter(x=>!x).length});
+  }
+  return {rows,a,b};
+}
+function simTable(firstA){
+  const {rows,a,b}=sim(firstA), ta=ptsLeft(R.a,R.a.units.map(()=>1)), tb=ptsLeft(R.b,R.b.units.map(()=>1));
+  const last=rows[rows.length-1], pc=(x,t)=>t?Math.round(x/t*100):0;
+  let h=`<div><h3 style="margin:4px 0">${firstA?'A 先手':'B 先手'}</h3><div class="scroll"><table class="thr"><thead><tr><th>回合</th><th>誰打</th><th class="la">A 剩</th><th class="lb">B 剩</th></tr></thead><tbody>`;
+  rows.forEach(x=>h+=`<tr><td data-l="回合">${x.r}</td><td data-l="誰打">${x.who}</td><td data-l="A 剩">${x.a} <small>（${pc(x.a,ta)}%，全滅 ${x.da}）</small></td><td data-l="B 剩">${x.b} <small>（${pc(x.b,tb)}%，全滅 ${x.db}）</small></td></tr>`);
+  h+='</tbody></table></div>';
+  const lead=pc(last.a,ta)-pc(last.b,tb);
+  h+=`<p style="margin:6px 0"><b>三回合後 A 剩 ${pc(last.a,ta)}%、B 剩 ${pc(last.b,tb)}%</b>：${lead>5?'A 領先':lead<-5?'B 領先':'差不多'}（差 ${Math.abs(lead)} 個百分點）</p>`;
+  const alive=(side,hp)=>side.units.map((u,i)=>({u,v:hp[i]})).filter(x=>x.v>0).map(x=>`${esc(x.u.name)} <small>${pct(x.v)}%</small>`).join('、')||'<span class="mute">全滅</span>';
+  h+=`<details><summary class="small">最後還活著的</summary><p class="small"><b class="la">A：</b>${alive(R.a,a)}</p><p class="small"><b class="lb">B：</b>${alive(R.b,b)}</p></details></div>`;
+  return h;
+}
+function simCard(){
+  return `<div class="card"><h2>三回合模擬（先手 vs 後手）</h2><div class="opts seg" style="margin-bottom:8px"><span>第一回合：</span><button data-sm1="0" class="${sm1?'':'on'}">只有射擊</button><button data-sm1="1" class="${sm1?'on':''}">射擊＋近戰</button></div>
+  <div class="grid">${simTable(true)}${simTable(false)}</div>
+  <small>做法：每個玩家回合用上面「這一回合怎麼打」的同一套貪心分配（打掉最多分數），打的一方火力照它還剩幾 % 縮小，被打的單位扣到 0 為止；第 2 回合起射擊＋近戰，近戰假設衝得到。只算自己回合的攻擊（對方回合近戰階段的反擊沒算）。都是平均值，沒算運氣、射程、視線、移動、目標點和戰術卡 CP。拿來比「先手／後手差多少」和「誰的火力先撐不住」，不是預測比分。</small></div>`;
 }
 function changed(m,pm){let n=0;m.forEach((r,i)=>r.forEach((c,j)=>{if(pct(val(c))!==pct(val(pm[i][j])))n++}));return n}
 // 每個選項值多少（2026-11-15，使用者「給我看細節差異 例如六種武藝要不要開cp」）
@@ -369,6 +412,7 @@ function render(){
   if(view==='sum') body=`<div class="grid">${sideMini(R.a,'la','A',R.sum_ab)}${sideMini(R.b,'lb','B',R.sum_ba)}</div>
   ${metaCard()}
   ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
+  ${simCard()}
   <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>
   <small>威脅＝它射擊和近戰各打最賺的目標，一輪平均殺幾分。要花＝從打它最痛的單位加起，加到剛好打掉為止的分數。優先分數＝威脅 ÷ 要花 × 100。近戰威脅是假設它衝得到。</small></div></div>
   ${threatCard('A','la','B',R.thr_a)}${threatCard('B','lb','A',R.thr_b)}`;
@@ -398,6 +442,7 @@ function render(){
   document.querySelectorAll('details[data-dt]').forEach(d=>d.ontoggle=()=>{window['dopen_'+d.dataset.dt]=d.open});
   document.querySelectorAll('details[data-fd]').forEach(d=>d.ontoggle=()=>{window['fopen_'+d.dataset.fd]=d.open});
   document.querySelectorAll('button[data-pv]').forEach(b=>b.onclick=()=>{pv=b.dataset.pv;render()});
+  document.querySelectorAll('button[data-sm1]').forEach(b=>b.onclick=()=>{sm1=b.dataset.sm1==='1';render()});
   document.querySelectorAll('.tsort button').forEach(b=>b.onclick=()=>{tsort=b.dataset.s;render()});
 }
 async function go(){
