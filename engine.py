@@ -2172,7 +2172,7 @@ SC_CORE_STRAT = {                                        # 第十一版核心戰
     'smokescreen': ('煙幕', '對方射擊階段開始時：SMOKE 單位，和被它擋住的單位，被射擊時算有掩體'),
     'command re-roll': ('指揮重骰', '擲完骰後重骰一顆（命中、造傷、傷害、豁免、前進、衝鋒…；衝鋒要整組重骰）'),
     'epic challenge': ('史詩挑戰', '角色單位被選去格鬥時：一個角色模型的近戰武器得到 [PRECISION]'),
-    'insane bravery': ('瘋狂勇氣', '一次戰鬥震撼檢定自動通過（每場一次）'),
+    'insane bravery': ('瘋狂之勇', '一次戰鬥震撼檢定自動通過（每場一次）'),
     'counteroffensive': ('反擊', '對方一個單位打完後：我方一個可格鬥的單位得到先攻，接著馬上打'),
     'heroic intervention': ('英勇介入', '對方衝鋒階段結束時：12" 內沒交戰的單位反衝鋒（載具要是角色或步行者）'),
     'explosives': ('爆破', '沒前進的 EXPLOSIVES／GRENADES 單位：8" 內一個敵人擲 6 顆 D6，每個 4+ 吃 1 致命傷'),
@@ -2286,10 +2286,10 @@ def _sc_load(db):
                                                need=need, excl=excl, text=d, det=r.get('detachment', '')))
     det_ab = {}
     for r in rd_safe('Detachment_abilities'):
-        det_ab.setdefault(r.get('detachment_id', ''), []).append(dict(name=r.get('name', ''), text=_sc_txt(r.get('description'))))
+        det_ab.setdefault(r.get('detachment_id', ''), []).append(dict(id=r.get('id', ''), name=r.get('name', ''), text=_sc_txt(r.get('description'))))
     enh = {}
     for r in rd_safe('Enhancements'):
-        enh.setdefault(enh_key(r.get('name', '')), []).append(dict(name=re.sub(r'\s*\(one per army\)', '', r.get('name', ''), flags=re.I), faction=r.get('faction_id', ''),
+        enh.setdefault(enh_key(r.get('name', '')), []).append(dict(id=r.get('id', ''), name=re.sub(r'\s*\(one per army\)', '', r.get('name', ''), flags=re.I), faction=r.get('faction_id', ''),
                                                                     det=r.get('detachment_id', ''), text=_sc_txt(r.get('description'))))
     tagmap = {}
     for did, box in db.det_rules.items():
@@ -2300,7 +2300,12 @@ def _sc_load(db):
             zh = json.load(f)
     except OSError:
         zh = {}
-    _SC[id(db)] = dict(ab=ab, sheet_ab=sheet_ab, strats=strats, det_ab=det_ab, enh=enh, tagmap=tagmap, zh=zh)
+    try:                                                 # 規則中文摘要（zh_sum/*.json 抽查過的合併成 data/zh_sum.json；編號 A/D/S/E＋Wahapedia id）
+        with open(os.path.join(DATA, 'zh_sum.json'), encoding='utf-8') as f:
+            sm = json.load(f)
+    except OSError:
+        sm = {}
+    _SC[id(db)] = dict(ab=ab, sheet_ab=sheet_ab, strats=strats, det_ab=det_ab, enh=enh, tagmap=tagmap, zh=zh, sum=sm)
     return _SC[id(db)]
 
 
@@ -2354,7 +2359,7 @@ def scout(text, db, full=False):
             rows = L['enh'].get(enh_key(db.zh_enh.get(k, k)), [])
             row = next((r for r in rows if r['faction'] == fid), rows[0] if rows else None)
             if row:
-                enh.append(dict(name=row['name'], zh=Z.get('enh', {}).get(norm(row['name']), ''), ph=_sc_phases(row['text']), text=row['text'] if full else ''))
+                enh.append(dict(name=row['name'], zh=Z.get('enh', {}).get(norm(row['name']), ''), sum=L['sum'].get('E' + row['id'], ''), ph=_sc_phases(row['text']), text=row['text'] if full else ''))
         units.append(dict(i=i, name=u['name'], zh=zu(u['name']), points=u['points'], M=M, T=t['T'], Sv=t['Sv'], inv=t['inv'], W=t['W'], wounds=t['wounds'], models=t['models'],
                           fnp=t['fnp'], OC=sum(g['count'] * g['model']['OC'] for g in u['groups']), kw=sorted(u['kw']),
                           fly='FLY' in u['kw'], rng=rng, chg=[M + 7, M + 12], reach=M + rng if rng else 0, ds=ds,
@@ -2362,12 +2367,12 @@ def scout(text, db, full=False):
                           leaders=sorted(u['leaders']), body=sorted(u['body'])))
     # 軍隊規則（陣營能力）
     fab = set().union(*(u['fab'] for u in a['units'])) if a['units'] else set()
-    army = [dict(name=L['ab'][x]['name'], zh=zr(L['ab'][x]['name']), ph=_sc_phases(_sc_txt(L['ab'][x]['description'])), text=_sc_txt(L['ab'][x]['description']) if full else '')
+    army = [dict(name=L['ab'][x]['name'], zh=zr(L['ab'][x]['name']), sum=L['sum'].get('A' + x, ''), ph=_sc_phases(_sc_txt(L['ab'][x]['description'])), text=_sc_txt(L['ab'][x]['description']) if full else '')
             for x in sorted(fab) if x in L['ab']]
     dets = []
     for did in a.get('det_auto', []):
         nm = next((d['name'] for d in db.dets.get(fid, []) if d['id'] == did), did)
-        rules = [dict(name=r['name'], zh=zr(r['name']), ph=_sc_phases(r['text']), text=r['text'] if full else '') for r in L['det_ab'].get(did, [])]
+        rules = [dict(name=r['name'], zh=zr(r['name']), sum=L['sum'].get('D' + r['id'], ''), ph=_sc_phases(r['text']), text=r['text'] if full else '') for r in L['det_ab'].get(did, [])]
         dets.append(dict(id=did, name=nm, zh=Z.get('dets', {}).get(norm(nm), ''), rules=rules))
     # 戰術卡：選到的分隊＋核心。哪些單位能用：TARGET 裡的粗體關鍵字（「或」分開的每一組要全部符合），陣營關鍵字大家都有就不看
     allw = [{x for k in u['kw'] for x in k.split()} for u in a['units']]
@@ -2379,7 +2384,7 @@ def scout(text, db, full=False):
             groups = [' '.join('/'.join(sl) for sl in g if not all(x in common for x in sl)) for g in s['need']]
             groups = [g for g in groups if g]
             cz = SC_CORE_STRAT.get(norm(s['name']), ('', '')) if key == 'core' else ('', '')
-            strats.append(dict(name=s['name'], zh=cz[0] or zr(s['name']), note=cz[1], cp=s['cp'], phases=s['phases'], turn=s['turn'], det=s['det'] if key != 'core' else '核心',
+            strats.append(dict(name=s['name'], zh=cz[0] or zr(s['name']), note=cz[1] or L['sum'].get('S' + s['id'], ''), cp=s['cp'], phases=s['phases'], turn=s['turn'], det=s['det'] if key != 'core' else '核心',
                                core=key == 'core', units=ok, need=groups, excl=[' '.join('/'.join(sl) for sl in g) for g in s['excl']], eff=L['tagmap'].get(s['id'], ''),
                                text=s['text'] if full else ''))
     return dict(name=a['name'], faction=a['faction'], fid=fid, points=a['points'], unknown=a['unknown'], warn=a.get('warn', []),

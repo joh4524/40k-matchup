@@ -58,7 +58,7 @@ details summary{cursor:pointer;color:var(--a);font-size:12px}
 <div id="out"></div>
 <p class="mute noprint" style="font-size:12px" id="foot"></p>
 </main>
-<script src="browser.js?v=202611240226"></script>
+<script src="browser.js?v=202611240250"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -91,6 +91,9 @@ function whoList(idx, L) {
   return idx.map((i) => esc(L[i])).join("、");
 }
 
+// 中文摘要（二號寫的，抽查過才上線）
+function sm(x) { return x.sum ? ' <span class="tag">' + esc(x.sum) + "</span>" : ""; }
+
 function full(text) { return text ? '<details><summary>原文</summary><div class="txt">' + esc(text) + "</div></details>" : ""; }
 
 function phText(ph) { return ph.map(([k, t]) => PH[k] + (k === "always" || k === "pre" || k === "any" ? "" : "（" + TURN[t] + "）")).join("、"); }
@@ -98,10 +101,10 @@ function phText(ph) { return ph.map(([k, t]) => PH[k] + (k === "always" || k ===
 function armyCard(j) {
   let h = '<div class="card"><h2>' + esc(j.name || "軍表") + ' <small>' + esc(j.faction) + "，" + j.points + " 分，" + j.units.length + " 個單位</small></h2>";
   if (j.unknown.length) h += '<p class="warn">讀不到的單位：' + j.unknown.map(esc).join("、") + "</p>";
-  h += "<h3>軍隊規則</h3>" + (j.army.length ? j.army.map((x) => '<div class="it">' + nm(x, true) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") : '<p class="mute">沒有</p>');
-  h += "<h3>分隊</h3>" + (j.dets.length ? j.dets.map((d) => '<div class="it"><b>' + nm(d, true) + "</b>" + d.rules.map((x) => '<div style="margin-left:1em">規則：' + nm(x, true) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") + "</div>").join("") : '<p class="mute">軍表上讀不到分隊名，戰術卡只列核心的。</p>');
+  h += "<h3>軍隊規則</h3>" + (j.army.length ? j.army.map((x) => '<div class="it">' + nm(x, true) + sm(x) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") : '<p class="mute">沒有</p>');
+  h += "<h3>分隊</h3>" + (j.dets.length ? j.dets.map((d) => '<div class="it"><b>' + nm(d, true) + "</b>" + d.rules.map((x) => '<div style="margin-left:1em">規則：' + nm(x, true) + sm(x) + ' <span class="mute small">· ' + phText(x.ph) + "</span>" + full(x.text) + "</div>").join("") + "</div>").join("") : '<p class="mute">軍表上讀不到分隊名，戰術卡只列核心的。</p>');
   const enh = j.units.flatMap((u, i) => u.enh.map((e) => [labels(j.units)[i], e]));
-  if (enh.length) h += "<h3>強化</h3>" + enh.map(([u, e]) => '<div class="it">' + nm(e, true) + ' <span class="mute small">→ ' + esc(u) + " · " + phText(e.ph) + "</span>" + full(e.text) + "</div>").join("");
+  if (enh.length) h += "<h3>強化</h3>" + enh.map(([u, e]) => '<div class="it">' + nm(e, true) + sm(e) + ' <span class="mute small">→ ' + esc(u) + " · " + phText(e.ph) + "</span>" + full(e.text) + "</div>").join("");
   return h + "</div>";
 }
 
@@ -143,7 +146,7 @@ function planCard(j) {
     const html = '<div class="it"><span class="cp' + (s.core ? " core" : "") + '">' + esc(s.cp) + "CP</span>" + nm(s, true) + (eff ? ' <span class="tag">' + esc(eff) + "</span>" : "") + " " + who + "</div>";
     s.phases.forEach((p) => put(p, s.turn, html));
   });
-  const rule = (kind, x, who) => x.ph.forEach(([k, t]) => put(k, t, '<div class="it"><span class="k">' + kind + "</span>" + nm(x, true) + (who ? ' <span class="k">→ ' + esc(who) + "</span>" : "") + "</div>"));
+  const rule = (kind, x, who) => x.ph.forEach(([k, t]) => put(k, t, '<div class="it"><span class="k">' + kind + "</span>" + nm(x, true) + sm(x) + (who ? ' <span class="k">→ ' + esc(who) + "</span>" : "") + "</div>"));
   j.army.forEach((x) => rule("軍隊", x));
   j.dets.forEach((d) => d.rules.forEach((x) => rule("分隊", x)));
   // 同一個能力在好幾個單位上（例如兩隊一樣的）只列一次，後面列出所有單位
