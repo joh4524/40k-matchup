@@ -2065,15 +2065,44 @@ LC_REFS = [
 _LC_T = {}
 
 
-def lc_targets(db):
+def _lc_load(db):
     if id(db) not in _LC_T:
         out = []
         for k, zh, desc, txt in LC_REFS:
             l = parse_list(txt, db)
             if l['units']:
-                out.append((k, zh, desc, target_of(l['units'][0])))
+                resolve(l, {})
+                apply_dets(l, {}, db)
+                out.append((k, zh, desc, l['units'][0]))
         _LC_T[id(db)] = out
     return _LC_T[id(db)]
+
+
+def lc_targets(db):
+    return [(k, zh, d, target_of(u)) for k, zh, d, u in _lc_load(db)]
+
+
+def lc_attackers(db):
+    """耐打度用（2026-11-24）：同樣 6 個標準單位反過來當攻擊方，用它們預設的武器。"""
+    return _lc_load(db)
+
+
+def lc_def_rows(lst, opt, db):
+    """每個標準單位打我的每個單位：[射擊打掉幾 %, 近戰打掉幾 %]（0~1）。"""
+    A = lc_attackers(db)
+    rows = []
+    for u in lst['units']:
+        t = target_of(u)
+        w = t['wounds'] or 1
+        rows.append([[round(unit_damage(x, t, False, opt) / w, 3), round(unit_damage(x, t, True, opt) / w, 3)] for k, zh, d, x in A])
+    return rows
+
+
+def lc_def_tot(lst, drows):
+    """全軍耐打度：標準單位一輪（射擊＋近戰）打我每個單位，平均打掉幾 %（照單位分數加權）。越低越耐打。"""
+    pts = [max(u['points'], 1) for u in lst['units']]
+    n = len(drows[0]) if drows else 0
+    return [round(sum(p * min(1, r[i][0] + r[i][1]) for p, r in zip(pts, drows)) / sum(pts), 3) for i in range(n)] if pts else []
 
 
 def lc_rows(lst, opt, db):
@@ -2107,10 +2136,16 @@ def listcheck(text, opt, db):
         v = tot[i][0] + tot[i][1]
         # 跟 meta 表比：低於 25% 分位＝弱、高於 75%＝強（meta 表是 4 勝以上的代表表）
         verdict.append('' if not q else ('弱' if v < q[0] else '強' if v > q[2] else '普通'))
+    drows = lc_def_rows(a, opt, db)
+    dtot = lc_def_tot(a, drows)
+    bd = bench.get('def', {})
+    # 耐打：被打掉的 % 越低越好，所以低於 25% 分位＝強、高於 75%＝弱
+    dverdict = ['' if not bd.get(k) else ('強' if dtot[i] < bd[k][0] else '弱' if dtot[i] > bd[k][2] else '普通') for i, (k, *_) in enumerate(T)]
     fac = bench.get('fac', {}).get(a['faction'], {})
     fixes = {k: fac.get(k, [])[:3] for i, (k, zh, d, t) in enumerate(T) if verdict[i] == '弱'}
     return dict(name=a['name'], faction=a['faction'], points=a['points'], unknown=a['unknown'], warn=a.get('warn', []),
                 units=[dict(name=u['name'], points=u['points']) for u in a['units']],
+                drows=drows, dtot=dtot, dbench=bd, dverdict=dverdict,
                 refs=[dict(key=k, zh=zh, desc=d, stat=f"T{t['T']}、{t['Sv']}+" + (f"／{t['inv']}++" if t['inv'] else '') + f"、共 {t['wounds']} 傷") for k, zh, d, t in T], rows=rows, tot=tot, bench=b, verdict=verdict, fixes=fixes,
                 bench_n=bench.get('n', 0), bench_date=bench.get('date', ''), data_updated=db.updated)
 

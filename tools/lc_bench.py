@@ -9,6 +9,7 @@ db = engine.DB()
 opt = {'abil': {'a': {}, 'b': {}}}
 T = engine.lc_targets(db)
 vals = {k: [] for k, *_ in T}
+dvals = {k: [] for k, *_ in T}
 fac = {}
 n = 0
 for f in sorted(glob.glob(os.path.join(ROOT, 'metalists', 'data', '*.json'))):
@@ -27,6 +28,9 @@ for f in sorted(glob.glob(os.path.join(ROOT, 'metalists', 'data', '*.json'))):
         n += 1
         for i, (k, *_) in enumerate(T):
             vals[k].append(sum(r[i][0] + r[i][1] for r in rows))
+        dt_ = engine.lc_def_tot(a, engine.lc_def_rows(a, opt, db))
+        for i, (k, *_) in enumerate(T):
+            dvals[k].append(dt_[i])
         F = fac.setdefault(a['faction'], {})
         for u, r in zip(a['units'], rows):
             for i, (k, *_) in enumerate(T):
@@ -35,8 +39,8 @@ for f in sorted(glob.glob(os.path.join(ROOT, 'metalists', 'data', '*.json'))):
                 if eff > best.get(u['name'], (0,))[0]:
                     best[u['name']] = (round(eff, 3), u['points'], round(r[i][0], 2), round(r[i][1], 2))
 q = lambda xs: [round(x, 2) for x in st.quantiles(xs, n=4)] if len(xs) >= 4 else []
-out = dict(date=dt.date.today().isoformat(), n=n, all={k: q(v) for k, v in vals.items()},
+out = dict(date=dt.date.today().isoformat(), n=n, all={k: q(v) for k, v in vals.items()}, **{'def': {k: [round(x, 3) for x in st.quantiles(v, n=4)] for k, v in dvals.items() if len(v) >= 4}},
            fac={fa: {k: [dict(name=nm, per100=e, points=p, shoot=s, melee=m) for nm, (e, p, s, m) in sorted(b.items(), key=lambda kv: -kv[1][0])[:5]]
                      for k, b in F.items()} for fa, F in fac.items()})
 json.dump(out, open(os.path.join(ROOT, 'data', 'listcheck_bench.json'), 'w', encoding='utf-8'), ensure_ascii=False)
-print(n, '張表；分位', out['all'])
+print(n, '張表；分位', out['all']); print('耐打', out['def'])

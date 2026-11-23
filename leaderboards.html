@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>單位排行</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.opts{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:4px 0}
+.opts>span{color:var(--mute);font-size:13px;min-width:4.5em}
+.seg button{font:inherit;font-size:13px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:4px 10px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+select,input[type=search]{font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;width:100%}
+th,td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+th{font-weight:600;font-size:12px;line-height:1.3;vertical-align:bottom}
+td.l,th.l{text-align:left}
+small,.mute{color:var(--mute)}
+@media (max-width:600px){main{padding:10px}.card{padding:10px}th,td{padding:3px 4px;font-size:11px}.hide-s{display:none}}
+</style>
+</head>
+<body>
+<main>
+<h1>單位排行 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢</a></h1>
+<div class="card">
+<div class="opts seg" id="mode"><span>看什麼</span><button data-v="off" class="on">進攻：打掉多少</button><button data-v="de">耐打：被打掉多少</button></div>
+<div class="opts seg" id="ref"><span id="reflab">打的目標</span></div>
+<div class="opts seg" id="per"><span>排名依</span><button data-v="u" class="on">每隊</button><button data-v="p">每 100 分</button></div>
+<div class="opts"><span>陣營</span><select id="fac"><option value="">全部陣營</option></select><label class="small"><input type="checkbox" id="lead"> 包含領袖組合（A + B）</label><input type="search" id="q" placeholder="搜尋單位"></div>
+</div>
+<div id="out"></div>
+<p class="mute" style="font-size:12px" id="foot"></p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const pct = (x) => Math.round(x * 100);
+const f2 = (x) => (Math.round(x * 100) / 100).toFixed(2);
+const S = {mode: "off", ref: 0, per: "u"};
+let D = null;
+
+// 一個單位在目前選的類別：進攻＝打掉目標幾 %（可超過 100%＝不只一個）；耐打＝被打掉幾 %（最多 100%）
+function score(r) {
+  const c = r[S.mode][S.ref], v = S.mode === "off" ? c[0] + c[1] : Math.min(1, c[0] + c[1]);
+  return {s: c[0], m: c[1], v, per: S.mode === "off" ? v / r.pts * 100 : (v ? 100 / (r.pts * v) : 99)};
+}
+
+function rows() {
+  const f = $("fac").value, q = $("q").value.trim().toLowerCase(), lead = $("lead").checked;
+  const list = D.rows.filter((r) => (!f || r.f === f) && (lead || !r.lead) && (!q || (r.n + " " + r.zh).toLowerCase().includes(q))).map((r) => ({r, x: score(r)}));
+  const key = S.per === "p" ? (o) => o.x.per : (o) => o.x.v;
+  const up = S.mode === "de" && S.per === "u";
+  list.sort((a, b) => up ? key(a) - key(b) : key(b) - key(a));
+  return list;
+}
+
+function render() {
+  if (!D) return;
+  // 耐打不做「每 100 分」：一隊一輪最多被打掉 100%，便宜的小隊一輪就死也會被算成每分很耐打，排名會誤導
+  if (S.mode === "de") S.per = "u";
+  $("per").style.display = S.mode === "de" ? "none" : "";
+  $("per").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x.dataset.v === S.per));
+  const ref = D.refs[S.ref], list = rows(), top = list.slice(0, 150);
+  const off = S.mode === "off";
+  let h = '<div class="card"><p style="margin:0 0 6px"><b>' + (off ? "打「" + esc(ref.zh) + "」（" + esc(ref.desc) + "）一輪打掉幾 %" : "被「" + esc(ref.desc) + "」打一輪，被打掉幾 %") + "</b>，" + (S.per === "p" ? "每 100 分" : (off ? "整隊" : "整隊（越低越耐打）")) + ' 排名。<span class="mute small">' + list.length + " 個單位，列前 " + top.length + "。</span></p>";
+  h += '<div class="scroll"><table><thead><tr><th>#</th><th class="l">單位</th><th class="l hide-s">陣營</th><th>點數</th><th class="hide-s">模型／總傷</th>';
+  h += off ? "<th>射擊</th><th>近戰</th><th>合計</th><th>每 100 分</th>" : "<th>被射擊</th><th>被近戰</th><th>合計被打掉</th><th>要打幾輪</th>";
+  h += '<th class="hide-s">meta 表<br>出現次數</th></tr></thead><tbody>';
+  top.forEach(({r, x}, i) => {
+    h += "<tr><td>" + (i + 1) + '</td><td class="l">' + esc(r.n) + (r.zh ? "<br><small>" + esc(r.zh) + "</small>" : "") + '</td><td class="l hide-s">' + esc(r.fz || r.f) + "</td><td>" + r.pts + '</td><td class="hide-s">' + r.models + "／" + r.W + "<br><small>T" + r.T + " " + r.Sv + "+" + (r.inv ? "／" + r.inv + "++" : "") + "</small></td>";
+    h += off ? "<td>" + pct(x.s) + "%</td><td>" + pct(x.m) + "%</td><td><b>" + pct(x.v) + "%</b></td><td>" + pct(x.per) + "%</td>" : "<td>" + pct(x.s) + "%</td><td>" + pct(x.m) + "%</td><td><b>" + pct(x.v) + "%</b></td><td>" + (x.v ? f2(1 / x.v) : "打不動") + "</td>";
+    h += '<td class="hide-s">' + r.seen + "</td></tr>";
+  });
+  $("out").innerHTML = h + "</tbody></table></div></div>";
+}
+
+function refButtons() {
+  $("reflab").textContent = S.mode === "off" ? "打的目標" : "被誰打";
+  $("ref").querySelectorAll("button").forEach((b) => b.remove());
+  D.refs.forEach((r, i) => {
+    const b = document.createElement("button");
+    b.textContent = S.mode === "off" ? r.zh : r.desc;
+    b.className = i === S.ref ? "on" : "";
+    b.onclick = () => { S.ref = i; refButtons(); render(); };
+    $("ref").appendChild(b);
+  });
+}
+
+function segs() {
+  [["mode", "mode"], ["per", "per"]].forEach(([id, k]) => $(id).querySelectorAll("button").forEach((b) => b.onclick = () => {
+    S[k] = b.dataset.v;
+    $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+    refButtons();
+    render();
+  }));
+}
+
+async function boot() {
+  try {
+    const r = await fetch("data/leaderboard.json?v=" + Date.now().toString().slice(0, 7));
+    D = await r.json();
+  } catch (e) { $("out").innerHTML = '<p class="card">讀不到排行資料。</p>'; return; }
+  const facs = [...new Map(D.rows.map((r) => [r.f, r.fz])).entries()].sort((a, b) => (a[1] || a[0]).localeCompare(b[1] || b[0], "zh-Hant"));
+  $("fac").innerHTML += facs.map(([f, z]) => '<option value="' + esc(f) + '">' + esc(z ? z + "（" + f + "）" : f) + "</option>").join("");
+  $("foot").textContent = "做法：meta 表（Listhammer 4 勝以上、讀得到全文的 " + D.lists + " 張）裡出現過的每個單位，用玩家實際帶的裝備和編制；同名單位取最常見點數那幾隊的平均。進攻＝它打標準目標一輪（射擊、近戰各一次）平均打掉幾 %；耐打＝6 個標準單位用預設裝備打它，一輪打掉它幾 %，「要打幾輪」＝1 ÷ 被打掉的比例。一次最多算打爆一個目標。只算資料卡、軍隊規則和領袖給的能力，沒算分隊規則、戰術卡、光環、射程和移動，近戰假設衝得到。資料：" + D.date + "（規則資料更新到 " + D.data_updated + "）。";
+  refButtons();
+  segs();
+  ["fac", "lead", "q"].forEach((id) => $(id).addEventListener("input", render));
+  render();
+}
+boot();
+</script>
+</body>
+</html>

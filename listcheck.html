@@ -35,16 +35,16 @@ small,.mute{color:var(--mute)}
 </head>
 <body>
 <main>
-<h1>軍表健檢 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a></h1>
+<h1>軍表健檢 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行</a></h1>
 <div class="card">
-<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表，看它一輪能打掉多少「步兵海、中裝步兵、終結者、坦克、怪獸、騎士」，跟 meta 表（4 勝以上的表）比哪裡強、哪裡弱，弱的地方推薦同陣營的單位。</p>
+<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表，看它一輪能打掉多少「步兵海、中裝步兵、終結者、坦克、怪獸、騎士」、反過來被它們打掉多少（耐打度），跟 meta 表（4 勝以上的表）比哪裡強、哪裡弱，弱的地方推薦同陣營的單位。</p>
 <textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
 <div class="opts"><button id="go">健檢</button><span id="msg" class="mute"></span></div>
 </div>
 <div id="out"></div>
 <p class="mute" style="font-size:12px">做法：每個單位對 6 種標準目標各算一次射擊、一次近戰的平均傷害（和對戰計算同一套程式，含已標記的軍隊規則、分隊規則），換算成「打掉那個目標的幾 %」，全軍加起來＝一輪能打掉幾個。一個單位打一個目標最多算 100%（打爆就沒有多的）。近戰假設衝得到，沒算射程、視線、移動和戰術卡。比較基準是 meta 表（Listhammer 4 勝以上、讀得到內容的表）跑同一套算法的 25%／50%／75% 分位：低於 25% 標「弱」、高於 75% 標「強」。<span id="upd"></span></p>
 </main>
-<script src="browser.js?v=202611240055"></script>
+<script src="browser.js?v=202611240115"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -61,11 +61,11 @@ function summaryCard(R) {
   return h + "</tbody></table></div>" + weakText(R) + "</div>";
 }
 
-// 分位條：0 到 (75% 分位 × 1.6) 的刻度
-function benchBar(v, q) {
+// 分位條：0 到 (75% 分位 × 1.6) 的刻度；pc＝數字用百分比顯示（耐打度）
+function benchBar(v, q, pc) {
   if (q.length < 3) return '<span class="mute">沒有基準</span>';
-  const mx = Math.max(q[2] * 1.6, v * 1.05), x = (n) => Math.min(100, n / mx * 100).toFixed(1) + "%";
-  return '<div class="bar"><i style="left:' + x(q[0]) + ";width:calc(" + x(q[2]) + " - " + x(q[0]) + ')"></i><b style="left:' + x(v) + '"></b></div><small>中位數 ' + f2(q[1]) + "（" + f2(q[0]) + "～" + f2(q[2]) + "）</small>";
+  const mx = Math.max(q[2] * 1.6, v * 1.05), x = (n) => Math.min(100, n / mx * 100).toFixed(1) + "%", fm = (n) => pc ? pct(n) + "%" : f2(n);
+  return '<div class="bar"><i style="left:' + x(q[0]) + ";width:calc(" + x(q[2]) + " - " + x(q[0]) + ')"></i><b style="left:' + x(v) + '"></b></div><small>中位數 ' + fm(q[1]) + "（" + fm(q[0]) + "～" + fm(q[2]) + "）</small>";
 }
 
 // 一句話結論＋弱項推薦
@@ -80,6 +80,25 @@ function weakText(R) {
   });
   return h;
 }
+
+// 耐打度：6 個標準單位反過來打我，一輪平均打掉我每個單位幾 %（照分數加權），越低越耐打
+function defCard(R) {
+  let h = '<div class="card"><h2>耐打度</h2><p class="small mute" style="margin:0 0 6px">同樣 6 個標準單位反過來打你：它一輪（射擊＋近戰）打你每個單位，平均能打掉幾 %（照單位分數加權）。<b>越低越耐打</b>。只算資料卡上的保護、無敵、FNP 和已標記的規則，光環和戰術卡給的保護（例如 Enginseer 給坦克的 4++）沒算到的話會偏低估。</p><div class="scroll"><table><thead><tr><th class="l">打你的標準單位</th><th>一輪打掉你<br><small>平均幾 %</small></th><th class="l" style="min-width:150px">跟 meta 表比<br><small>灰條＝25%～75%，黑線＝這張表</small></th><th></th></tr></thead><tbody>';
+  R.refs.forEach((r, i) => {
+    const v = R.dtot[i], q = R.dbench[r.key] || [];
+    h += '<tr><td class="l"><b>' + esc(r.desc) + "</b><br><small>" + esc(r.zh) + '</small></td><td><b>' + pct(v) + '%</b></td><td class="l">' + benchBar(v, q, true) + "</td><td>" + (R.dverdict[i] ? '<span class="v v-' + R.dverdict[i] + '">' + R.dverdict[i] + "</span>" : "") + "</td></tr>";
+  });
+  h += "</tbody></table></div>";
+  const weak = R.refs.filter((r, i) => R.dverdict[i] === "弱").map((r) => r.desc), strong = R.refs.filter((r, i) => R.dverdict[i] === "強").map((r) => r.desc);
+  h += '<p style="margin:10px 0 4px"><b>' + (weak.length ? "怕：" + weak.join("、") : "沒有特別怕的") + "</b>" + (strong.length ? "；很耐：" + strong.join("、") : "") + "</p>";
+  h += '<details><summary class="small">每個單位被打掉幾 %</summary><div class="scroll"><table><thead><tr><th class="l">單位</th>' + R.refs.map((r) => "<th>" + esc(r.desc) + "</th>").join("") + "</tr></thead><tbody>";
+  R.units.forEach((u, i) => {
+    h += '<tr><td class="l">' + esc(u.name) + " <small>" + u.points + "</small></td>" + R.drows[i].map((c) => '<td style="background:' + shadeBad(Math.min(1, c[0] + c[1])) + '">' + pct(Math.min(1, c[0] + c[1])) + "</td>").join("") + "</tr>";
+  });
+  return h + "</tbody></table></div></details></div>";
+}
+
+function shadeBad(v) { return v < 0.05 ? "transparent" : "hsla(8,70%,50%," + Math.min(0.5, v * 0.5).toFixed(2) + ")"; }
 
 // 每個單位對每類目標：射擊 % ／近戰 %
 function unitCard(R) {
@@ -110,7 +129,7 @@ async function go() {
     if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; }
     else {
       const warn = j.unknown.length ? '<p class="warn">讀不到的單位（沒算進去）：' + j.unknown.map(esc).join("、") + "</p>" : "";
-      $("out").innerHTML = warn + summaryCard(j) + unitCard(j);
+      $("out").innerHTML = warn + summaryCard(j) + defCard(j) + unitCard(j);
     }
     $("upd").textContent = "比較基準：" + j.bench_n + " 張 meta 表（" + j.bench_date + "）；規則資料更新到 " + j.data_updated + "。";
   } catch (e) { $("msg").textContent = "算不出來：" + e.message; }
