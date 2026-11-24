@@ -44,11 +44,16 @@ pre{white-space:pre-wrap;font-size:12px;background:var(--bg);border:1px solid va
 .units{font-size:13px}
 .warn{color:var(--down)}
 .back{display:inline-block;margin:4px 0 8px}
+html.embed .back{display:none}
 footer{margin:28px 0 10px;font-size:13px;color:var(--mute)}
 footer li{margin:3px 0}
 input[type=search]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;margin:6px 0}
 @media (max-width:600px){.hide-s{display:none}th,td{padding:5px 4px}}
 </style>
+<script>
+// 在首頁分頁（iframe）裡時藏掉「← 軍表對戰計算」，不然點了會在分頁裡再開一層首頁（2026-11-24）
+if (window.parent !== window) document.documentElement.classList.add("embed");
+</script>
 </head>
 <body>
 <main id="app"><p class="mute">載入中…</p></main>
