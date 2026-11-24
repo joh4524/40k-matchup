@@ -42,10 +42,11 @@ small,.mute{color:var(--mute)}
 <div class="opts"><button id="go">健檢</button><span id="msg" class="mute"></span></div>
 </div>
 <div id="out"></div>
+<div id="mw"></div>
 <p class="mute" style="font-size:12px">做法：每個單位對 6 種標準目標各算一次射擊、一次近戰的平均傷害（和對戰計算同一套程式，含已標記的軍隊規則、分隊規則），換算成「打掉那個目標的幾 %」，全軍加起來＝一輪能打掉幾個。一個單位打一個目標最多算 100%（打爆就沒有多的）。近戰假設衝得到，沒算射程、視線、移動和戰術卡。比較基準是 meta 表（Listhammer 4 勝以上、讀得到內容的表）跑同一套算法的 25%／50%／75% 分位：低於 25% 標「弱」、高於 75% 標「強」。<span id="upd"></span></p>
 </main>
-<script src="browser.js?v=202611241116"></script>
-<script src="lists.js?v=202611241116" data-page="listcheck"></script>
+<script src="browser.js?v=202611241127"></script>
+<script src="lists.js?v=202611241127" data-page="listcheck"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -137,6 +138,65 @@ async function go() {
   $("go").disabled = false;
 }
 $("go").onclick = go;
+// 打全 meta（2026-11-24 從對戰計算的總覽搬過來，使用者：「對全meta表的位置怪怪的」）：只用我方軍表，對每個陣營 GT 前段最常見組合的代表表各算一次
+let META = null;
+const MW = {rows: null, run: "", a: ""};
+async function calcReq(req) {
+  if (window.localCalc) return await localCalc(req, () => {});
+  const r = await fetch("/api/calc", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(req)});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || r.status);
+  return j;
+}
+function metaCard() {
+  if (!META) return "";
+  const btn = MW.run ? '<button disabled>計算中…</button> <small>' + esc(MW.run) + "</small>" : '<button id="mw_go">' + (MW.rows ? "重算" : "開始算") + '</button> <small class="mute">約一分鐘，用上面輸入框的軍表。</small>';
+  let h = '<div class="card"><h2>打全 meta <small>' + META.factions.length + " 個陣營</small></h2>";
+  if (!MW.rows) return h + '<p style="margin:0 0 8px">拿這張表對每個陣營 GT 前段（全勝／只輸一場）最常見組合的代表表各算一次，看打誰順、打誰吃虧。</p>' + btn + "</div>";
+  const rows = MW.rows.slice().sort((x, y) => y.edge - x.edge);
+  const col = (e) => e > 0.1 ? "var(--good)" : e < -0.1 ? "var(--b)" : "inherit";
+  h += '<div class="scroll"><table><thead><tr><th class="l">對手</th><th>我殺對面<br><small>射／近；佔對面總分</small></th><th>對面殺我<br><small>射／近；佔我總分</small></th><th>差</th><th></th></tr></thead><tbody>';
+  rows.forEach((r) => {
+    h += '<tr><td class="l">' + esc(r.faction) + '<br><small>' + esc(r.combo) + "（" + r.n + " 張）</small></td><td>" + r.ks + "／" + r.km + "<br><small>" + pct(r.mine) + "%</small></td><td>" + r.ls + "／" + r.lm + "<br><small>" + pct(r.theirs) + '%</small></td><td><b style="color:' + col(r.edge) + '">' + (r.edge > 0 ? "+" : "") + pct(r.edge) + '</b></td><td><button type="button" class="mwb" data-i="' + r.i + '" style="padding:4px 10px;font-size:12px;font-weight:400">當對手打打看</button></td></tr>';
+  });
+  h += '</tbody></table></div><p class="small mute" style="margin:6px 0">每個陣營只算最常見那一組的代表表（一張真實的得獎表）。我殺對面＝這張表每個單位射擊、近戰各打最賺的目標，一輪殺分加起來（同一個目標會重複算，只能比大小）；佔對面總分＝（射＋近）÷ 對面總分。差＝我方 % − 對面 %，正的代表這場比較順。沒算位置、先後手、目標點。資料來源 <a href="' + esc(META.source) + '" target="_blank" rel="noopener">listhammer.info</a>（' + esc(META.updated) + " 更新）。" + (MW.a && MW.a !== $("a").value ? '<br><b class="warn">上面的軍表改過了，這張結果是舊表算的，要重算。</b>' : "") + "</p>" + btn + "</div>";
+  return h;
+}
+function renderMeta() {
+  $("mw").innerHTML = metaCard();
+  const b = $("mw_go");
+  if (b) b.onclick = runMeta;
+  document.querySelectorAll("#mw .mwb").forEach((x) => x.onclick = () => vsMeta(+x.dataset.i));
+}
+// 「當對手打打看」：把那張代表表放進對戰計算的對方軍表（B），切到對戰計算分頁
+function vsMeta(i) {
+  try { localStorage.setItem("mu_cur_b", META.factions[i].builds[0].list_text); } catch (e) {}
+  if (window.parent !== window) window.parent.location.hash = "matchup";
+  else location.href = "./#matchup";
+}
+async function runMeta() {
+  const a = $("a").value;
+  if (!a.trim()) { $("msg").textContent = "請先貼一張軍表。"; return; }
+  if (!META) return;
+  const opt = {abil: {a: {}, b: {}}, lite: true};
+  const rows = [];
+  MW.rows = null; MW.a = a;
+  for (let i = 0; i < META.factions.length; i++) {
+    const f = META.factions[i], b = f.builds[0];
+    MW.run = (i + 1) + "／" + META.factions.length + "：" + f.faction;
+    renderMeta();
+    await new Promise((r) => setTimeout(r, 30));
+    try {
+      const j = await calcReq({a, b: b.list_text, opt});
+      if (j.error || !j.sum_ab) continue;
+      const sa = j.sum_ab, sb = j.sum_ba, mine = (sa.shoot_pts + sa.melee_pts) / (j.b_points || 1), theirs = (sb.shoot_pts + sb.melee_pts) / (j.a_points || 1);
+      rows.push({i, faction: f.faction, combo: b.combo, n: b.n, ks: sa.shoot_pts, km: sa.melee_pts, ls: sb.shoot_pts, lm: sb.melee_pts, mine, theirs, edge: mine - theirs});
+    } catch (e) {}
+  }
+  MW.rows = rows; MW.run = "";
+  renderMeta();
+}
+fetch("meta/meta.json", {cache: "no-store"}).then((r) => r.ok ? r.json() : null).then((j) => { if (j && j.factions && j.factions.length) { META = j; renderMeta(); } }).catch(() => {});
 try { const s = localStorage.getItem("lc_a"); if (s) $("a").value = s; } catch (e) {}
 if (window.MyLists) MyLists.attach($("a"), "a");
 </script>

@@ -21,29 +21,32 @@ nav a.on{color:var(--ink);font-weight:600;border-bottom-color:var(--a)}
 #frames{flex:1;position:relative;min-height:0}
 #frames iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:var(--bg)}
 #frames iframe.on{display:block}
-@media (max-width:600px){header{padding:4px 8px 0}.top b{font-size:15px}nav a{padding:6px 10px}}
+.top .pv{margin-left:auto;font-size:12px;color:var(--mute)}
+nav .s{display:none}
+@media (max-width:600px){header{padding:4px 8px 0}.top b{font-size:15px}.top small{display:none}nav{justify-content:space-between}nav a{padding:6px 7px}nav .l{display:none}nav .s{display:inline}}
 </style>
 </head>
 <body>
 <header>
-  <div class="top"><b>40K 軍表工具</b><small>第十一版・非官方，與 Games Workshop 無關</small></div>
+  <div class="top"><b>40K 軍表工具</b><small>第十一版・非官方，與 Games Workshop 無關</small><a class="pv" href="privacy.html" target="_blank" rel="noopener">隱私權</a></div>
   <nav id="tabs"></nav>
 </header>
 <div id="frames"></div>
-<script src="browser.js?v=202611241116"></script>
+<script src="browser.js?v=202611241127"></script>
 <script>
 // 首頁＝分頁殼（2026-11-24）：每個工具還是原本的 .html，放在 iframe 裡，第一次點到才載入，切換時結果留著。
 // 計算程式（公開版的 Pyodide）只在這一層載入一次，各分頁透過 lists.js 共用。
 const TABS = [
-  ['matchup', '對戰計算', 'matchup.html'],
-  ['listcheck', '軍表健檢', 'listcheck.html'],
-  ['scout', '偵察小抄', 'scout.html'],
-  ['dice', '骰子機率', 'dice.html'],
-  ['leaderboards', '單位排行', 'leaderboards.html'],
-  ['meta', 'Meta 表', 'metalists/']
+  ['matchup', '對戰計算', 'matchup.html', '對戰'],
+  ['listcheck', '軍表健檢', 'listcheck.html', '健檢'],
+  ['scout', '偵察小抄', 'scout.html', '小抄'],
+  ['dice', '骰子機率', 'dice.html', '骰子'],
+  ['leaderboards', '單位排行', 'leaderboards.html', '排行'],
+  ['meta', 'Meta 表', 'metalists/', 'Meta']
 ];
 const nav = document.getElementById('tabs'), box = document.getElementById('frames'), frames = {};
-nav.innerHTML = TABS.map(([k, t]) => '<a href="#' + k + '" data-k="' + k + '"' + (k === 'meta' ? ' style="display:none"' : '') + '>' + t + '</a>').join('');
+// 手機上分頁名用短的（2026-11-24，原本要橫滑才看得到後面兩個）
+nav.innerHTML = TABS.map(([k, t, , sh]) => '<a href="#' + k + '" data-k="' + k + '"' + (k === 'meta' ? ' style="display:none"' : '') + '><span class="l">' + t + '</span><span class="s">' + sh + '</span></a>').join('');
 function show() {
   let k = location.hash.slice(1);
   if (!TABS.some((t) => t[0] === k)) k = 'matchup';

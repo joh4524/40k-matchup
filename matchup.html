@@ -87,8 +87,8 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611241116"></script>
-<script src="lists.js?v=202611241116" data-page="matchup"></script>
+<script src="browser.js?v=202611241127"></script>
+<script src="lists.js?v=202611241127" data-page="matchup"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -411,7 +411,6 @@ function render(){
   const tabs=`<div class="card"><div class="opts seg">${[['sum','總覽'],['test','單位測試（分槍）'],['data','規則和數據']].map(([k,t])=>`<button data-v="${k}" class="${view===k?'on':''}">${t}</button>`).join('')}</div></div>`;
   let body='';
   if(view==='sum') body=`<div class="grid">${sideMini(R.a,'la','A',R.sum_ab)}${sideMini(R.b,'lb','B',R.sum_ba)}</div>
-  ${metaCard()}
   ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
   ${simCard()}
   <div class="card"><div class="opts tsort seg"><span>先打誰的排序：</span><button data-s="score" class="${tsort==='score'?'on':''}">依優先分數</button><button data-s="threat" class="${tsort==='threat'?'on':''}">依威脅</button>

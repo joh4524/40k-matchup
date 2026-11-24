@@ -35,6 +35,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/matchup.html":   # 對戰計算（2026-11-24 首頁改成分頁殼後搬到這裡）
             return self.reply(200, (HERE / "matchup.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path.split("?")[0] == "/privacy.html":   # 隱私權說明（2026-11-24 首頁加了連結）
+            return self.reply(200, (HERE / "privacy.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/lists.js":   # 我的軍表＋分頁共用（2026-11-24）
             return self.reply(200, (HERE / "lists.js").read_bytes(), "application/javascript; charset=utf-8")
         if self.path.split("?")[0] == "/listcheck.html":   # 軍表健檢（2026-11-24）
