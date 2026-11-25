@@ -5,3 +5,7 @@ unknown_zh.txt
 _native.json
 meta/*.log
 zh_sum/pending/
+zh_full/*.json
+data/zh_full.json
+zh_full/work/
+zh_full/pending/

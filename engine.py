@@ -2267,7 +2267,8 @@ def _sc_load(db):
         if not nm:
             continue
         sheet_ab.setdefault(r['datasheet_id'], []).append(dict(name=nm, type=r['type'], param=(r['parameter'] or '').strip(), model=r['model'] or '',
-                                                                 id=r['ability_id'] or '', text=_sc_txt(r['description'] or a.get('description', ''))))
+                                                                 id=r['ability_id'] or '', text=_sc_txt(r['description'] or a.get('description', '')),
+                                                                 key='B' + (r['ability_id'] or r['datasheet_id'] + '.' + r['line'])))
     strats = {}
     for r in rd_safe('Stratagems'):
         ty = r.get('type') or ''
@@ -2351,7 +2352,7 @@ def scout(text, db, full=False):
                     core.append(dict(name=x['name'] + (' ' + prm if prm else ''), param=prm,
                                      zh=zh, note=note, src=inf['src'] if len(u['info']) > 1 else '', model=x['model']))
                 elif x['type'] != 'Faction':
-                    abil.append(dict(name=x['name'], zh=zr(x['name']), src=inf['src'] if len(u['info']) > 1 else '', model=x['model'], ph=_sc_phases(x['text']), text=x['text'] if full else ''))
+                    abil.append(dict(key=x['key'], name=x['name'], zh=zr(x['name']), src=inf['src'] if len(u['info']) > 1 else '', model=x['model'], ph=_sc_phases(x['text']), text=x['text'] if full else ''))
         ds = any(c['name'].lower().startswith('deep strike') for c in core)
         enh = []
         for e in u['extra']:
@@ -2359,7 +2360,7 @@ def scout(text, db, full=False):
             rows = L['enh'].get(enh_key(db.zh_enh.get(k, k)), [])
             row = next((r for r in rows if r['faction'] == fid), rows[0] if rows else None)
             if row:
-                enh.append(dict(name=row['name'], zh=Z.get('enh', {}).get(norm(row['name']), ''), sum=L['sum'].get('E' + row['id'], ''), ph=_sc_phases(row['text']), text=row['text'] if full else ''))
+                enh.append(dict(key='E' + row['id'], name=row['name'], zh=Z.get('enh', {}).get(norm(row['name']), ''), sum=L['sum'].get('E' + row['id'], ''), ph=_sc_phases(row['text']), text=row['text'] if full else ''))
         units.append(dict(i=i, name=u['name'], zh=zu(u['name']), points=u['points'], M=M, T=t['T'], Sv=t['Sv'], inv=t['inv'], W=t['W'], wounds=t['wounds'], models=t['models'],
                           fnp=t['fnp'], OC=sum(g['count'] * g['model']['OC'] for g in u['groups']), kw=sorted(u['kw']),
                           fly='FLY' in u['kw'], rng=rng, chg=[M + 7, M + 12], reach=M + rng if rng else 0, ds=ds,
@@ -2367,12 +2368,12 @@ def scout(text, db, full=False):
                           leaders=sorted(u['leaders']), body=sorted(u['body'])))
     # 軍隊規則（陣營能力）
     fab = set().union(*(u['fab'] for u in a['units'])) if a['units'] else set()
-    army = [dict(name=L['ab'][x]['name'], zh=zr(L['ab'][x]['name']), sum=L['sum'].get('A' + x, ''), ph=_sc_phases(_sc_txt(L['ab'][x]['description'])), text=_sc_txt(L['ab'][x]['description']) if full else '')
+    army = [dict(key='A' + x, name=L['ab'][x]['name'], zh=zr(L['ab'][x]['name']), sum=L['sum'].get('A' + x, ''), ph=_sc_phases(_sc_txt(L['ab'][x]['description'])), text=_sc_txt(L['ab'][x]['description']) if full else '')
             for x in sorted(fab) if x in L['ab']]
     dets = []
     for did in a.get('det_auto', []):
         nm = next((d['name'] for d in db.dets.get(fid, []) if d['id'] == did), did)
-        rules = [dict(name=r['name'], zh=zr(r['name']), sum=L['sum'].get('D' + r['id'], ''), ph=_sc_phases(r['text']), text=r['text'] if full else '') for r in L['det_ab'].get(did, [])]
+        rules = [dict(key='D' + r['id'], name=r['name'], zh=zr(r['name']), sum=L['sum'].get('D' + r['id'], ''), ph=_sc_phases(r['text']), text=r['text'] if full else '') for r in L['det_ab'].get(did, [])]
         dets.append(dict(id=did, name=nm, zh=Z.get('dets', {}).get(norm(nm), ''), rules=rules))
     # 戰術卡：選到的分隊＋核心。哪些單位能用：TARGET 裡的粗體關鍵字（「或」分開的每一組要全部符合），陣營關鍵字大家都有就不看
     allw = [{x for k in u['kw'] for x in k.split()} for u in a['units']]
@@ -2384,7 +2385,7 @@ def scout(text, db, full=False):
             groups = [' '.join('/'.join(sl) for sl in g if not all(x in common for x in sl)) for g in s['need']]
             groups = [g for g in groups if g]
             cz = SC_CORE_STRAT.get(norm(s['name']), ('', '')) if key == 'core' else ('', '')
-            strats.append(dict(name=s['name'], zh=cz[0] or zr(s['name']), note=cz[1] or L['sum'].get('S' + s['id'], ''), cp=s['cp'], phases=s['phases'], turn=s['turn'], det=s['det'] if key != 'core' else '核心',
+            strats.append(dict(key='S' + s['id'], name=s['name'], zh=cz[0] or zr(s['name']), note=cz[1] or L['sum'].get('S' + s['id'], ''), cp=s['cp'], phases=s['phases'], turn=s['turn'], det=s['det'] if key != 'core' else '核心',
                                core=key == 'core', units=ok, need=groups, excl=[' '.join('/'.join(sl) for sl in g) for g in s['excl']], eff=L['tagmap'].get(s['id'], ''),
                                text=s['text'] if full else ''))
     return dict(name=a['name'], faction=a['faction'], fid=fid, points=a['points'], unknown=a['unknown'], warn=a.get('warn', []),
@@ -2440,7 +2441,71 @@ def printout(text, db, full=False):
                         ws[k]['who'].append(g['name'])
         comp = [dict(n=g['count'], name=g['name']) for g in u['groups']]
         ju.update(models=models, weapons=list(ws.values()), comp=comp)
+    if full:
+        _pr_zh(j)
     return j
+
+
+# 武器關鍵字中文（2026-11-25，詞取自社群中文規則書；間接射擊、單發是自己翻的 ⚠️）
+PR_WKW = [('rapid fire', '速射'), ('sustained hits', '連擊'), ('lethal hits', '致命一擊'), ('devastating wounds', '毀滅傷害'), ('twin-linked', '雙聯'),
+          ('torrent', '洪流'), ('blast', '爆炸'), ('melta', '熱熔'), ('hazardous', '危險'), ('precision', '精準'), ('ignores cover', '無視掩體'),
+          ('indirect fire', '間接射擊'), ('lance', '騎槍'), ('extra attacks', '額外攻擊'), ('one shot', '單發'), ('psychic', '靈能'), ('cleave', '劈砍'),
+          ('assault', '突擊'), ('heavy', '重型'), ('pistol', '手槍'), ('anti-', '反')]
+
+
+PR_UKW = {'MONSTER': '巨獸', 'VEHICLE': '載具', 'INFANTRY': '步兵', 'CHARACTER': '角色', 'PSYKER': '靈能者', 'MOUNTED': '騎乘', 'FLY': '飛行',
+          'TITANIC': '泰坦級', 'BEAST': '野獸', 'SWARM': '蟲群', 'WALKER': '步行機', 'AIRCRAFT': '飛行器', 'EPIC HERO': '史詩英雄', 'TOWERING': '高聳'}
+
+
+def _pr_ukw(t):
+    for en, zh in sorted(PR_UKW.items(), key=lambda x: -len(x[0])):
+        t = re.sub(r'(?<![A-Za-z])' + en + r'(?![A-Za-z])', zh, t, flags=re.I)
+    return re.sub(r'(?<![A-Za-z])non-', '非', t, flags=re.I).replace('/', '／')
+
+
+def _pr_kw(desc):
+    out = []
+    for part in [x.strip() for x in (desc or '').split(',') if x.strip()]:
+        low = part.lower()
+        for en, zh in PR_WKW:
+            if low.startswith(en):
+                rest = part[len(en):].strip()
+                if en == 'anti-':
+                    out.append('反' + _pr_ukw(rest))
+                else:
+                    num, _, cond = rest.partition(':')
+                    out.append(zh + (' ' + num.strip() if num.strip() else '') + ('（' + _pr_ukw(cond.strip()) + '）' if cond.strip() else ''))
+                break
+        else:
+            out.append(part)
+    return '、'.join(out)
+
+
+def _pr_zh(j):
+    """把 data/zh_full.json（規則完整中文翻譯，只在 HP）接到列印資料上：每條加 zn（中文名）、zt（中文全文）。"""
+    if 'zh_full' not in _PR:
+        try:
+            with open(os.path.join(DATA, 'zh_full.json'), encoding='utf-8') as f:
+                _PR['zh_full'] = json.load(f)
+        except OSError:
+            _PR['zh_full'] = {}
+    Z = _PR['zh_full']
+    def put(x):
+        z = Z.get(x.get('key', ''))
+        if z:
+            x['zn'], x['zt'] = z.get('n', ''), z.get('t', '')
+    for x in j['army'] + j['strats']:
+        put(x)
+    for d in j['dets']:
+        for x in d['rules']:
+            put(x)
+    for u in j['units']:
+        for x in u['abil'] + u['enh']:
+            put(x)
+        for w in u['weapons']:
+            w['zn'] = Z.get('W' + norm(w['name']), {}).get('n', '')
+            w['kw_zh'] = _pr_kw(w['kw'])
+    j['zh_full'] = bool(Z)
 
 
 def api(req, db):

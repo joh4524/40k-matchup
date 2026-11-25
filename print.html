@@ -84,14 +84,15 @@ td.l,th.l{text-align:left}
 <div class="opts seg noprint" id="tab" style="margin-bottom:10px;display:none">
 <button data-v="sheets" class="on">資料卡</button><button data-v="strats">戰術卡</button>
 <span id="o_sheets"><label><input type="checkbox" id="rules" checked> 前面加軍隊／分隊規則</label> <label><input type="checkbox" id="abtext" checked> 能力印全文</label></span>
+<label id="o_en"><input type="checkbox" id="en"> 附英文原文</label>
 <span id="o_strats" style="display:none"><label><input type="checkbox" id="core" checked> 含核心戰術卡</label> <label><input type="checkbox" id="unusable"> 含表上沒單位能用的</label></span>
 <button id="print" style="padding:4px 12px;font-size:13px">列印</button>
 </div>
 <div id="out"></div>
 <p class="mute noprint" style="font-size:12px" id="foot"></p>
 </main>
-<script src="browser.js?v=202611252205"></script>
-<script src="lists.js?v=202611252205" data-page="print"></script>
+<script src="browser.js?v=202611252223"></script>
+<script src="lists.js?v=202611252223" data-page="print"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -99,8 +100,11 @@ const PH = {pre: "開戰前", cmd: "指揮", move: "移動", shoot: "射擊", ch
 const TURN = {me: "自己回合", opp: "對方回合", both: "雙方回合"};
 let J = null, TAB = "sheets";
 
-// 名字：有中文放中文、英文放小字
-function nm(o) { return o.zh ? esc(o.zh) + " <small>" + esc(o.name) + "</small>" : esc(o.name); }
+// 名字：有中文放中文（完整翻譯的 zn 優先），英文放小字
+function nm(o) { const z = o.zn || o.zh; return z ? esc(z) + " <small>" + esc(o.name) + "</small>" : esc(o.name); }
+
+// 全文：有中文翻譯用中文；勾「附英文原文」時中文下面再放英文
+function tx(o) { return o.zt ? o.zt + ($("en").checked && o.text ? "\n\n" + o.text : "") : o.text; }
 
 // 同名單位加編號（#1、#2）
 function labels(units) {
@@ -115,10 +119,10 @@ function labels(units) {
 }
 
 // 規則全文：開了「能力印全文」才印
-function body(t) { return t && $("abtext").checked ? '<div class="txt">' + esc(t) + "</div>" : ""; }
+function body(x) { const t = tx(x); return t && $("abtext").checked ? '<div class="txt">' + esc(t) + "</div>" : ""; }
 
-// 一個規則（軍隊、分隊、能力、強化）：名字＋中文摘要＋全文
-function rule(x, extra) { return '<div class="ab"><b>' + nm(x) + "</b>" + (extra || "") + (x.sum ? ' <span class="tag">' + esc(x.sum) + "</span>" : "") + body(x.text) + "</div>"; }
+// 一個規則（軍隊、分隊、能力、強化）：名字＋中文摘要（有完整翻譯就不放摘要）＋全文
+function rule(x, extra) { return '<div class="ab"><b>' + nm(x) + "</b>" + (extra || "") + (x.sum && !(x.zt && $("abtext").checked) ? ' <span class="tag">' + esc(x.sum) + "</span>" : "") + body(x) + "</div>"; }
 
 // 軍隊規則＋分隊規則（資料卡最前面）
 function armyBlock(j) {
@@ -138,7 +142,7 @@ function weaponTable(ws, melee) {
   let h = '<div class="scroll"><table><thead><tr><th class="l">' + (melee ? "近戰武器" : "射擊武器") + "</th><th>數量</th><th>射程</th><th>A</th><th>" + (melee ? "WS" : "BS") + '</th><th>S</th><th>AP</th><th>D</th><th class="l">關鍵字</th></tr></thead><tbody>';
   rows.forEach((w) => {
     const sk = w.skill && w.skill !== "-" && w.skill !== "N/A" ? w.skill + "+" : "—";
-    h += '<tr><td class="l">' + esc(w.name) + (multi ? "<br><small>" + esc(w.who.join("、")) + "</small>" : "") + "</td><td>" + w.n + "</td><td>" + (melee ? "近戰" : esc(w.range) + '"') + "</td><td>" + esc(w.A) + "</td><td>" + sk + "</td><td>" + esc(w.S) + "</td><td>" + esc(w.AP) + "</td><td>" + esc(w.D) + '</td><td class="l">' + esc(w.kw) + "</td></tr>";
+    h += '<tr><td class="l">' + (w.zn ? esc(w.zn) + "<br><small>" + esc(w.name) + "</small>" : esc(w.name)) + (multi ? "<br><small>" + esc(w.who.join("、")) + "</small>" : "") + "</td><td>" + w.n + "</td><td>" + (melee ? "近戰" : esc(w.range) + '"') + "</td><td>" + esc(w.A) + "</td><td>" + sk + "</td><td>" + esc(w.S) + "</td><td>" + esc(w.AP) + "</td><td>" + esc(w.D) + '</td><td class="l">' + esc(w.kw_zh || w.kw) + "</td></tr>";
   });
   return h + "</tbody></table></div>";
 }
@@ -161,8 +165,8 @@ function unitBlock(u, label) {
 // 戰術卡全文切成 WHEN／TARGET／EFFECT／RESTRICTIONS 幾段
 function stratBody(t) {
   if (!t) return '<p class="mute">（全文只在 HP 版）</p>';
-  const parts = t.split(/\n?\s*(WHEN|TARGET|EFFECT|RESTRICTIONS?):\s*/).filter((x) => x !== "");
-  const lab = {WHEN: "時機", TARGET: "目標", EFFECT: "效果", RESTRICTION: "限制", RESTRICTIONS: "限制"};
+  const parts = t.split(/\n?\s*(WHEN|TARGET|EFFECT|RESTRICTIONS?|時機|目標|效果|限制)[:：]\s*/).filter((x) => x !== "");
+  const lab = {WHEN: "時機", TARGET: "目標", EFFECT: "效果", RESTRICTION: "限制", RESTRICTIONS: "限制", 時機: "時機", 目標: "目標", 效果: "效果", 限制: "限制"};
   let h = "", i = 0;
   while (i < parts.length) {
     if (lab[parts[i]] && i + 1 < parts.length) { h += '<p><span class="k">' + lab[parts[i]] + "</span> " + esc(parts[i + 1].trim()) + "</p>"; i += 2; }
@@ -175,7 +179,7 @@ function stratBody(t) {
 function stratCard(s, L) {
   const who = !s.units.length ? "表上沒有單位能用" : s.units.length === L.length ? "能用：全部單位" : "能用：" + s.units.map((i) => esc(L[i])).join("、");
   const when = s.phases.map((p) => PH[p]).join("／") + "・" + TURN[s.turn];
-  return '<div class="sc' + (s.units.length ? "" : " off") + '"><div class="hd"><span class="cp' + (s.core ? " core" : "") + '">' + esc(s.cp) + 'CP</span><div class="nm">' + esc(s.zh || s.name) + (s.zh ? "<small>" + esc(s.name) + "</small>" : "") + '</div></div><div class="meta">' + esc(s.det) + (s.kind && s.kind !== "核心" ? "・" + esc(s.kind) : "") + "｜" + when + '</div><div class="bd">' + (s.note ? '<p class="tag">' + esc(s.note) + "</p>" : "") + stratBody(s.text) + '</div><div class="who">' + who + "</div></div>";
+  return '<div class="sc' + (s.units.length ? "" : " off") + '"><div class="hd"><span class="cp' + (s.core ? " core" : "") + '">' + esc(s.cp) + 'CP</span><div class="nm">' + esc(s.zn || s.zh || s.name) + (s.zn || s.zh ? "<small>" + esc(s.name) + "</small>" : "") + '</div></div><div class="meta">' + esc(s.det) + (s.kind && s.kind !== "核心" ? "・" + esc(s.kind) : "") + "｜" + when + '</div><div class="bd">' + (s.note && !s.zt ? '<p class="tag">' + esc(s.note) + "</p>" : "") + stratBody(s.zt || s.text) + (s.zt && $("en").checked ? '<div class="txt mute" style="margin-top:4px">' + esc(s.text) + "</div>" : "") + '</div><div class="who">' + who + "</div></div>";
 }
 
 function render() {
@@ -203,7 +207,7 @@ async function go() {
     if (!r.ok) throw new Error(j.error || r.status);
     if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
     else { J = j; $("tab").style.display = ""; render(); }
-    $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；綠字是我們自己寫的中文摘要。武器名稱保留英文。";
+    $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；綠字是我們自己寫的中文摘要。" + (j.zh_full ? "規則全文是中文翻譯（參考社群中文規則書，數字以英文最新版為準），勾「附英文原文」可以對照。" : "規則全文還沒有中文翻譯，先印英文。");
   } catch (e) { $("msg").textContent = "讀不出來：" + e.message; }
   $("go").disabled = false;
 }
@@ -212,7 +216,7 @@ async function go() {
 if (window.localCalc) { $("pub").style.display = ""; $("inbox").style.display = "none"; }
 $("go").onclick = go;
 $("tab").querySelectorAll("button[data-v]").forEach((b) => b.onclick = () => { TAB = b.dataset.v; render(); });
-["rules", "abtext", "core", "unusable"].forEach((k) => $(k).onchange = render);
+["rules", "abtext", "core", "unusable", "en"].forEach((k) => $(k).onchange = render);
 $("print").onclick = () => window.print();
 if (window.MyLists) MyLists.attach($("a"), "a");
 </script>
