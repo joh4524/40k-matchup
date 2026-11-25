@@ -10,7 +10,7 @@
 import csv, difflib, functools, itertools, math, os, re, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import json
+import json, string
 import tags as tagger
 import manual
 import army
@@ -2281,7 +2281,7 @@ def _sc_load(db):
         ph = (r.get('phase') or '').lower()
         phs = [k for k, en in (('cmd', 'command'), ('move', 'movement'), ('shoot', 'shooting'), ('charge', 'charge'), ('fight', 'fight')) if en in ph] or ['any']
         tu = (r.get('turn') or '').lower()
-        strats.setdefault(key, []).append(dict(id=r.get('id', ''), name=(r.get('name') or '').title(), cp=r.get('cp_cost', ''), type=ty, phases=phs,
+        strats.setdefault(key, []).append(dict(id=r.get('id', ''), name=string.capwords((r.get('name') or '').lower()), cp=r.get('cp_cost', ''), type=ty, phases=phs,
                                                turn='me' if tu.startswith('your') else 'opp' if tu.startswith('opponent') else 'both',
                                                need=need, excl=excl, text=d, det=r.get('detachment', '')))
     det_ab = {}
@@ -2391,8 +2391,62 @@ def scout(text, db, full=False):
                 units=units, army=army, dets=dets, strats=strats, full=full, data_updated=db.updated, phases=SC_PH)
 
 
+_PR = {}
+
+
+def _pr_models(db):
+    """Datasheets_models：每個資料卡的模型能力值（含 Ld、底座），列印用。"""
+    if id(db) not in _PR:
+        box = {}
+        for r in rd('Datasheets_models'):
+            box.setdefault(r['datasheet_id'], []).append(dict(name=r['name'], M=r['M'], T=r['T'], Sv=r['Sv'], inv=(r['inv_sv'] or '').strip('-'),
+                                                              W=r['W'], Ld=r['Ld'], OC=r['OC'], base=r['base_size']))
+        _PR[id(db)] = box
+    return _PR[id(db)]
+
+
+def printout(text, db, full=False):
+    """⑨ 印軍表＋⑩ 印戰術卡（2026-11-25）：偵察的資料再加每個單位的模型能力值和武器表。規則原文只在 full（HP 版）時給。"""
+    j = scout(text, db, full)
+    a = parse_list(text, db)
+    resolve(a, {})
+    fid = a.get('fid') or ''
+    M = _pr_models(db)
+    L = _sc_load(db)
+    kinds = {}
+    for key, rows in L['strats'].items():
+        for s in rows:
+            ty = s['type']
+            kinds[(key, s['name'])] = '核心' if ty == 'Core Stratagem' else ty.split('–', 1)[1].replace('Stratagem', '').strip() if '–' in ty else ''
+    for s, key in zip(j['strats'], [k for k in a.get('det_auto', []) + ['core'] for _ in L['strats'].get(k, [])]):
+        s['kind'] = kinds.get((key, s['name']), '')
+    for ju, u in zip(j['units'], a['units']):
+        models, seen = [], set()
+        for inf in u['info']:
+            sh = db.find(inf['src'], fid) or {}
+            for m in M.get(sh.get('id'), []):
+                if m['name'] not in seen:
+                    seen.add(m['name'])
+                    models.append(m)
+        ws = {}
+        for g in u['groups']:
+            for c, ps in g['weapons']:
+                for w in ps:
+                    k = (w['name'], w['melee'], w['range'], w['A'], w['S'], w['AP'], w['D'])
+                    if k not in ws:
+                        ws[k] = dict(name=w['name'], melee=w['melee'], range=w['range'], A=w['A'], skill=w['skill'], S=w['S'], AP=w['AP'], D=w['D'], kw=w.get('desc', ''), n=0, who=[])
+                    ws[k]['n'] += c
+                    if g['name'] not in ws[k]['who']:
+                        ws[k]['who'].append(g['name'])
+        comp = [dict(n=g['count'], name=g['name']) for g in u['groups']]
+        ju.update(models=models, weapons=list(ws.values()), comp=comp)
+    return j
+
+
 def api(req, db):
     """網頁送來的 {a, b, opt} → 計算結果；{translate: true, a, b} → 兩張表翻成中文。app.py（伺服器）和 browser.js（瀏覽器裡跑）共用。"""
+    if req.get('print'):
+        return printout(str(req.get('a', '')), db, bool(req.get('full')))
     if req.get('scout'):
         return scout(str(req.get('a', '')), db, bool(req.get('full')))
     if req.get('listcheck'):

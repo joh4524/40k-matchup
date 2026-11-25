@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>印軍表和戰術卡</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00;--good:#1d7a3a;--chip:#eeece6;--band:#2b2b30}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050;--good:#6fd08c;--chip:#2e2e34;--band:#3a3a42}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+h3{font-size:13px;margin:8px 0 3px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+textarea{width:100%;height:150px;font:12px/1.4 ui-monospace,monospace;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px}
+button{font:inherit;padding:8px 18px;border-radius:8px;border:0;background:var(--a);color:#fff;font-weight:600}
+.seg button{font-size:13px;font-weight:normal;background:var(--bg);color:var(--ink);border:1px solid var(--line);padding:4px 12px}
+.seg button.on{background:var(--ink);color:var(--bg)}
+.opts{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-top:8px}
+.opts label{font-size:13px}
+small,.mute{color:var(--mute)}
+.err{color:var(--b);font-weight:600}
+.warn{color:var(--warn)}
+.chip{display:inline-block;background:var(--chip);border-radius:5px;padding:0 6px;margin:1px 2px 1px 0;font-size:12px;white-space:nowrap}
+.tag{color:var(--good);font-size:12px}
+.txt{white-space:pre-wrap;font-size:12px;margin:1px 0 4px}
+.unit{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;break-inside:avoid}
+.unit .hd{background:var(--band);color:#fff;padding:6px 10px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.unit .hd b{font-size:15px}
+.unit .hd small{color:#cfcfd6;white-space:nowrap}
+.unit .bd{padding:8px 10px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;width:100%;margin:2px 0 6px}
+th,td{border:1px solid var(--line);padding:3px 5px;text-align:center;vertical-align:top}
+th{font-weight:600;font-size:11px;background:var(--chip)}
+td.l,th.l{text-align:left}
+.ab{font-size:12px;margin:0 0 4px}
+.ab b{font-size:12px}
+.kw{font-size:11px;color:var(--mute);margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.sc{background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column}
+.sc .hd{background:var(--band);color:#fff;padding:6px 8px;display:flex;gap:8px;align-items:flex-start}
+.sc .cp{flex:none;min-width:2.6em;text-align:center;border-radius:6px;background:var(--a);color:#fff;font-weight:700;font-size:13px;padding:1px 4px}
+.sc .cp.core{background:#77777f}
+.sc .nm{font-weight:700;font-size:14px;line-height:1.25}
+.sc .nm small{display:block;font-weight:400;color:#cfcfd6;font-size:11px}
+.sc .meta{font-size:11px;color:var(--mute);padding:4px 8px 0}
+.sc .bd{padding:4px 8px 8px;font-size:12px;line-height:1.45;flex:1}
+.sc .bd p{margin:0 0 4px}
+.sc .bd .k{font-weight:700;font-size:11px;color:var(--mute)}
+.sc .who{border-top:1px dashed var(--line);padding:4px 8px;font-size:11px;color:var(--mute)}
+.sc.off{opacity:.5}
+@media (max-width:600px){main{padding:10px}.card{padding:10px}th,td{padding:2px 3px;font-size:11px}}
+@media print{
+  .noprint{display:none!important}
+  @page{margin:10mm}
+  body{background:#fff;color:#000;font-size:10.5px}
+  :root{--ink:#000;--mute:#444;--line:#999;--chip:#eee;--card:#fff;--band:#222;--a:#1f5fbf;--good:#1d6a32}
+  main{max-width:none;padding:0}
+  .card{border:0;padding:0}
+  .unit{border-color:#888;margin-bottom:8px}
+  table{font-size:10px}
+  .txt,.ab,.sc .bd{font-size:10px}
+  .grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .sc{border-color:#888}
+  .sc.off{display:none}
+  .hd{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sc .cp{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<main>
+<h1 class="noprint">印軍表和戰術卡 <small>40K 第十一版</small></h1>
+<div class="card noprint" id="pub" style="display:none"><p class="err" style="margin:0">這個功能只在自己架的版本（HP）上能用。</p><p class="mute" style="margin:4px 0 0">資料卡和戰術卡要印規則全文，公開網站不放全文。</p></div>
+<div class="card noprint" id="inbox">
+<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表，印成<b>資料卡</b>（每個單位的能力值、武器、能力全文）或<b>戰術卡</b>（分隊＋核心戰術卡，一張一格，可以剪下來）。</p>
+<textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
+<div class="opts"><button id="go">讀這張表</button><span id="msg" class="mute"></span></div>
+</div>
+<div class="opts seg noprint" id="tab" style="margin-bottom:10px;display:none">
+<button data-v="sheets" class="on">資料卡</button><button data-v="strats">戰術卡</button>
+<span id="o_sheets"><label><input type="checkbox" id="rules" checked> 前面加軍隊／分隊規則</label> <label><input type="checkbox" id="abtext" checked> 能力印全文</label></span>
+<span id="o_strats" style="display:none"><label><input type="checkbox" id="core" checked> 含核心戰術卡</label> <label><input type="checkbox" id="unusable"> 含表上沒單位能用的</label></span>
+<button id="print" style="padding:4px 12px;font-size:13px">列印</button>
+</div>
+<div id="out"></div>
+<p class="mute noprint" style="font-size:12px" id="foot"></p>
+</main>
+<script src="browser.js?v=202611252205"></script>
+<script src="lists.js?v=202611252205" data-page="print"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const PH = {pre: "開戰前", cmd: "指揮", move: "移動", shoot: "射擊", charge: "衝鋒", fight: "格鬥", any: "任何階段", always: "常駐"};
+const TURN = {me: "自己回合", opp: "對方回合", both: "雙方回合"};
+let J = null, TAB = "sheets";
+
+// 名字：有中文放中文、英文放小字
+function nm(o) { return o.zh ? esc(o.zh) + " <small>" + esc(o.name) + "</small>" : esc(o.name); }
+
+// 同名單位加編號（#1、#2）
+function labels(units) {
+  const cnt = {}, seen = {};
+  units.forEach((u) => cnt[u.name] = (cnt[u.name] || 0) + 1);
+  return units.map((u) => {
+    const base = u.zh || u.name;
+    if (cnt[u.name] < 2) return base;
+    seen[u.name] = (seen[u.name] || 0) + 1;
+    return base + " #" + seen[u.name];
+  });
+}
+
+// 規則全文：開了「能力印全文」才印
+function body(t) { return t && $("abtext").checked ? '<div class="txt">' + esc(t) + "</div>" : ""; }
+
+// 一個規則（軍隊、分隊、能力、強化）：名字＋中文摘要＋全文
+function rule(x, extra) { return '<div class="ab"><b>' + nm(x) + "</b>" + (extra || "") + (x.sum ? ' <span class="tag">' + esc(x.sum) + "</span>" : "") + body(x.text) + "</div>"; }
+
+// 軍隊規則＋分隊規則（資料卡最前面）
+function armyBlock(j) {
+  let h = '<div class="unit"><div class="hd"><b>' + esc(j.name || "軍表") + "</b><small>" + esc(j.faction) + "，" + j.points + " 分，" + j.units.length + " 個單位</small></div><div class=\"bd\">";
+  if (j.unknown.length) h += '<p class="warn">讀不到的單位：' + j.unknown.map(esc).join("、") + "</p>";
+  if (j.army.length) h += "<h3>軍隊規則</h3>" + j.army.map((x) => rule(x)).join("");
+  j.dets.forEach((d) => { h += "<h3>分隊：" + nm(d) + "</h3>" + (d.rules.length ? d.rules.map((x) => rule(x)).join("") : '<p class="mute">沒有分隊規則資料</p>'); });
+  if (!j.dets.length) h += '<p class="mute">軍表上讀不到分隊名。</p>';
+  return h + "</div></div>";
+}
+
+// 武器表：射擊、近戰分開
+function weaponTable(ws, melee) {
+  const rows = ws.filter((w) => !!w.melee === melee);
+  if (!rows.length) return "";
+  const multi = new Set(rows.flatMap((w) => w.who)).size > 1;
+  let h = '<div class="scroll"><table><thead><tr><th class="l">' + (melee ? "近戰武器" : "射擊武器") + "</th><th>數量</th><th>射程</th><th>A</th><th>" + (melee ? "WS" : "BS") + '</th><th>S</th><th>AP</th><th>D</th><th class="l">關鍵字</th></tr></thead><tbody>';
+  rows.forEach((w) => {
+    const sk = w.skill && w.skill !== "-" && w.skill !== "N/A" ? w.skill + "+" : "—";
+    h += '<tr><td class="l">' + esc(w.name) + (multi ? "<br><small>" + esc(w.who.join("、")) + "</small>" : "") + "</td><td>" + w.n + "</td><td>" + (melee ? "近戰" : esc(w.range) + '"') + "</td><td>" + esc(w.A) + "</td><td>" + sk + "</td><td>" + esc(w.S) + "</td><td>" + esc(w.AP) + "</td><td>" + esc(w.D) + '</td><td class="l">' + esc(w.kw) + "</td></tr>";
+  });
+  return h + "</tbody></table></div>";
+}
+
+// 一個單位的資料卡
+function unitBlock(u, label) {
+  let h = '<div class="unit"><div class="hd"><b>' + esc(label) + (u.zh ? " <small>" + esc(u.name) + "</small>" : "") + "</b><small>" + u.points + " 分</small></div><div class=\"bd\">";
+  h += '<div class="mute" style="font-size:12px">' + u.comp.map((c) => c.n + "× " + esc(c.name)).join("、") + "</div>";
+  h += '<div class="scroll"><table><thead><tr><th class="l">模型</th><th>M</th><th>T</th><th>Sv</th><th>W</th><th>Ld</th><th>OC</th><th>無敵</th><th>底座</th></tr></thead><tbody>';
+  u.models.forEach((m) => { h += '<tr><td class="l">' + esc(m.name) + "</td><td>" + esc(m.M) + "</td><td>" + esc(m.T) + "</td><td>" + esc(m.Sv) + "</td><td>" + esc(m.W) + "</td><td>" + esc(m.Ld) + "</td><td>" + esc(m.OC) + "</td><td>" + (m.inv ? esc(m.inv) + "++" : "—") + "</td><td>" + esc(m.base) + "</td></tr>"; });
+  h += "</tbody></table></div>";
+  h += weaponTable(u.weapons, false) + weaponTable(u.weapons, true);
+  if (u.core.length) h += '<div style="margin:2px 0 4px"><span class="k mute" style="font-size:11px">核心能力 </span>' + u.core.map((c) => '<span class="chip">' + esc(c.zh ? c.zh + (c.param ? " " + c.param : "") : c.name) + "</span>").join("") + (u.fnp ? '<span class="chip">FNP ' + u.fnp + "+</span>" : "") + "</div>";
+  if (u.abil.length) h += u.abil.map((x) => rule(x, x.src ? ' <small class="mute">（' + esc(x.src) + "）</small>" : "")).join("");
+  if (u.enh.length) h += "<h3>強化</h3>" + u.enh.map((x) => rule(x)).join("");
+  h += '<div class="kw">關鍵字：' + u.kw.map(esc).join("、") + "</div>";
+  return h + "</div></div>";
+}
+
+// 戰術卡全文切成 WHEN／TARGET／EFFECT／RESTRICTIONS 幾段
+function stratBody(t) {
+  if (!t) return '<p class="mute">（全文只在 HP 版）</p>';
+  const parts = t.split(/\n?\s*(WHEN|TARGET|EFFECT|RESTRICTIONS?):\s*/).filter((x) => x !== "");
+  const lab = {WHEN: "時機", TARGET: "目標", EFFECT: "效果", RESTRICTION: "限制", RESTRICTIONS: "限制"};
+  let h = "", i = 0;
+  while (i < parts.length) {
+    if (lab[parts[i]] && i + 1 < parts.length) { h += '<p><span class="k">' + lab[parts[i]] + "</span> " + esc(parts[i + 1].trim()) + "</p>"; i += 2; }
+    else { h += "<p>" + esc(parts[i].trim()) + "</p>"; i += 1; }
+  }
+  return h;
+}
+
+// 一張戰術卡
+function stratCard(s, L) {
+  const who = !s.units.length ? "表上沒有單位能用" : s.units.length === L.length ? "能用：全部單位" : "能用：" + s.units.map((i) => esc(L[i])).join("、");
+  const when = s.phases.map((p) => PH[p]).join("／") + "・" + TURN[s.turn];
+  return '<div class="sc' + (s.units.length ? "" : " off") + '"><div class="hd"><span class="cp' + (s.core ? " core" : "") + '">' + esc(s.cp) + 'CP</span><div class="nm">' + esc(s.zh || s.name) + (s.zh ? "<small>" + esc(s.name) + "</small>" : "") + '</div></div><div class="meta">' + esc(s.det) + (s.kind && s.kind !== "核心" ? "・" + esc(s.kind) : "") + "｜" + when + '</div><div class="bd">' + (s.note ? '<p class="tag">' + esc(s.note) + "</p>" : "") + stratBody(s.text) + '</div><div class="who">' + who + "</div></div>";
+}
+
+function render() {
+  if (!J) return;
+  $("tab").querySelectorAll("button[data-v]").forEach((b) => b.classList.toggle("on", b.dataset.v === TAB));
+  $("o_sheets").style.display = TAB === "sheets" ? "" : "none";
+  $("o_strats").style.display = TAB === "strats" ? "" : "none";
+  const L = labels(J.units);
+  if (TAB === "sheets") {
+    $("out").innerHTML = ($("rules").checked ? armyBlock(J) : "") + J.units.map((u, i) => unitBlock(u, L[i])).join("");
+  } else {
+    const ss = J.strats.filter((s) => ($("core").checked || !s.core) && ($("unusable").checked || s.units.length));
+    $("out").innerHTML = '<p class="mute noprint" style="font-size:12px;margin:0 0 6px">' + ss.length + " 張。列印是一頁三欄，可以沿邊框剪下來。</p><div class=\"grid\">" + ss.map((s) => stratCard(s, L)).join("") + "</div>";
+  }
+}
+
+async function go() {
+  $("msg").textContent = "";
+  const a = $("a").value;
+  if (!a.trim()) { $("msg").textContent = "請先貼一張軍表。"; return; }
+  $("go").disabled = true;
+  try {
+    const r = await fetch("/api/calc", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({print: true, a, full: true})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || r.status);
+    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
+    else { J = j; $("tab").style.display = ""; render(); }
+    $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；綠字是我們自己寫的中文摘要。武器名稱保留英文。";
+  } catch (e) { $("msg").textContent = "讀不出來：" + e.message; }
+  $("go").disabled = false;
+}
+
+// 公開版（有 Pyodide 的 localCalc）不提供：規則全文不放公開網站
+if (window.localCalc) { $("pub").style.display = ""; $("inbox").style.display = "none"; }
+$("go").onclick = go;
+$("tab").querySelectorAll("button[data-v]").forEach((b) => b.onclick = () => { TAB = b.dataset.v; render(); });
+["rules", "abtext", "core", "unusable"].forEach((k) => $(k).onchange = render);
+$("print").onclick = () => window.print();
+if (window.MyLists) MyLists.attach($("a"), "a");
+</script>
+</body>
+</html>

@@ -32,7 +32,7 @@ nav .s{display:none}
   <nav id="tabs"></nav>
 </header>
 <div id="frames"></div>
-<script src="browser.js?v=202611241127"></script>
+<script src="browser.js?v=202611252205"></script>
 <script>
 // 首頁＝分頁殼（2026-11-24）：每個工具還是原本的 .html，放在 iframe 裡，第一次點到才載入，切換時結果留著。
 // 計算程式（公開版的 Pyodide）只在這一層載入一次，各分頁透過 lists.js 共用。
@@ -42,11 +42,13 @@ const TABS = [
   ['scout', '偵察小抄', 'scout.html', '小抄'],
   ['dice', '骰子機率', 'dice.html', '骰子'],
   ['leaderboards', '單位排行', 'leaderboards.html', '排行'],
+  ['print', '印軍表', 'print.html', '列印'],
   ['meta', 'Meta 表', 'metalists/', 'Meta']
 ];
 const nav = document.getElementById('tabs'), box = document.getElementById('frames'), frames = {};
 // 手機上分頁名用短的（2026-11-24，原本要橫滑才看得到後面兩個）
-nav.innerHTML = TABS.map(([k, t, , sh]) => '<a href="#' + k + '" data-k="' + k + '"' + (k === 'meta' ? ' style="display:none"' : '') + '><span class="l">' + t + '</span><span class="s">' + sh + '</span></a>').join('');
+// 「印軍表」只在 HP 版顯示（2026-11-25，公開版有 localCalc，規則全文不放公開網站）
+nav.innerHTML = TABS.map(([k, t, , sh]) => '<a href="#' + k + '" data-k="' + k + '"' + (k === 'meta' || (k === 'print' && window.localCalc) ? ' style="display:none"' : '') + '><span class="l">' + t + '</span><span class="s">' + sh + '</span></a>').join('');
 function show() {
   let k = location.hash.slice(1);
   if (!TABS.some((t) => t[0] === k)) k = 'matchup';
