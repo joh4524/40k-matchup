@@ -2446,11 +2446,11 @@ def printout(text, db, full=False):
     return j
 
 
-# 武器關鍵字中文（2026-11-25，詞取自社群中文規則書；間接射擊、單發是自己翻的 ⚠️）
+# 武器關鍵字中文（2026-11-25，詞取自社群中文規則書；間接射擊、單發、轉換是自己翻的 ⚠️）
 PR_WKW = [('rapid fire', '速射'), ('sustained hits', '連擊'), ('lethal hits', '致命一擊'), ('devastating wounds', '毀滅傷害'), ('twin-linked', '雙聯'),
           ('torrent', '洪流'), ('blast', '爆炸'), ('melta', '熱熔'), ('hazardous', '危險'), ('precision', '精準'), ('ignores cover', '無視掩體'),
           ('indirect fire', '間接射擊'), ('lance', '騎槍'), ('extra attacks', '額外攻擊'), ('one shot', '單發'), ('psychic', '靈能'), ('cleave', '劈砍'),
-          ('assault', '突擊'), ('heavy', '重型'), ('pistol', '手槍'), ('anti-', '反')]
+          ('close-quarters', '近距離'), ('conversion', '轉換'), ('assault', '突擊'), ('heavy', '重型'), ('pistol', '手槍'), ('anti-', '反')]
 
 
 PR_UKW = {'MONSTER': '巨獸', 'VEHICLE': '載具', 'INFANTRY': '步兵', 'CHARACTER': '角色', 'PSYKER': '靈能者', 'MOUNTED': '騎乘', 'FLY': '飛行',
