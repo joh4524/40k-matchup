@@ -261,6 +261,18 @@ class DB:
                 self.zh = {norm(k): (v if isinstance(v, list) else [v]) for k, v in json.load(f).items()}
         except OSError:
             self.zh = {}
+        try:                                             # 黑圖書館／社群中文規則書的譯名（tools/zh_comm_build.py，2026-11-27）：官方中文沒有的才補
+            with open(os.path.join(DATA, 'zh_comm.json'), encoding='utf-8') as f:
+                zc = json.load(f)
+            for k, v in zc.get('units', {}).items():
+                lst = self.zh.setdefault(norm(k), [])
+                lst += [e for e in v if e not in lst]
+            COMM_WEAP.clear()
+            COMM_WEAP.update(zc.get('weap', {}))
+            COMM_WEAP[''] = zc.get('gw', {})             # 很多資料卡都一樣的（爆弹枪＝Boltgun）：全部資料卡共用
+            COMM_WEAP['*'] = zc.get('fw', {})            # 規則翻譯批次的武器譯名：中文 → [英文]，看哪個對得到這張資料卡
+        except OSError:
+            pass
         try:                                             # 官方點數頁上有的武器中文名（很少），zh_glossary 沒有時用
             with open(os.path.join(DATA, 'zh_wargear.json'), encoding='utf-8') as f:
                 self.zh_wargear = json.load(f)
@@ -273,6 +285,15 @@ class DB:
         except OSError:
             zd = {}
         self.zh_det, self.zh_enh = zd.get('det', {}), {enh_key(k): v for k, v in zd.get('enh', {}).items()}
+        try:                                             # 社群／黑圖書館的分隊、強化譯名（zh_comm.json）：官方沒有的才補
+            with open(os.path.join(DATA, 'zh_comm.json'), encoding='utf-8') as f:
+                zc = json.load(f)
+            for k, v in zc.get('det', {}).items():
+                self.zh_det.setdefault(k, v)
+            for k, v in zc.get('enh', {}).items():
+                self.zh_enh.setdefault(enh_key(k), v)
+        except OSError:
+            pass
         self.enh = {}
         for r in rd_safe('Enhancements'):
             if r.get('name'):
@@ -771,8 +792,47 @@ CJK_SECTION = re.compile(r'^[一-鿿]+$')                                   # �
 ITEM = re.compile(r'^(\d+)x (.+)$')
 
 
+def bl_convert(text):
+    """黑圖書館（中文軍表 App）匯出的格式 → GW 官方 App 中文匯出的格式（2026-11-27）。
+    差別：(115分)／(115点)、「联合单位：1」、項目符號「·」、领导／领袖、「强化：X；分数：20」、名字後的(主将)、单位组成／扩编次数 行。"""
+    out, block = [], []
+    def flush():
+        ind = sorted({len(l) - len(l.lstrip()) for l in block if l.lstrip().startswith('·')})
+        for l in block:
+            s = l.lstrip()
+            if s.startswith('·'):
+                lv = ind.index(len(l) - len(s))
+                body = re.sub(r'\s*\(\d+分\)$', '', s.lstrip('· ').strip())
+                out.append('  ' * (lv + 1) + '• ' + body)
+            else:
+                out.append(l)
+        block.clear()
+    for l in text.replace('\r', '').split('\n'):
+        s = l.strip()
+        if re.fullmatch(r'-{3,}', s) or re.match(r'^(单位组成|單位組成|扩编次数|擴編次數)[：:]', s) or re.match(r'^(由黑图书馆|版本号|感/谢)', s):
+            continue
+        if re.match(r'^(进行联合的单位|進行聯合的單位)[：:]', s):
+            block.append('• ' + s.replace('领导', '领袖').replace('領導', '領袖')); continue
+        if re.match(r'^(强化|強化)[：:]', s):
+            block.append('• ' + re.sub(r'[；;]\s*(分数|分數)[：:]\s*\d+$', '', s)); continue
+        if s.startswith('·'):
+            block.append(l); continue
+        flush()
+        m = re.fullmatch(r'(联合单位|聯合單位)[：:]\s*(\d+)', s)
+        if m:
+            out.append(m[1] + m[2]); continue
+        m = re.fullmatch(r'(.+?)\s*(?:\((?:主将|主將|领主|Warlord)\))?\s*[(（](\d+)分[)）]', s)
+        if m:
+            out.append(f'{m[1]} ({m[2]}点)'); continue
+        out.append(l)
+    flush()
+    return '\n'.join(out)
+
+
 def parse_list(text, db):
     ZH_GUESSED.clear()
+    if '黑图书馆' in text or '黑圖書館' in text or re.search(r'^\S.*[(（]\d+分[)）]\s*$', text, re.M):
+        text = bl_convert(text)
     lines = [l.replace('\t', '    ').rstrip() for l in text.replace('\r', '').split('\n')]
     out = dict(name='', faction='', points=0, units=[], unknown=[], notes=[])
     fid = None
@@ -817,6 +877,14 @@ def parse_list(text, db):
                 if not sheet and int(m[2].replace(',', '')) not in (500, 1000, 2000, 3000) and (re.search(r'[A-Za-z]', m[1]) or started) and not re.match(r'(strike force|incursion|onslaught|combat patrol)', m[1], re.I):
                     near = difflib.get_close_matches(norm(m[1]), db.allnames, 1, 0.88)
                     sheet = db.find(near[0], fid) if near else None
+                    if not sheet and CJK.search(m[1]):          # 中文譯名差一兩個字（荒蝎驱逐者／荒蝎毁灭者）：同陣營裡找最像的中文名
+                        zk = [k for k, v in db.zh.items() if any(s['faction'] == fid for s in db.sheets_named(k))]
+                        pts = int(m[2].replace(',', ''))
+                        near = [k for k in difflib.get_close_matches(norm(m[1]), zk, 5, 0.5)
+                                if any(c == pts for s in db.sheets_named(k) if s['faction'] == fid for d, c in s['costs'])]   # 分數也要對得上才算
+                        sheet = db.find(near[0], fid) if near else None
+                        if sheet:
+                            out['notes'].append(f'「{m[1]}」照名字相近＋分數對得上，當成「{sheet["name"]}」（請確認）')
                     if sheet:
                         out['notes'].append(f'「{m[1]}」資料裡沒有完全同名的，用「{sheet["name"]}」代替')
                     else:
@@ -882,6 +950,7 @@ DET_TYPE_KW = ('INFANTRY', 'VEHICLE', 'MONSTER', 'MOUNTED', 'CHARACTER', 'WALKER
 ZH_UNKNOWN = set()
 ZH_GUESSED = set()                                       # (資料卡, 中文, 英文)：拆字推測的
 ZH_WARGEAR = {}                                          # DB() 載入時填
+COMM_WEAP = {}                                           # 英文資料卡名 → {社群中文武器名: 英文}（zh_comm.json，DB() 載入時填）
 _MORPH = sorted(getattr(zh_glossary, 'MORPH', {}).items(), key=lambda kv: -len(kv[0]))
 
 
@@ -916,7 +985,14 @@ def zh_guess(name, cands):
 
 def match_weapon(name, sheet):
     if CJK.search(name):
-        ens = [e for e in (zh_glossary.WEAPONS.get(name.strip()), ZH_WARGEAR.get(name.strip())) if e]
+        cw = COMM_WEAP.get(sheet['name'], {})
+        key = re.sub(r'\s+', '', name)
+        near = cw.get(key) or next(iter(difflib.get_close_matches(key, list(cw), 1, 0.6)), None)
+        if near and not cw.get(key) and not COMM_WEAP.get('', {}).get(key):
+            ZH_GUESSED.add((sheet['name'], name.strip(), cw[near]))
+        comm = cw.get(key) or COMM_WEAP.get('', {}).get(key) or (cw[near] if near else None)
+        ens = [e for e in (comm, zh_glossary.WEAPONS.get(name.strip()), ZH_WARGEAR.get(name.strip())) if e]
+        ens = [e for e in COMM_WEAP.get('*', {}).get(key, []) if e not in ens] + ens
         if not ens:
             names = {}
             for w in sheet['weapons']:
@@ -1037,6 +1113,13 @@ def build_unit(u, db, out):
             for n, nm, profs in loadout_items(sheet, g['name']):
                 g['weapons'].append((n * g['count'], profs))
                 added.append(nm)
+            if not g['weapons'] and single and CJK.search(u['name']) and sheet['weapons']:   # 中文軍表的武器名都對不上、預設配備也讀不到：資料卡上的武器全部算（2026-11-27 黑圖書館）
+                bases = {}
+                for w in sheet['weapons']:
+                    bases.setdefault(w['base'], []).append(w)
+                for b, profs in bases.items():
+                    g['weapons'].append((1, profs))
+                out['notes'].append(f'{u["name"]}：武器名都對不上，資料卡上的武器全部算上（{", ".join(p[0]["name"] for p in bases.values())}；有選配的話可能多算）')
         else:                                            # 補上軍表沒列、又不能換掉的固定武器（App 匯出常省略 close combat weapon、坐騎的蹄子等）
             for n, nm, profs in loadout_items(sheet, g['name'], strict=not single):   # 2026-11-16 跟 Kill Grid 對照時發現：卡迪安突擊兵、Tempestus Aquilons 近戰少算
                 b = profs[0]['base']

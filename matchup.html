@@ -64,8 +64,8 @@ td.c{cursor:pointer}
 <h1>軍表對戰計算 <small>40K 第十一版</small> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢 →</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行 →</a> <a href="dice.html" style="font-size:14px;font-weight:normal;margin-left:8px">骰子機率 →</a><a href="scout.html" style="font-size:14px;font-weight:normal;margin-left:8px">偵察小抄 →</a> <a id="metalink" href="metalists/" style="display:none;font-size:14px;font-weight:normal;margin-left:8px">全陣營 Meta 表 →</a></h1>
 <div class="card">
   <div class="grid">
-    <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
-    <div><label class="t lb" for="b">對方軍表（B）</label><select id="metasel" style="display:none;width:100%;margin:2px 0 4px"></select><div id="metanote" class="mute" style="font-size:12px"></div><textarea id="b" placeholder="貼上官方 App 匯出的軍表文字"></textarea></div>
+    <div><label class="t la" for="a">我方軍表（A）</label><textarea id="a" placeholder="貼上官方 App 或黑圖書館匯出的軍表文字"></textarea></div>
+    <div><label class="t lb" for="b">對方軍表（B）</label><select id="metasel" style="display:none;width:100%;margin:2px 0 4px"></select><div id="metanote" class="mute" style="font-size:12px"></div><textarea id="b" placeholder="貼上官方 App 或黑圖書館匯出的軍表文字"></textarea></div>
   </div>
   <div class="opts" style="margin-top:8px">
     <button id="go">計算</button>
@@ -87,8 +87,8 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611261546"></script>
-<script src="lists.js?v=202611261546" data-page="matchup"></script>
+<script src="browser.js?v=202611270219"></script>
+<script src="lists.js?v=202611270219" data-page="matchup"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -517,7 +517,7 @@ async function go(){
     }
     P=same?R:null; R=j;
     const miss=[];if(!j.a.units.length)miss.push('A');if(!j.b.units.length)miss.push('B');
-    if(miss.length)$('msg').textContent=miss.join('、')+' 讀不到任何單位。請確認是官方 App 匯出的文字。';
+    if(miss.length)$('msg').textContent=miss.join('、')+' 讀不到任何單位。請確認是官方 App 或黑圖書館匯出的文字。';
     render();
   }catch(e){$('msg').textContent='算不出來：'+e.message}
   $('go').disabled=false;

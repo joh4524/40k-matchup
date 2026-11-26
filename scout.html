@@ -50,16 +50,16 @@ details summary{cursor:pointer;color:var(--a);font-size:12px}
 <main>
 <h1 class="noprint">偵察和階段小抄 <small>40K 第十一版</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a> <a href="listcheck.html" style="font-size:14px;font-weight:normal;margin-left:8px">軍表健檢</a> <a href="leaderboards.html" style="font-size:14px;font-weight:normal;margin-left:8px">單位排行</a> <a href="dice.html" style="font-size:14px;font-weight:normal;margin-left:8px">骰子機率</a></h1>
 <div class="card noprint">
-<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表。<b>偵察</b>：對手每個單位走多遠、衝多遠、打多遠，有哪些能力，他的分隊能用哪些戰術卡、給哪些單位用。<b>階段小抄</b>：把戰術卡、規則、能力照「指揮 → 移動 → 射擊 → 衝鋒 → 格鬥」排好，自己回合、對方回合分兩欄，可以印出來放桌邊。</p>
-<textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
+<p style="margin:0 0 6px">貼一張官方 App 或黑圖書館匯出的軍表。<b>偵察</b>：對手每個單位走多遠、衝多遠、打多遠，有哪些能力，他的分隊能用哪些戰術卡、給哪些單位用。<b>階段小抄</b>：把戰術卡、規則、能力照「指揮 → 移動 → 射擊 → 衝鋒 → 格鬥」排好，自己回合、對方回合分兩欄，可以印出來放桌邊。</p>
+<textarea id="a" placeholder="貼上官方 App（英文或中文）或黑圖書館匯出的軍表"></textarea>
 <div class="opts"><button id="go">讀這張表</button><span id="msg" class="mute"></span></div>
 </div>
 <div class="opts seg noprint" id="tab" style="margin-bottom:10px;display:none"><button data-v="scout" class="on">偵察</button><button data-v="plan">階段小抄</button><span id="planopt" style="display:none"><label class="small"><input type="checkbox" id="nocore"> 不列核心戰術卡</label> <button id="print" style="padding:4px 12px;font-size:13px">列印</button></span></div>
 <div id="out"></div>
 <p class="mute noprint" style="font-size:12px" id="foot"></p>
 </main>
-<script src="browser.js?v=202611261546"></script>
-<script src="lists.js?v=202611261546" data-page="scout"></script>
+<script src="browser.js?v=202611270219"></script>
+<script src="lists.js?v=202611270219" data-page="scout"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -193,7 +193,7 @@ async function go() {
       j = await r.json();
       if (!r.ok) throw new Error(j.error || r.status);
     }
-    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
+    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 或黑圖書館匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
     else { J = j; $("tab").style.display = ""; render(); }
     $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；核心能力、核心戰術卡的中文說明是我們自己寫的摘要。階段是照規則文字裡寫的階段自動分的，可能有分錯，以原文為準。" + (j.full ? "" : "規則原文只在 HP 版顯示。");
   } catch (e) { $("msg").textContent = "讀不出來：" + e.message; }

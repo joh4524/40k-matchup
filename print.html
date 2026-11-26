@@ -77,8 +77,8 @@ td.l,th.l{text-align:left}
 <h1 class="noprint">印軍表和戰術卡 <small>40K 第十一版</small></h1>
 <div class="card noprint" id="pub" style="display:none"><p class="err" style="margin:0">這個功能只在自己架的版本（HP）上能用。</p><p class="mute" style="margin:4px 0 0">資料卡和戰術卡要印規則全文，公開網站不放全文。</p></div>
 <div class="card noprint" id="inbox">
-<p style="margin:0 0 6px">貼一張官方 App 匯出的軍表，印成<b>資料卡</b>（每個單位的能力值、武器、能力全文）或<b>戰術卡</b>（分隊＋核心戰術卡，一張一格，可以剪下來）。</p>
-<textarea id="a" placeholder="貼上官方 App 匯出的軍表（英文或中文都可以）"></textarea>
+<p style="margin:0 0 6px">貼一張官方 App 或黑圖書館匯出的軍表，印成<b>資料卡</b>（每個單位的能力值、武器、能力全文）或<b>戰術卡</b>（分隊＋核心戰術卡，一張一格，可以剪下來）。</p>
+<textarea id="a" placeholder="貼上官方 App（英文或中文）或黑圖書館匯出的軍表"></textarea>
 <div class="opts"><button id="go">讀這張表</button><span id="msg" class="mute"></span></div>
 </div>
 <div class="opts seg noprint" id="tab" style="margin-bottom:10px;display:none">
@@ -91,8 +91,8 @@ td.l,th.l{text-align:left}
 <div id="out"></div>
 <p class="mute noprint" style="font-size:12px" id="foot"></p>
 </main>
-<script src="browser.js?v=202611261546"></script>
-<script src="lists.js?v=202611261546" data-page="print"></script>
+<script src="browser.js?v=202611270219"></script>
+<script src="lists.js?v=202611270219" data-page="print"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
@@ -205,7 +205,7 @@ async function go() {
     const r = await fetch("/api/calc", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({print: true, a, full: true})});
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || r.status);
-    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
+    if (!j.units.length) { $("msg").textContent = "讀不到任何單位。請確認是官方 App 或黑圖書館匯出的文字。"; $("out").innerHTML = ""; $("tab").style.display = "none"; J = null; }
     else { J = j; $("tab").style.display = ""; render(); }
     $("foot").textContent = "資料：Wahapedia（規則資料更新到 " + j.data_updated + "）。中文卡名來自各陣營中文規則書，沒有的保留英文；綠字是我們自己寫的中文摘要。" + (j.zh_full ? "規則全文是中文翻譯（參考社群中文規則書，數字以英文最新版為準），勾「附英文原文」可以對照。" : "規則全文還沒有中文翻譯，先印英文。");
   } catch (e) { $("msg").textContent = "讀不出來：" + e.message; }
