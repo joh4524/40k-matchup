@@ -6,6 +6,9 @@
   const DATA = ['Last_update', 'Factions', 'Datasheets', 'Datasheets_models', 'Datasheets_wargear', 'Datasheets_abilities', 'Datasheets_keywords',
     'Datasheets_unit_composition', 'Datasheets_models_cost', 'Datasheets_options', 'Abilities', 'Detachments', 'Detachment_abilities', 'Stratagems', 'Enhancements'].map(f => f + '.csv').concat(['zh_units.json', 'zh_wargear.json', 'zh_dets.json', 'listcheck_bench.json', 'zh_scout.json', 'zh_sum.json', 'zh_comm.json']);
   let ready = null;
+  // 背景先下載時沒有人看狀態；按「計算」後改成顯示在那一頁（2026-11-27 使用者選 C：先顯示畫面、背景下載）
+  let say = () => {}, last = '';
+  const tell = (s) => { last = s; say(s); };
   // 版本號（index.html 載入 browser.js?v=…）：程式和資料更新後，舊的瀏覽器快取不會被拿來用
   const V = ((document.currentScript && document.currentScript.src.match(/[?&]v=([^&]+)/)) || [])[1] || String(Date.now());
 
@@ -49,11 +52,18 @@ def _calc(s):
   }
 
   window.localCalc = async (req, status) => {
-    ready = ready || boot(status || (() => {}));
+    say = status || (() => {});
+    if (ready && last) say(last);
+    ready = ready || boot(tell);
     let calc;
     try { calc = await ready; } catch (e) { ready = null; throw e; }
     try { return JSON.parse(calc(JSON.stringify(req))); } catch (e) {
       throw new Error(String(e.message || e).trim().split('\n').pop());
     }
   };
+  // 首頁（最上層）打開後就在背景開始下載計算程式，等使用者貼好軍表按計算時通常已經好了
+  if (window.parent === window) {
+    const pre = () => { ready = ready || boot(tell); ready.catch(() => { ready = null; }); };
+    if (document.readyState === 'complete') setTimeout(pre, 800); else window.addEventListener('load', () => setTimeout(pre, 800));
+  }
 })();

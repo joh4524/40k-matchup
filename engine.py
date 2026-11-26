@@ -184,7 +184,7 @@ def eff_damage(dexpr, bonus, w, fnp, reduce=0, half=False, rr=''):
 
 def enh_key(s):
     """強化名比對用：去掉「(one per army)」「(Upgrade)」「强化」之類"""
-    s = re.sub(r'^\s*(?:enhancements?:?|强化|強化)\s*', '', s or '', flags=re.I)
+    s = re.sub(r'^\s*(?:enhancements?|强化|強化)\s*[:：]?\s*', '', s or '', flags=re.I)
     s = re.sub(r'\s*[（(](?:upgrade|升级|升級|one per army|每支军队限一个|每支軍隊限一個|\+?\d+ ?(?:pts|points|点|點))[)）]', '', s, flags=re.I)
     return norm(s)
 
@@ -938,6 +938,12 @@ def parse_list(text, db):
             mine = norm(gr['src']) in {norm(n) for n in u['body'] | u['leaders']}
             if all(k in u['kw'] for k in gr['need']) and not any(k in u['kw'] for k in gr['excl']) and not (mine and gr['src'] in manual.MANUAL):
                 u['tags'].append(dict(gr['tag'], src=gr['src'], granted=True))
+    if bl:                                               # 黑圖書館是簡體：註記和模型組名也轉繁體顯示
+        tw = lambda s: ''.join(COMM_WEAP.get('s2t', {}).get(c, c) for c in s)
+        out['notes'] = [tw(n) for n in out['notes']]
+        for u in out['units']:
+            for g in u['groups']:
+                g['name'] = tw(g['name'])
     out['points'] = sum(u['points'] for u in out['units'])
     out['warn'] = []
     if declared and out['units'] and declared != out['points']:

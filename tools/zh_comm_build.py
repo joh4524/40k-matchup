@@ -69,6 +69,12 @@ def heads_of(L, db):
     """找資料卡標題：一行中文名（後面可能接分數），下面 1–4 個非空行內有一行英文、而且對得到 Wahapedia 資料卡。"""
     out = []
     for i, l in enumerate(L):
+        m1 = re.match(r"^\s*([\u4e00-\u9fff][\u4e00-\u9fff·・（）()0-9]{0,24})\s+([A-Za-z][A-Za-z0-9 ,'’&\-]{3,})\s*$", l)   # 同一行「瘟疫行者 Poxwalkers」「寻路者小队 PATHFINDER TEAM」
+        if m1:
+            sh = find_sheet(db, m1[2].strip())
+            if sh:
+                out.append((i, m1[1].replace(' ', ''), sh))
+                continue
         s = re.sub(r'\s{2,}(?:\d+ ?(?:名|个)?模型\s*)?\d+ ?分\s*$', '', l.strip())
         s = re.sub(r'\s{2,}.*$', '', s)
         if not ZHN.match(s) or len(s) < 2:
@@ -228,7 +234,7 @@ def main():
     s2t_map = {}
     try:
         s2t = OpenCC('s2t').convert
-        chars = set(''.join(list(units) + [z for wm in weap.values() for z in wm] + list(glob_w) + list(fw) + list(det) + list(enh) + list(GEAR)))
+        chars = {chr(c) for c in range(0x4e00, 0xa000)}       # 整個常用漢字區：註記裡的武器名、模型名也要轉
         s2t_map = {c: s2t(c) for c in sorted(chars) if s2t(c) != c}
     except Exception:
         pass
