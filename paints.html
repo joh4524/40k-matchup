@@ -51,7 +51,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .note{font-size:12px;color:var(--mute);margin-top:14px}
 button.s{font:inherit;font-size:13px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
 </style>
-<script src="lists.js?v=202611261540" data-page="paints"></script>
+<script src="lists.js?v=202611261546" data-page="paints"></script>
 </head>
 <body>
 <main>
@@ -99,6 +99,7 @@ button.s{font:inherit;font-size:13px;padding:3px 10px;border:1px solid var(--lin
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const BR = ["Citadel", "AK 3代", "AK 舊系列", "Vallejo", "Army Painter", "Scale75", "P3", "Reaper", "Mr.Hobby", "Tamiya"];
+let REAL = false;
 let P = [], SETS = [];
 
 // ---- 顏色換算 ----
@@ -207,7 +208,27 @@ function search(q, max) {
   }
   return sc.sort((a, b) => a[0] - b[0] || a[1].n.length - b[1].n.length).slice(0, max).map((x) => x[1]);
 }
-const tag = (p) => esc(p.b === "AK 3代" || p.b === "AK 舊系列" ? "AK " + p.s : p.b + " " + p.s) + (p.k === "x" ? "（停產）" : "") + (p.c ? " · " + esc(p.c) : "");
+// HP 版：Stahly 7-in-1 色表（使用者買的 PDF，~/bin/stahly-extract.py 取的實測色）蓋掉估計色碼，沒有的漆另外加進來。公開版沒有這個檔
+const SM = {AK: ["AK 3代", /3rd Gen/, "Standard (3rd Gen)"], GW: ["Citadel", /^(Base|Layer)$/, "Layer"], VGC: ["Vallejo", /^Game Color$/, "Game Color"], VMC: ["Vallejo", /^Model Color$/, "Model Color"], WPF: ["Army Painter", /^Warpaints Fanatic$/, "Warpaints Fanatic"], PA: ["Pro Acryl", /./, "Pro Acryl"], TTC: ["Two Thin Coats", /./, "Two Thin Coats"]};
+function merge(s) {
+  const idx = new Map();
+  P.forEach((p) => { const k = p.b + "|" + p.key; if (!idx.has(k)) idx.set(k, []); idx.get(k).push(p); });
+  let hit = 0, add = 0;
+  for (const r of s.p) {
+    const m = SM[r.code], name = r.name.replace(/[‘’]/g, "'").trim();
+    if (!m || !name || /^3rd Gen$/i.test(name)) continue;
+    const v = rgb(r.hex).map(lin), ok = okLin(...v), key = norm(name);
+    const set = {h: r.hex, lab: labLin(...v), L: ok[0], C: Math.hypot(ok[1], ok[2]), H: Math.atan2(ok[2], ok[1]), met: r.met, real: 1};
+    const old = (idx.get(m[0] + "|" + key) || []).filter((p) => m[1].test(p.s));
+    if (old.length) { old.forEach((p) => Object.assign(p, set)); hit++; continue; }
+    P.push(Object.assign({i: P.length, si: -1, n: name, c: "", s: m[2], k: "o", main: 1, b: m[0], key, ck: ""}, set));
+    add++;
+  }
+  BR.splice(5, 0, "Pro Acryl", "Two Thin Coats");
+  REAL = true;
+  return [hit, add];
+}
+const tag = (p) => esc(p.b === "AK 3代" || p.b === "AK 舊系列" ? "AK " + p.s : p.b + " " + p.s) + (p.k === "x" ? "（停產）" : "") + (p.real ? ' <b style="color:#2e7d32">✓實測</b>' : "") + (p.c ? " · " + esc(p.c) : "");
 const sw = (h) => '<span class="sw" style="background:' + h + '"></span>';
 // 在 pool 裡找跟 lab 最接近的 n 支（同名的只留一支；skip＝選的那支，同品牌同名的也跳過）
 function nearest(lab, pool, n, skip) {
@@ -217,7 +238,8 @@ function nearest(lab, pool, n, skip) {
   return out;
 }
 // 可以拿來配對的漆：不是停產、主系列（或勾了其他系列）、一般漆（或勾了特殊漆）、金屬配金屬
-const usable = (x, src, spec, oth) => x.k !== "x" && (oth || x.main) && (spec || x.k === "o") && x.met === src.met;
+const usable = (x, src, spec, oth) => x.k !== "x" && (oth || x.main) && (spec || x.k === "o") && x.met === src.met && (!onlyReal() || x.real);
+const onlyReal = () => REAL && !!$("real") && $("real").checked;
 const mline = ([d, p]) => { const [g, t] = grade(d); return '<div class="m">' + sw(p.h) + '<span><b>' + esc(p.n) + '</b> <small>' + tag(p) + '</small></span><span class="de ' + g + '">' + t + " " + d.toFixed(1) + "</span></div>"; };
 
 // ---- 找替代色 ----
@@ -275,13 +297,15 @@ const RANGES = [
   ["Vallejo Model Color", (p) => p.b === "Vallejo" && p.s === "Model Color"],
   ["Army Painter Warpaints Fanatic", (p) => p.b === "Army Painter" && p.s === "Warpaints Fanatic"],
   ["Scale75（Fantasy & Games＋Scale Color）", (p) => p.b === "Scale75" && /Fantasy|Scale Color/.test(p.s)],
+  ["Pro Acryl（HP 版才有）", (p) => p.b === "Pro Acryl"],
+  ["Two Thin Coats（HP 版才有）", (p) => p.b === "Two Thin Coats"],
   ["全部品牌的不透明漆", (p) => p.k === "o" && p.main]
 ];
 let dom = null, flip = false;
 const isNeu = (p) => p.C < 0.035 || p.met;
 function renderGrid() {
   const f = RANGES[+$("rng").value][1], q = norm($("tq").value);
-  const pool = P.filter((p) => f(p) && (!q || p.key.includes(q)));
+  const pool = P.filter((p) => f(p) && (!onlyReal() || p.real) && (!q || p.key.includes(q)));
   const cell = (p) => '<span data-i="' + p.i + '" title="' + esc(p.n + "（" + p.b + " " + p.s + "）") + '" style="background:' + p.h + '"' + (dom === p ? ' class="on"' : "") + "></span>";
   $("sws").innerHTML = pool.filter((p) => !isNeu(p)).sort((a, b) => ((a.H + 7) % 6.2832) - ((b.H + 7) % 6.2832) || a.L - b.L).map(cell).join("") || '<span class="mute" style="width:auto;border:0">沒有符合的</span>';
   $("neu").innerHTML = pool.filter(isNeu).sort((a, b) => a.L - b.L).map(cell).join("");
@@ -290,7 +314,7 @@ function renderTriad() {
   const p = dom;
   if (!p) { $("tres").innerHTML = ""; return; }
   if (isNeu(p)) { $("tres").innerHTML = '<div class="card">' + esc(p.n) + " 是黑白灰或金屬色，沒有色相可以轉，請選一個有顏色的當主色。</div>"; return; }
-  const f = RANGES[+$("rng").value][1], pool = P.filter((x) => f(x) && !x.met);
+  const f = RANGES[+$("rng").value][1], pool = P.filter((x) => f(x) && !x.met && (!onlyReal() || x.real));
   const turn = (deg) => { const v = lchToLin(p.L, p.C, p.H + deg * Math.PI / 180); return {h: hexLin(v), lab: labLin(...v)}; };
   const a = turn(flip ? -120 : 120), b = turn(flip ? 120 : -120);
   const na = nearest(a.lab, pool, 3, p), nb = nearest(b.lab, pool, 3, p);
@@ -315,7 +339,15 @@ function init() {
   $("brf").innerHTML = BR.map((b) => '<label><input type="checkbox" value="' + esc(b) + '"' + (b === "AK 舊系列" || b === "Mr.Hobby" || b === "Tamiya" ? "" : " checked") + "> " + esc(b) + "</label>").join("");
   $("tgt").innerHTML = BR.map((b) => "<option" + (b === "AK 3代" ? " selected" : "") + ">" + esc(b) + "</option>").join("");
   $("setsel").innerHTML += SETS.map((s, i) => [s, i]).filter(([s]) => s[2] !== "t").map(([s, i]) => '<option value="' + i + '">' + esc(s[0] + " " + s[1]) + "</option>").join("");
-  $("rng").innerHTML = RANGES.map((r, i) => '<option value="' + i + '">' + esc(r[0]) + "</option>").join("");
+  $("rng").innerHTML = RANGES.map((r, i) => REAL || !/HP 版才有/.test(r[0]) ? '<option value="' + i + '">' + esc(r[0].replace("（HP 版才有）", "")) + "</option>" : "").join("");
+  if (REAL) {
+    const box = '<label class="opt"><input type="checkbox" id="real" checked> 只用 Stahly 色表實測過的漆（AK 3代、Citadel、Pro Acryl、Two Thin Coats、Vallejo Game／Model Color、Warpaints Fanatic；估計色碼的品牌不列）</label>';
+    $("oth").parentNode.insertAdjacentHTML("afterend", box);
+    $("vt").querySelector(".row").insertAdjacentHTML("beforeend", '<label class="opt" style="margin:0"><input type="checkbox" id="real2" checked> 只用實測色</label>');
+    $("real").onchange = () => { $("real2").checked = $("real").checked; renderMatch(); };
+    $("real2").onchange = () => { $("real").checked = $("real2").checked; dom = null; renderGrid(); renderTriad(); };
+    document.querySelector(".note").insertAdjacentHTML("beforeend", "<br>HP 版：標 ✓實測 的漆是從 Stahly 7-in-1 色表（你買的 PDF）裡塗出來的色塊取色，比估計色碼準。這份資料只在 HP 版，不放公開網站。");
+  }
   $("q").oninput = showHits;
   $("q").onfocus = showHits;
   $("hits").onclick = (e) => { const d = e.target.closest("[data-i]"); if (d) pick(P[+d.dataset.i]); };
@@ -331,7 +363,7 @@ function init() {
   $("sws").onclick = gridClick;
   $("neu").onclick = gridClick;
 }
-fetch("data/paints.json").then((r) => r.json()).then((d) => { prep(d); init(); }).catch((e) => { document.querySelector("main").insertAdjacentHTML("beforeend", '<div class="card">顏料資料載入失敗：' + esc(e) + "</div>"); });
+fetch("data/paints.json").then((r) => r.json()).then(async (d) => { prep(d); try { const r = await fetch("data/paints_stahly.json"); if (r.ok) merge(await r.json()); } catch (e) {} init(); }).catch((e) => { document.querySelector("main").insertAdjacentHTML("beforeend", '<div class="card">顏料資料載入失敗：' + esc(e) + "</div>"); });
 </script>
 </body>
 </html>

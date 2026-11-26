@@ -53,6 +53,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (HERE / "paints.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/data/paints.json":
             return self.reply(200, (HERE / "data" / "paints.json").read_bytes())
+        if self.path.split("?")[0] == "/data/paints_stahly.json" and (HERE / "data" / "paints_stahly.json").exists():   # 使用者買的 Stahly 色表實測色，只在 HP 版（gitignore）
+            return self.reply(200, (HERE / "data" / "paints_stahly.json").read_bytes())
         if self.path.split("?")[0] == "/data/leaderboard.json":
             return self.reply(200, (HERE / "data" / "leaderboard.json").read_bytes())
         # 全陣營 meta 表網頁（~/metamerge/site，2026-11-22 使用者：「接在原本的網站上」）
