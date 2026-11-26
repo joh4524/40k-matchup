@@ -270,6 +270,8 @@ class DB:
             COMM_WEAP.clear()
             COMM_WEAP.update(zc.get('weap', {}))
             COMM_WEAP[''] = zc.get('gw', {})             # 很多資料卡都一樣的（爆弹枪＝Boltgun）：全部資料卡共用
+            COMM_WEAP['gear'] = zc.get('gear', {})        # 盾、旗這類裝備的中文名
+            COMM_WEAP['s2t'] = zc.get('s2t', {})          # 黑圖書館的簡體名顯示成繁體
             COMM_WEAP['*'] = zc.get('fw', {})            # 規則翻譯批次的武器譯名：中文 → [英文]，看哪個對得到這張資料卡
         except OSError:
             pass
@@ -831,7 +833,8 @@ def bl_convert(text):
 
 def parse_list(text, db):
     ZH_GUESSED.clear()
-    if '黑图书馆' in text or '黑圖書館' in text or re.search(r'^\S.*[(（]\d+分[)）]\s*$', text, re.M):
+    bl = bool('黑图书馆' in text or '黑圖書館' in text or re.search(r'^\S.*[(（]\d+分[)）]\s*$', text, re.M))
+    if bl:
         text = bl_convert(text)
     lines = [l.replace('\t', '    ').rstrip() for l in text.replace('\r', '').split('\n')]
     out = dict(name='', faction='', points=0, units=[], unknown=[], notes=[])
@@ -892,7 +895,8 @@ def parse_list(text, db):
                 elif not sheet and int(m[2].replace(',', '')) not in (500, 1000, 2000, 3000):
                     skipped.append(st)
                 if sheet:
-                    cur = dict(sheet=sheet, name=m[1] + (f'（{sheet["name"]}）' if CJK.search(m[1]) else ''), points=int(m[2].replace(',', '')), attach=attach, role='', items=[], extra=[])
+                    shown = ''.join(COMM_WEAP.get('s2t', {}).get(c, c) for c in m[1]) if bl else m[1]
+                    cur = dict(sheet=sheet, name=shown + (f'（{sheet["name"]}）' if CJK.search(m[1]) else ''), points=int(m[2].replace(',', '')), attach=attach, role='', items=[], extra=[])
                     raw.append(cur)
                 else:
                     cur = None
@@ -1129,7 +1133,7 @@ def build_unit(u, db, out):
     gear_ab = {norm(a['name']): a['name'] for a in sheet['abil_all'] if a.get('type') == 'Wargear'}
     gear = []                                            # 盾、旗這類「裝備能力」：資料卡上的能力已經照能力算（或不影響傷害），不算「沒讀到」
     for nm in sorted(set(ignored)):
-        en = getattr(zh_glossary, 'GEAR', {}).get(nm.strip(), nm)
+        en = getattr(zh_glossary, 'GEAR', {}).get(nm.strip()) or COMM_WEAP.get('gear', {}).get(nm.strip(), nm)
         if norm(en) in gear_ab:
             gear.append(nm if en == nm else f'{nm}＝{gear_ab[norm(en)]}')
             ignored = [x for x in ignored if x != nm]

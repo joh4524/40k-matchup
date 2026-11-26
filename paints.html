@@ -51,7 +51,7 @@ th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-alig
 .note{font-size:12px;color:var(--mute);margin-top:14px}
 button.s{font:inherit;font-size:13px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
 </style>
-<script src="lists.js?v=202611270219" data-page="paints"></script>
+<script src="lists.js?v=202611270256" data-page="paints"></script>
 </head>
 <body>
 <main>
@@ -363,7 +363,7 @@ function init() {
   $("sws").onclick = gridClick;
   $("neu").onclick = gridClick;
 }
-fetch("data/paints.json").then((r) => r.json()).then(async (d) => { prep(d); try { const r = await fetch("data/paints_stahly.json"); if (r.ok) merge(await r.json()); } catch (e) {} init(); }).catch((e) => { document.querySelector("main").insertAdjacentHTML("beforeend", '<div class="card">顏料資料載入失敗：' + esc(e) + "</div>"); });
+fetch("data/paints.json").then((r) => r.json()).then(async (d) => { prep(d); if (!/github\.io$/.test(location.hostname)) { try { const r = await fetch("data/paints_stahly.json"); if (r.ok) merge(await r.json()); } catch (e) {} } init(); }).catch((e) => { document.querySelector("main").insertAdjacentHTML("beforeend", '<div class="card">顏料資料載入失敗：' + esc(e) + "</div>"); });
 </script>
 </body>
 </html>

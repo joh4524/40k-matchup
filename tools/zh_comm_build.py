@@ -38,6 +38,30 @@ ZHN = re.compile(r'^[\u4e00-\u9fff][\u4e00-\u9fff·・\-（）()A-Za-z0-9 ]{0,24
 ROW2 = re.compile(r'^(\S.*?)\s+(近战|\d+"?|N/A)\s+(D?\d+(?:D\d+)?(?:\+\d+)?|D\d+|\d+)\s+(\d\+|N/A|-)\s+(\d+)\s+(-?\d+|0)\s+(D?\d+(?:\+\d+)?|D\d+)\b')
 
 
+# 黑圖書館軍表實測時對不上、手動對照的（2026-11-27，照英文資料卡武器名；⚠️＝照意思猜的）
+MANUAL_GLOBAL = {'自动手枪': 'Autopistol', '野蛮近战武器': 'Brutal assault weapon', '重型近战武器': 'Heavy melee weapon', '防御阵列': 'Defensive Array',
+                 '诅咒武器': 'Accursed weapon', '等离子手枪': 'Plasma pistol', '爆矢手枪': 'Bolt pistol', '爆弹手枪': 'Bolt pistol', '激光手枪': 'Laspistol',
+                 '格斗武器': 'Close combat weapon', '热熔枪': 'Meltagun', '等离子枪': 'Plasma gun'}
+MANUAL = {
+    'Land Speeder': {'焚焰炮': 'Pyrecannon'},
+    'Lychguard': {'超相位剑': 'Hyperphase sword'},
+    'C’tan Shard of the Nightbringer': {'拥夜者之镰': 'Scythe of the Nightbringer', '死亡凝视': 'Gaze of death'},
+    'Nekrosor Ammentar': {'敌意瓦解器': 'Enmitic disintegrators', '泯灭拳套': 'Unmaker Gauntlet', '刃尾与鞭击': 'Blade tail and whip coils'},
+    'Skorpekh Destroyers': {'荒蝎超相位武器': 'Skorpekh hyperphase weapons'},
+    'Skorpekh Lord': {'超相位掠命剑': 'Hyperphase harvester', '剥皮爪': 'Flensing claw', '憎火歼灭炮': 'Enmitic annihilator'},
+    'Imotekh the Stormlord': {'火焰臂铠': 'Gauntlet of Fire', '毁灭者之杖': 'Staff of the Destroyer'},
+    'Mutilators': {'魔钢共生武器': 'Fleshmetal weapons'},
+    'Khorne Lord Of Skulls': {'恐虐巨斧': 'Great cleaver of Khorne', '颅骨大炮': 'Skullhurler', '魔血加农炮': 'Daemongore cannon'},   # ⚠️ 魔血＝Daemongore 照意思
+    'Masters of the Maelstrom': {'隆达西致残枪': 'Londaxi maimer', '还原者阵列': 'Reductor array', '终结之斧': 'Axe of Ending', '精神扭曲': 'Mind Wrench',
+                                 '灵能权杖': 'Force stave', '机械拳套': 'Bionic gauntlet', '动力佩剑': 'Power sabre', '赦免者爆矢手枪': 'Absolvor bolt pistol'},
+    'Huron Blackheart': {'暴君之爪重型火焰喷射器': 'Tyrant’s Claw heavy flamer', '暴君之爪与神尊动力武器': 'Tyrant’s Claw and exalted power weapon'},
+    'Kravek Morne': {'灾厄火焰喷射器': 'Baleflamer', '复合爆矢枪': 'Combi-bolter', '最终辩词和动力拳': 'Last Argument and power fist', '伺服触须': 'Servo-harness'},
+    'Defiler': {'剪切爪': 'Shearing claws', '岩浆切割器': 'Magma cutters', '魂浆破坏炮': 'Ectoplasma destructor', '重型死神自动炮': 'Heavy reaper autocannon'},
+    'Lord Discordant on Helstalker': {'地狱爬行者自动炮': 'Helstalker autocannon', '科技病毒注射器': 'Techno-virus injector', '钢铁利爪': 'Bladed limbs',   # ⚠️ 钢铁利爪＝Bladed limbs 照意思
+                                      '穿刺者长刀': 'Impaler chainglaive'},
+}
+GEAR = {'折射盾': 'Dispersion Shield', '虚无石力场生成器': 'Nullstone Field Generator (Aura)', '等离子虫': 'Plasmacyte', '混沌圣旗': 'Chaos Icon', '复活宝珠': 'Resurrection Orb'}
+
 KW_WORDS = {'反步兵', '速射', '致命一击', '爆炸', '手枪', '热熔', '重型', '突击', '持续命中', '毁灭伤害', '精准', '忽视掩体', '喷射', '双联', '间接火力', '危险', '反载具', '反巨兽', '额外攻击', '骑枪', '无', '技能'}
 
 
@@ -189,10 +213,26 @@ def main():
         c = [r['name'] for r in drows if r['faction_id'] == fid and r.get('dp') == dp and r['name'] not in taken]
         if len(c) == 1:
             det[zh] = c[0]; taken.add(c[0])
+    for zh, en in MANUAL_GLOBAL.items():
+        glob_w[zh] = en
+    for sh, m in MANUAL.items():
+        s = db.find(sh, None)
+        if s:
+            weap.setdefault(s['name'], {}).update(m)
+        else:
+            print('手動對照的資料卡找不到', sh)
     for zh, ens in alias.items():
         if zh not in units and len(ens) == 1:
             units[zh] = sorted(ens)
-    json.dump(dict(src='~/warhammer-zh/rules-txt 社群中文規則書（只取名字）', units=units, weap=weap, gw=glob_w, fw=fw, det=det, enh=enh),
+    # 黑圖書館是簡體：網頁顯示時轉繁體用的單字對照（只收名字裡出現的字）
+    s2t_map = {}
+    try:
+        s2t = OpenCC('s2t').convert
+        chars = set(''.join(list(units) + [z for wm in weap.values() for z in wm] + list(glob_w) + list(fw) + list(det) + list(enh) + list(GEAR)))
+        s2t_map = {c: s2t(c) for c in sorted(chars) if s2t(c) != c}
+    except Exception:
+        pass
+    json.dump(dict(src='~/warhammer-zh/rules-txt 社群中文規則書（只取名字）', s2t=s2t_map, units=units, weap=weap, gw=glob_w, fw=fw, det=det, enh=enh, gear=GEAR),
               open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print(f"翻譯批次來的：武器 {len(fw)}、分隊 {len(det)}、強化 {len(enh)}；全域武器名 {len(glob_w)}；單位 {len(units)} 個中文名；武器列 {rows}，對上 {mapped}，武器名 {sum(map(len, weap.values()))}")
     for k, v in per.items():
