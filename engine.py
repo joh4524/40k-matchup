@@ -271,6 +271,7 @@ class DB:
             COMM_WEAP.update(zc.get('weap', {}))
             COMM_WEAP[''] = zc.get('gw', {})             # 很多資料卡都一樣的（爆弹枪＝Boltgun）：全部資料卡共用
             COMM_WEAP['gear'] = zc.get('gear', {})        # 盾、旗這類裝備的中文名
+            COMM_WEAP['mdl'] = zc.get('mdl', {})          # 英文資料卡名 → {黑圖書館中文模型名: 英文模型名}（士官、旗手這種行不是武器）
             COMM_WEAP['s2t'] = zc.get('s2t', {})          # 黑圖書館的簡體名顯示成繁體
             COMM_WEAP['*'] = zc.get('fw', {})            # 規則翻譯批次的武器譯名：中文 → [英文]，看哪個對得到這張資料卡
         except OSError:
@@ -338,7 +339,9 @@ class DB:
     def sheets_named(self, name):
         """這個名字（英文或中文）對得上的所有資料卡。中文名可能對到兩個陣營的同名單位。"""
         out = []
-        for en in self.zh.get(norm(name), [name]):
+        # 黑圖書館鈦帝國的單位名前面帶型號：(TY7)魔鬼鱼、(XV88)炮击战斗服小队 → 先照原名找，找不到再去掉型號
+        bare = re.sub(r'^[(（][A-Za-z0-9-]+[)）]\s*', '', name or '')
+        for en in self.zh.get(norm(name)) or self.zh.get(norm(bare)) or [name]:
             n = norm(en)
             # 官方點數頁和資料卡的寫法有時差一個 s（Vyper／Vypers）；混沌泰坦在資料卡裡只有不帶 Chaos 的那張
             for cand in (n, n.rstrip('s'), n + 's', n[6:] if n.startswith('chaos ') and n.endswith('titan') else n):
@@ -946,7 +949,8 @@ def parse_list(text, db):
                 g['name'] = tw(g['name'])
     out['points'] = sum(u['points'] for u in out['units'])
     out['warn'] = []
-    if declared and out['units'] and declared != out['points']:
+    # 黑圖書館軍表廣場有人表頭填 0 分、1 分（不是真的總分）：小於 100 的不拿來比
+    if declared and declared >= 100 and out['units'] and declared != out['points']:
         out['warn'].append(f'軍表表頭寫 {declared} 分，讀到的單位加起來 {out["points"]} 分，差 {declared - out["points"]} 分：可能有單位沒讀到或分數讀錯'
                            + (f'（這幾行沒當成單位：{"、".join(skipped)}）' if skipped else ''))
     for u in out['units']:
@@ -996,13 +1000,20 @@ def zh_guess(name, cands):
 def match_weapon(name, sheet):
     if CJK.search(name):
         cw = COMM_WEAP.get(sheet['name'], {})
+        # 黑圖書館有時把量詞黏在武器名前面：「把重型爆矢枪」「2个酷刑炮」
+        name = re.sub(r'^(?:把|[0-9一二两三四]+\s*[个把门挺具支])(?=\S{2})', '', name.strip())
         key = re.sub(r'\s+', '', name)
-        near = cw.get(key) or next(iter(difflib.get_close_matches(key, list(cw), 1, 0.6)), None)
+        if key in COMM_WEAP.get('mdl', {}).get(sheet['name'], {}):
+            return None
+        # 「A和B」是兩把武器，不拿來找近似名（教徒枪支和近战武器 不是 教徒枪支）
+        near = cw.get(key) or (None if '和' in key else next(iter(difflib.get_close_matches(key, list(cw), 1, 0.6)), None))
         if near and not cw.get(key) and not COMM_WEAP.get('', {}).get(key):
             ZH_GUESSED.add((sheet['name'], name.strip(), cw[near]))
         comm = cw.get(key) or COMM_WEAP.get('', {}).get(key) or (cw[near] if near else None)
         ens = [e for e in (comm, zh_glossary.WEAPONS.get(name.strip()), ZH_WARGEAR.get(name.strip())) if e]
         ens = [e for e in COMM_WEAP.get('*', {}).get(key, []) if e not in ens] + ens
+        if cw.get(key):                                  # 這張資料卡自己就有這個中文名（規則書照數值對的、或黑圖書館實測對過的）：只用它
+            ens = [cw[key]]
         if not ens:
             names = {}
             for w in sheet['weapons']:
@@ -1031,7 +1042,7 @@ def match_weapon(name, sheet):
 
 def match_model(name, sheet):
     if CJK.search(name):
-        name = getattr(zh_glossary, 'MODELS', {}).get(name.strip(), name)
+        name = COMM_WEAP.get('mdl', {}).get(sheet['name'], {}).get(name.strip()) or getattr(zh_glossary, 'MODELS', {}).get(name.strip(), name)
     n = norm(name).rstrip('s')
     for m in sheet['models']:                            # 先找完全同名（Scout 和 Scout Sergeant 要分得開）
         if norm(m['name']).rstrip('s') == n:
@@ -1046,6 +1057,11 @@ def match_model(name, sheet):
 def split_combo(name):
     """'2 Lascannons and 2 Twin Heavy Bolters' → [(2, 'Lascannons'), (2, 'Twin Heavy Bolters')]"""
     out = []
+    if CJK.search(name) and '和' in name:                # 黑圖書館：「1把等离子手枪和1把动力武器」
+        for part in name.split('和'):
+            m = re.match(r'(\d+)\s*[把个门挺具支]?(.+)', part.strip())
+            out.append((int(m[1]), m[2]) if m else (1, part.strip()))
+        return out
     for part in re.split(r'\s+and\s+', name):
         m = re.match(r'(\d+)\s+(.+)', part.strip())
         out.append((int(m[1]), m[2]) if m else (1, part.strip()))
@@ -1083,9 +1099,15 @@ def build_unit(u, db, out):
     nested = any(it['ind'] > top and it['bullet'] for it in items)
 
     def weapons_of(it):
+        # 黑圖書館「1x 2个酷刑炮」＝2 門（資料卡寫 2 excruciator cannons）：中文名前面的數字要乘進去
+        m = re.match(r'^([0-9]+)\s*[个把门挺具支](?=\S{2})', it['name'].strip()) if CJK.search(it['name']) else None
+        if m:
+            it = dict(it, n=it['n'] * int(m[1]), name=it['name'].strip()[m.end():])
         profs = match_weapon(it['name'], sheet)
         if profs:
             return [(it['n'], profs)]
+        if re.sub(r'\s+', '', it['name']) in COMM_WEAP.get('mdl', {}).get(sheet['name'], {}):
+            return None
         parts = [(n, match_weapon(nm, sheet)) for n, nm in split_combo(it['name'])]
         return [(it['n'] * n, p) for n, p in parts] if len(parts) > 1 and all(p for n, p in parts) else None
 

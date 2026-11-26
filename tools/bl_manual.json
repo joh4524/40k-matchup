@@ -1,0 +1,829 @@
+{
+ "_note": "黑圖書館 12 陣營實測軍表（二號 11/27 匯出）的中文名對照；Sonnet 從資料卡清單挑、主機器人抽查 30 筆＋全部 guess 看過。guess 的值前面不加記號，清單在 guess 欄。",
+ "weap": {
+  "Canoness": {
+   "地狱火手枪": "Inferno pistol",
+   "链锯剑": "Hallowed Chainsword"
+  },
+  "Castigator": {
+   "惩戒者自动炮": "Castigator autocannons",
+   "猎歼导弹": "Hunter-killer missile",
+   "重型爆矢枪": "Heavy bolter",
+   "风暴爆矢枪": "Storm bolter"
+  },
+  "Dominion Squad": {
+   "教廷火焰手枪": "Ministorum hand flamer",
+   "教廷火焰喷射器": "Ministorum flamer"
+  },
+  "Exorcist": {
+   "猎歼导弹": "Hunter-killer missile",
+   "驱魔人导弹发射器": "Exorcist missile launcher",
+   "重型爆矢枪": "Heavy bolter"
+  },
+  "Intranzia Fraye": {
+   "圣普拉克塞蒂斯之权杖": "Mace of Saint Praxedes",
+   "教廷重型火焰喷射器": "Ministorum heavy flamer",
+   "热熔导弹阵列": "Melta missile array",
+   "责难圣座": "Throne of Blame",
+   "重型爆矢枪": "Heavy bolter"
+  },
+  "Morvenn Vahl": {
+   "忠贞": "Fidelis",
+   "楷模导弹发射器": "Paragon missile launcher",
+   "流光长枪": "Lance of Illumination"
+  },
+  "Paragon Warsuits": {
+   "楷模战刃": "Paragon war blade",
+   "楷模榴弹发射器": "Paragon grenade launchers",
+   "重型爆矢枪": "Heavy bolter"
+  },
+  "Sisters Novitiate Squad": {
+   "教廷火焰喷射器": "Ministorum flamer",
+   "近战武器": "Novitiate melee weapons"
+  },
+  "Ahriman": {
+   "地狱火爆矢手枪": "Inferno bolt pistol",
+   "篡变冲击波": "Transmogrifying Blast",
+   "阿里曼的黑杖": "Black Staff of Ahriman"
+  },
+  "Exalted Sorcerer on Disc of Tzeentch": {
+   "地狱火爆矢手枪": "Inferno bolt pistol",
+   "奥术烈焰": "Arcane Fire",
+   "灵能武器": "Force weapon"
+  },
+  "Rubric Marines": {
+   "亚空间火焰喷射器": "Warpflamer",
+   "凶煞诅咒": "Malefic Curse",
+   "地狱火爆矢手枪": "Inferno bolt pistol",
+   "地狱火爆矢枪": "Inferno boltgun",
+   "灵魂收割者炮": "Soulreaper cannon",
+   "灵能武器": "Force weapon"
+  },
+  "Scarab Occult Terminators": {
+   "凶煞诅咒": "Malefic Curse",
+   "地狱火复合爆矢枪": "Inferno combi-bolter",
+   "地狱火导弹架": "Hellfyre missile rack",
+   "普罗斯佩罗弯刀": "Prosperine khopesh",
+   "灵能武器": "Force weapon"
+  },
+  "Angron": {
+   "丧尼阿锐斯和碾脊者": "Samni’arius and Spinegrinder"
+  },
+  "Defiler": {
+   "酷刑炮": "Excruciator cannon",
+   "哈迪斯战斗炮": "Hades battle cannon"
+  },
+  "Goremongers": {
+   "近战格斗武器": "Close combat weapon",
+   "链近战格斗武器锯刃": "Chainblade"
+  },
+  "Jakhals": {
+   "碎颅者": "Skullsmasher and mangler",
+   "重拳链锯刃": "Mauler chainblade",
+   "裂伤者链锯刃": "Chainblades"
+  },
+  "Aberrants": {
+   "畸变体武器": "Aberrant weapons"
+  },
+  "Goliath Rockgrinder": {
+   "炸药爆破储藏": "Demolition charge cache",
+   "碎岩翻斗齿刃": "Drilldozer blade"
+  },
+  "Goliath Truck": {
+   "炸药爆破储藏": "Demolition charge cache"
+  },
+  "Hybrid Metamorphs": {
+   "变种畸化武器": "Metamorph mutations",
+   "领袖生物武器": "Leader’s bio-weapons",
+   "手持火焰喷射器": "Hand flamer"
+  },
+  "Patriarch": {
+   "族长利爪": "Patriarch’s claws"
+  },
+  "Purestrain Genestealers": {
+   "教团利爪": "Cult claws and talons"
+  },
+  "Callidus Assassin": {
+   "相位剑与毒刃": "Phase sword and poison blades",
+   "神经粉碎枪": "Neural shredder"
+  },
+  "Imperial Navy Breachers": {
+   "海军激光齐射枪": "Navis las-volley",
+   "海军重型霰弹枪": "Navis heavy shotgun",
+   "海军霰弹枪": "Navis shotgun"
+  },
+  "Inquisitor": {
+   "审判庭近战武器": "Inquisitorial melee weapon"
+  },
+  "Inquisitor Draxus": {
+   "动力拳套": "Power fist",
+   "哀悼歌者": "Dirgesinger",
+   "灵能风暴": "Psychic Tempest"
+  },
+  "Inquisitor Kroyle": {
+   "利爪巨蜥的尖牙利爪": "Garralisk's claws and teeth",
+   "屠夫之刃": "Butcher blade",
+   "短筒卡宾枪": "Stubcarbine",
+   "金达里剧毒循环枪": "Jindarii tox-cycler"
+  },
+  "Inquisitorial Agents": {
+   "开膛剑": "Eviscerator",
+   "特勤枪械": "Agent firearm",
+   "特勤近战武器": "Agent melee weapon",
+   "秘术师法杖": "Mystic stave"
+  },
+  "Inquisitorial Chimera": {
+   "激光枪列阵": "Lasgun array"
+  },
+  "Navigator": {
+   "灵能法球手杖": "Force-orb cane"
+  },
+  "Rogue Trader Entourage": {
+   "伏打手枪": "Voltaic pistol",
+   "传家手枪": "Household pistol",
+   "单分子杖剑": "Monomolecular cane-rapier",
+   "死亡教派动力剑": "Death Cult power blade",
+   "雷射手枪": "Laspistol",
+   "飞镖面具": "Dartmask"
+  },
+  "Sisters of Battle Immolator": {
+   "献祭者火焰喷射器": "Immolation flamers"
+  },
+  "Subductor Squad": {
+   "机械啃咬": "Mechanical bite",
+   "裁决官霰弹手枪": "Arbites shotpistol",
+   "震慑之棰": "Shock maul"
+  },
+  "Vindicare Assassin": {
+   "文迪卡格斗刀": "Vindicare combat knife",
+   "致死手枪": "Exitus pistol",
+   "致死步枪": "Exitus rifle"
+  },
+  "Artillery Team": {
+   "多重火箭发射器": "Multiple rocket launcher",
+   "炮手格斗武器": "Crew close combat weapons"
+  },
+  "Catachan Heavy Weapons Squad": {
+   "武器小组近战武器": "Weapons team close combat weapons"
+  },
+  "Gaunt’s Ghosts": {
+   "拉金的激光狙击枪": "Larkin’s long-las",
+   "银色直刀": "Straight silver knife",
+   "默克的银色直刀": "Mkoll’s straight silver knife",
+   "考伯克的高能激光卡宾枪": "Corbec’s hot-shot lascarbine",
+   "布拉格的自动炮": "Bragg’s autocannon",
+   "拉文的激光卡宾枪": "Rawne’s lascarbine",
+   "激光卡宾枪": "Lascarbine"
+  },
+  "Krieg Combat Engineers": {
+   "战壕铁棍": "Trench club"
+  },
+  "Tempestus Aquilons": {
+   "热射卡宾枪": "Hot-shot lascarbine",
+   "哨戎喷火器": "Sentry flamer"
+  },
+  "Ballistus Dreadnought": {
+   "射手导弹发射器": "Ballistus Missile Launcher",
+   "装甲铁脚": "Armoured Feet"
+  },
+  "Captain Titus": {
+   "大师级爆弹枪": "Master-crafted Bolter"
+  },
+  "Company Heroes": {
+   "精工重型爆弹枪": "Master-crafted Heavy Bolter",
+   "精工爆弹步枪": "Master-crafted Bolt Rifle"
+  },
+  "Sternguard Veteran Squad": {
+   "精工武器": "Artificer Firearm"
+  },
+  "Wardens of Ultramar": {
+   "星语者冲击波": "Astropathic Blast",
+   "灵能杖": "Force Stave",
+   "爆弹步枪": "Bolt Rifle"
+  },
+  "Chaos Cerastus Knight Lancer": {
+   "冲击骑枪": "Cerastus shock lance"
+  },
+  "War Dog Brigand": {
+   "复仇者链炮": "Avenger chaincannon",
+   "恶魔重机枪": "Diabolus heavy stubber",
+   "装甲巨足": "Armoured feet",
+   "魔息矛": "Daemonbreath spear"
+  },
+  "War Dog Executioner": {
+   "恶魔重机枪": "Diabolus heavy stubber",
+   "战犬自动炮": "War Dog autocannon",
+   "装甲巨足": "Armoured feet"
+  },
+  "War Dog Stalker": {
+   "复仇者链炮": "Avenger chaincannon",
+   "恶魔重机枪": "Diabolus heavy stubber",
+   "杀戮爪": "Slaughterclaw"
+  },
+  "Brotherhood Terminator Squad": {
+   "天罚灵能武器": "Nemesis force weapon"
+  },
+  "Castellan Crowe": {
+   "净化烈焰": "Purifying Flame",
+   "安特维⿊剑": "Black Blade of Antwyr"
+  },
+  "Grand Master": {
+   "天罚灵能武器": "Nemesis force weapon"
+  },
+  "Grand Master In Nemesis Dreadknight": {
+   "升华炮": "Sublimator",
+   "天罚屠魔巨锤": "Nemesis daemon greathammer"
+  },
+  "Interceptor Squad": {
+   "天罚灵能武器": "Nemesis force weapon"
+  },
+  "Purifier Squad": {
+   "净化烈焰": "Purifying Flame",
+   "天罚灵能武器": "Nemesis force weapon"
+  },
+  "Razorback": {
+   "猎杀导弹": "Hunter-killer missile"
+  },
+  "Strike Squad": {
+   "天罚灵能武器": "Nemesis force weapon"
+  },
+  "Arkanyst Evaluator": {
+   "物质转换逆变器": "Transmatter inverter"
+  },
+  "Brôkhyr Thunderkyn": {
+   "聚焦转换光线炮": "SP conversion beamer"
+  },
+  "Buri Aegnirssen": {
+   "基岩型爆矢手枪": "Autoch-pattern bolt pistol",
+   "天灾": "Bane"
+  },
+  "Einhyr Hearthguard": {
+   "外骨骼装甲榴弹发射器": "Exoarmour grenade launcher",
+   "艾塔-卡恩等离子枪": "EtaCarn plasma gun",
+   "重力子巨锤": "Graviton hammer",
+   "震荡拳甲": "Concussion gauntlet"
+  },
+  "Hekaton Land Fortress": {
+   "玛特尔自动炮": "MATR autocannon",
+   "聚能重型转换光束炮": "SP heavy conversion beamer",
+   "装甲车轮": "Armoured wheels",
+   "双联爆矢炮": "Twin bolt cannon"
+  },
+  "Hernkyn Pioneers": {
+   "爆矢左轮手枪": "Bolt revolver",
+   "电磁线圈自动炮": "Magna-coil autocannon",
+   "高能激光转轮炮": "HYLas rotary cannon",
+   "爆矢霰弹枪": "Bolt shotgun",
+   "等离子匕首": "Plasma knife"
+  },
+  "Hernkyn Yaegirs": {
+   "APM发射器": "APM launcher",
+   "电磁线圈步枪": "Magna-coil rifle",
+   "爆矢霰弹枪": "Bolt shotgun"
+  },
+  "Kapricus Carrier": {
+   "双联电磁线圈自动炮": "Twin magna-coil autocannon",
+   "电磁线圈自动炮": "Magna-coil autocannon",
+   "装甲车身": "Armoured hull"
+  },
+  "Kapricus Defenders": {
+   "双联电磁线圈自动炮": "Twin magna-coil autocannon",
+   "装甲车身": "Armoured hull",
+   "高能激光转轮炮": "HYLas rotary cannon"
+  },
+  "Kâhl": {
+   "爆燃解离枪": "Volkanite disintegrator",
+   "质量拳甲": "Mass gauntlet"
+  },
+  "Memnyr Strategist": {
+   "基岩型爆矢手枪": "Autoch-pattern bolt pistol"
+  },
+  "Ûthar the Destined": {
+   "先祖之刃": "Blade of the Ancestors",
+   "爆燃解离枪": "Volkanite disintegrator"
+  },
+  "Breacher Team": {
+   "脉冲爆裂枪": "Pulse blaster",
+   "脉冲手枪": "Pulse pistol"
+  },
+  "Broadside Battlesuits": {
+   "寻觅者导弹": "Seeker missile",
+   "粉碎冲撞": "Crushing bulk",
+   "重型磁轨枪": "Heavy rail rifle",
+   "并联智能导弹系统": "Twin smart missile system",
+   "集束导弹仓": "High-yield missile pods"
+  },
+  "Cadre Fireblade": {
+   "火刃脉冲步枪": "Fireblade pulse rifle"
+  },
+  "Commander Farsight": {
+   "高能等离子步枪": "High-intensity plasma rifle"
+  },
+  "Crisis Sunforge Battlesuits": {
+   "融合炮": "Fusion blaster",
+   "战斗服铁拳": "Battlesuit fists"
+  },
+  "Darkstrider": {
+   "暗影": "Shade"
+  },
+  "Ghostkeel Battlesuit": {
+   "并联融合炮": "Twin fusion blaster",
+   "循环离子纵射炮": "Cyclic ion raker",
+   "鬼覆铁拳": "Ghostkeel fists"
+  },
+  "Kroot Carnivores": {
+   "克鲁特卡宾枪": "Kroot carbine",
+   "克鲁特手枪": "Kroot pistol",
+   "纠缠炸弹发射器": "Tanglebomb launcher"
+  },
+  "Kroot War Shaper": {
+   "三刃镖弓": "Dart-bow and tri-blade",
+   "克鲁特手枪": "Kroot pistol"
+  },
+  "Pathfinder Team": {
+   "半自动榴弹发射器": "Semi-automatic grenade launcher",
+   "脉冲卡宾": "Pulse carbine",
+   "磁轨步枪": "Rail rifle",
+   "脉冲手枪": "Pulse pistol"
+  },
+  "The Twin Lance": {
+   "破片风暴速射系统": "Shardstorm burst system",
+   "离子散射炮": "Ion scattercannon",
+   "融合歼灭者": "Fusion eliminator"
+  },
+  "Bladeguard Ancient": {
+   "战斗圣物": "Relics of Battle"
+  },
+  "Emperor’s Champion": {
+   "黑剑": "Black Sword"
+  },
+  "High Marshal Helbrecht": {
+   "热忱": "Ferocity",
+   "至高大元帅之剑": "Sword of the High Marshals"
+  },
+  "Incursor Squad": {
+   "一对战斗刀": "Paired Combat Blades"
+  },
+  "Reiver Squad": {
+   "特殊弹药爆弹手枪": "Special-issue Bolt Pistol"
+  },
+  "Hellblaster Squad": {
+   "等离子焚焰枪": "Plasma Incinerator"
+  },
+  "Immolator": {
+   "猎歼导弹": "Hunter-killer missile",
+   "献祭火焰喷射器": "Immolation flamers",
+   "重型爆矢枪": "Heavy bolter"
+  },
+  "Chaos Terminators": {
+   "复合爆矢枪": "Combi-bolter",
+   "死神自动炮": "Reaper autocannon"
+  },
+  "Master of Executions": {
+   "肢解斧": "Axe of dismemberment"
+  },
+  "Slaughterbound": {
+   "撕裂剑和恶魔刃": "Lacerator and daemonic claw"
+  },
+  "Abominant": {
+   "动力破城锤": "Power sledgehammer"
+  },
+  "Acolyte Hybrids With Hand Flamers": {
+   "教团之爪与匕首": "Cult claws and knife"
+  },
+  "Benefictus": {
+   "灵能激流": "Psionic Cascade"
+  },
+  "Biophagus": {
+   "化学剂瓶": "Chemical vials",
+   "注射针棒": "Injector goad"
+  },
+  "Neophyte Hybrids": {
+   "投网枪": "Webber",
+   "教徒枪支": "Hybrid firearm",
+   "采矿用激光": "Mining laser",
+   "榴弹发射器": "Grenade launcher"
+  },
+  "Watch Captain Artemis": {
+   "终极地狱火": "Hellfire Extremis"
+  },
+  "Devilfish": {
+   "寻觅者导弹": "Seeker missile",
+   "挂载爆裂速射炮": "Accelerator burst cannon",
+   "智能导弹系统": "Smart missile system"
+  },
+  "Stealth Battlesuits": {
+   "爆裂速射炮": "Burst cannon",
+   "融合炮": "Fusion blaster",
+   "战斗服铁拳": "Battlesuit fists",
+   "脉冲手枪": "Pulse pistol"
+  },
+  "Sorcerer In Terminator Armour": {
+   "地狱火复合武器": "Inferno combi-weapon",
+   "灵能武器": "Force weapon",
+   "燃烧烈焰": "Gaze of Hate"
+  },
+  "Khorne Berzerkers": {
+   "恐虐开膛刃": "Khornate eviscerator",
+   "狂战士链锯刃": "Chainblade"
+  },
+  "Victrix Honour Guard": {
+   "大师级爆弹卡宾枪": "Master-crafted Bolt Carbine"
+  },
+  "Hexmark Destroyer": {
+   "憎火裂解者手枪": "Enmitic disintegrator pistols"
+  },
+  "Plasmancer": {
+   "离子长枪": "Plasmic lance"
+  }
+ },
+ "mdl": {
+  "Dominion Squad": {
+   "御天使": "Dominion Squad",
+   "御天使队长": "Dominion Squad"
+  },
+  "Paragon Warsuits": {
+   "楷模": "Paragon Warsuits",
+   "楷模队长": "Paragon Warsuits"
+  },
+  "Sisters Novitiate Squad": {
+   "见习修女": "SISTER NOVITIATE",
+   "见习队长": "NOVITIATE SUPERIOR"
+  },
+  "Zephyrim Squad": {
+   "风天使": "Zephyrim Squad",
+   "风天使队长": "Zephyrim Squad"
+  },
+  "Rubric Marines": {
+   "红字战士": "Rubric Marine",
+   "野心巫师": "Aspiring Sorcerer"
+  },
+  "Scarab Occult Terminators": {
+   "圣甲虫巫师": "Scarab Occult Sorcerer",
+   "圣甲虫终结者": "Scarab Occult Terminator"
+  },
+  "Exalted Eightbound": {
+   "高阶八缚者": "Exalted Eightbound",
+   "高阶八缚者勇士": "Exalted Eightbound"
+  },
+  "Goremongers": {
+   "洒血狂特工": "Goremonger",
+   "洒血狂鲜血使者": "Goremonger"
+  },
+  "Jakhals": {
+   "蒙羞者": "Jakhals",
+   "裂伤者": "Jakhals",
+   "裂伤者首领": "Jakhals"
+  },
+  "Khorne Berzerkers": {
+   "恐虐狂战士": "Khorne Berzerkers",
+   "恐虐狂战士勇士": "Khorne Berzerkers"
+  },
+  "Aberrants": {
+   "超畸变体": "Aberrants"
+  },
+  "Achilles Ridgerunners": {
+   "阿基里斯山地车": "Achilles Ridgerunners"
+  },
+  "Hybrid Metamorphs": {
+   "变种领袖": "Hybrid Metamorphs",
+   "混血变种": "Hybrid Metamorphs"
+  },
+  "Purestrain Genestealers": {
+   "纯血基因窃取者": "Purestrain Genestealers"
+  },
+  "Imperial Navy Breachers": {
+   "海军武装军士": "Imperial Navy Breachers",
+   "海军船兵": "Imperial Navy Breachers"
+  },
+  "Inquisitorial Agents": {
+   "审判官特勤": "Inquisitorial Agents",
+   "枪炮奴工": "Inquisitorial Agents"
+  },
+  "Rogue Trader Entourage": {
+   "书记学士": "OTHER MODELS",
+   "死亡教派刺客": "OTHER MODELS",
+   "活力恢复专家": "OTHER MODELS",
+   "行商": "ROGUE TRADER"
+  },
+  "Sisters of Battle Squad": {
+   "战斗修女": "Battle Sisters Squad",
+   "高阶修女": "Battle Sisters Squad"
+  },
+  "Subductor Squad": {
+   "冲覆者": "Subductor Squad",
+   "冲覆者监官": "Subductor Squad",
+   "赛博獒犬": "Subductor Squad"
+  },
+  "Cadian Command Squad": {
+   "指挥官": "CADIAN COMMANDER",
+   "老兵": "CADIAN VETERAN GUARDSMAN",
+   "装备激光枪和兵团旗帜的老兵": "CADIAN VETERAN GUARDSMAN",
+   "装备激光枪和医疗包的老兵": "CADIAN VETERAN GUARDSMAN",
+   "装备激光枪和音阵总台的老兵": "CADIAN VETERAN GUARDSMAN"
+  },
+  "Cadian Recon Squad": {
+   "卡迪亚侦察中士士官": "Cadian Recon Squad",
+   "卡迪亚侦察兵": "Cadian Recon Squad"
+  },
+  "Cadian Shock Troops": {
+   "士官": "Cadian Shock Troops",
+   "突击兵": "Cadian Shock Troops"
+  },
+  "Catachan Heavy Weapons Squad": {
+   "重型武器小组": "Catachan Heavy Weapons Squad"
+  },
+  "Gaunt’s Ghosts": {
+   "刚特政委": "IBRAM GAUNT",
+   "塔尼斯幽灵": "TANITH GHOST"
+  },
+  "Krieg Combat Engineers": {
+   "克里格工兵监军": "Krieg Combat Engineers",
+   "克里格战斗工兵": "Krieg Combat Engineers"
+  },
+  "Militarum Tempestus Command Squad": {
+   "暴风兵": "TEMPESTUS SCION",
+   "暴风兵指挥官": "TEMPESTOR PRIME"
+  },
+  "Tempestus Aquilons": {
+   "飞鹰士官": "Tempestus Aquilons",
+   "飞鹰空降兵": "Tempestus Aquilons"
+  },
+  "Tempestus Scions": {
+   "暴风兵": "Tempestus Scions",
+   "暴风兵士官": "Tempestus Scions"
+  },
+  "Bladeguard Veteran Squad": {
+   "剑卫老兵": "Bladeguard Veteran",
+   "剑卫老兵士官": "Bladeguard Veteran Sergeant"
+  },
+  "Company Heroes": {
+   "旗手": "Ancient",
+   "连队冠军": "Company Champion",
+   "连队老兵A": "Company veteran with bolt rifle",
+   "连队老兵B": "Company Veteran with heavy bolter"
+  },
+  "Hellblaster Squad": {
+   "地狱轰击者": "Hellblaster",
+   "地狱轰击者士官": "Hellblaster Sergeant"
+  },
+  "Infernus Squad": {
+   "焚狱者": "Infernus Marine",
+   "焚狱者士官": "Infernus Sergeant"
+  },
+  "Outrider Squad": {
+   "先遣者士官": "Outrider Sergeant",
+   "先遣者摩托": "Outrider"
+  },
+  "Sternguard Veteran Squad": {
+   "肃卫老兵": "Sternguard Veteran",
+   "肃卫老兵士官": "Sternguard Veteran Sergeant"
+  },
+  "Victrix Honour Guard": {
+   "常胜护卫": "Victrix Honour Guard",
+   "连队勇士": "Chapter Champion",
+   "连队旗手": "Chapter Ancient"
+  },
+  "Wardens of Ultramar": {
+   "丹尼尔·科内留斯": "Dainal Komelius",
+   "埃米莉亚·密涅瓦斯": "Aemelia Minervas",
+   "旗手加德里尔": "Ancient Gadriel",
+   "盖乌斯·席尔瓦": "Gaius Silva",
+   "老兵军士梅陶露斯": "Veteran Sergeant Metaurus",
+   "露西娅·维萨": "Lucia Vestha"
+  },
+  "Lokhust Destroyers": {
+   "灾蝗毁灭者": "Lokhust Destroyers"
+  },
+  "Lychguard": {
+   "巫妖卫士": "Lychguard"
+  },
+  "Ophydian Destroyers": {
+   "幽蛇驱逐者": "Ophydian Destroyers"
+  },
+  "Skorpekh Destroyers": {
+   "荒蝎驱逐者": "Skorpekh Destroyers"
+  },
+  "Chosen": {
+   "神选冠军": "Chosen",
+   "神选战士": "Chosen"
+  },
+  "Cultist Mob": {
+   "教徒": "Cultist Mob",
+   "教徒首领": "Cultist Mob"
+  },
+  "Masters of the Maelstrom": {
+   "卡塔·盖瑞克斯": "GARLON SOULEATER, GARREON THE CORPSEMASTER, KATAR GARRIX",
+   "噬魂者加隆": "GARLON SOULEATER, GARREON THE CORPSEMASTER, KATAR GARRIX",
+   "执行者": "CAPTAIN SARGOTTA, THE ENFORCER",
+   "群尸之主加里昂": "GARLON SOULEATER, GARREON THE CORPSEMASTER, KATAR GARRIX",
+   "舰长萨戈塔": "CAPTAIN SARGOTTA, THE ENFORCER"
+  },
+  "Mutilators": {
+   "残杀者": "Mutilators"
+  },
+  "Raptors": {
+   "猛禽冠军": "Raptors",
+   "猛禽战士": "Raptors"
+  },
+  "Brotherhood Terminator Squad": {
+   "兄弟会终结者": "Brotherhood Terminator Squad",
+   "持像者": "Brotherhood Terminator Squad"
+  },
+  "Interceptor Squad": {
+   "拦截者": "Interceptor Squad",
+   "拦截者仲裁官": "Interceptor Squad"
+  },
+  "Purifier Squad": {
+   "净化者": "Purifier Squad",
+   "明焰骑士": "Purifier Squad"
+  },
+  "Strike Squad": {
+   "仲裁官": "Strike Squad",
+   "灰骑士": "Strike Squad"
+  },
+  "Brôkhyr Thunderkyn": {
+   "机锻匠雷霆炮手": "Brôkhyr Thunderkyn"
+  },
+  "Einhyr Hearthguard": {
+   "断角炉卫": "Einhyr Hearthguard",
+   "断角领袖": "Einhyr Hearthguard"
+  },
+  "Hernkyn Pioneers": {
+   "远行者先锋": "Hernkyn Pioneers"
+  },
+  "Hernkyn Yaegirs": {
+   "猎手头领": "Yaegir Theyn",
+   "远行者猎手": "Hernkyn Yaegirs"
+  },
+  "Breacher Team": {
+   "破袭火战士": "Breacher Team",
+   "破袭火战士夏司’钨": "Breacher Team"
+  },
+  "Broadside Battlesuits": {
+   "炮击夏司‘瓦": "Broadside Battlesuits",
+   "炮击夏司‘钨": "Broadside Battlesuits"
+  },
+  "Crisis Sunforge Battlesuits": {
+   "危机日铸夏司‘瓦": "Crisis Sunforge Battlesuits",
+   "危机日铸夏司‘钨": "Crisis Sunforge Battlesuits"
+  },
+  "Kroot Carnivores": {
+   "克鲁特食肉者": "Kroot Carnivores",
+   "长棘": "Kroot Carnivores"
+  },
+  "Kroot Hounds": {
+   "克鲁特猎犬": "Kroot Hounds"
+  },
+  "Pathfinder Team": {
+   "寻路者": "Pathfinder Team",
+   "寻路者夏司’钨": "Pathfinder Team"
+  },
+  "Firestrike Servo-turrets": {
+   "烈火炮台": "Firestrike Servo-turrets"
+  },
+  "Incursor Squad": {
+   "入侵者": "Incursor",
+   "入侵者士官": "Incursor Sergeant"
+  },
+  "Reiver Squad": {
+   "劫掠者": "Reiver",
+   "劫掠者士官": "Reiver Sergeant"
+  },
+  "Chaos Terminators": {
+   "吞世者终结者勇士": "Terminator Squad"
+  },
+  "Acolyte Hybrids With Hand Flamers": {
+   "教徒领袖": "Acolyte Hybrids With Hand Flamers",
+   "混血教徒": "Acolyte Hybrids With Hand Flamers"
+  },
+  "Neophyte Hybrids": {
+   "教徒领袖": "Neophyte Hybrids",
+   "新血教徒": "Neophyte Hybrids"
+  },
+  "Stealth Battlesuits": {
+   "潜行夏司‘瓦": "Stealth Battlesuits",
+   "潜行夏司‘钨": "Stealth Battlesuits"
+  },
+  "The Twin Lance": {
+   "散华": "",
+   "阳灼": ""
+  }
+ },
+ "gear": {
+  "虚无法杖": "Null Rod",
+  "帝国圣像": "Simulacrum Imperialis",
+  "神圣旗帜": "Sacred Banner",
+  "炽焰印记": "Icon of Flame",
+  "恐虐印记": "Icon of Khorne",
+  "侦测预警员": "Survey Augur",
+  "观察员": "Spotter",
+  "坚韧盾牌": "Endurant Shield",
+  "祝福守护": "Blessed Wardings",
+  "治疗药剂": "Healing Serum",
+  "医疗包": "Medi-pack",
+  "音阵总台": "Master Vox",
+  "音阵广播器": "Vox-caster",
+  "指挥节杖": "Command Rod",
+  "圣物盾": "Relic Shield",
+  "偏移力场": "Displacer Field",
+  "折射盾": "Dispersion Shield",
+  "虚无石力场生成器": "Nullstone Field Generator (Aura)",
+  "复活宝珠": "Resurrection Orb",
+  "等离子虫": "Plasmacyte",
+  "混沌圣旗": "Chaos Icon",
+  "医疗装具": "Apothecary’s Narthecium",
+  "战团旗帜": "Ancient’s Banner",
+  "传送符冠": "Teleport Crest",
+  "全光谱扫描仪": "Panspectral Scanner",
+  "防撞杠探照灯": "Rollbar Searchlight",
+  "烟雾发射器": "Smoke Launcher",
+  "堡垒符冠": "Rampart Crest",
+  "守护者兵蜂*": "Guardian Drone",
+  "盾蜂": "Shield Drone",
+  "导弹蜂": "Missile Drone",
+  "武器支援系统": "Weapon Support System",
+  "枪蜂": "Gun Drone",
+  "标记蜂": "Marker Drone",
+  "战斗服支援系统": "Battlesuit Support System",
+  "反重力兵蜂": "Grav-inhibitor Drone",
+  "MV15枪蜂": "MV15 Gun Drone",
+  "炼金魔宠": "Alchemicus Familiar",
+  "教团标记": "Cult Icon",
+  "定位信标": "Homing Beacon"
+ },
+ "guess": [
+  "Goremongers｜洒血狂特工＝Goremonger",
+  "Goremongers｜洒血狂鲜血使者＝Goremonger",
+  "Goremongers｜链近战格斗武器锯刃＝Chainblade",
+  "Jakhals｜碎颅者＝Skullsmasher and mangler",
+  "Jakhals｜蒙羞者＝Jakhals",
+  "Jakhals｜裂伤者＝Jakhals",
+  "Jakhals｜裂伤者首领＝Jakhals",
+  "Jakhals｜重拳链锯刃＝Mauler chainblade",
+  "Aberrants｜超畸变体＝Aberrants",
+  "Achilles Ridgerunners｜侦测预警员＝Survey Augur",
+  "Inquisitorial Agents｜枪炮奴工＝Inquisitorial Agents",
+  "Rogue Trader Entourage｜书记学士＝OTHER MODELS",
+  "Rogue Trader Entourage｜传家手枪＝Household pistol",
+  "Rogue Trader Entourage｜活力恢复专家＝OTHER MODELS",
+  "Subductor Squad｜赛博獒犬＝Subductor Squad",
+  "Company Heroes｜连队老兵A＝Company veteran with bolt rifle",
+  "Company Heroes｜连队老兵B＝Company Veteran with heavy bolter",
+  "Sternguard Veteran Squad｜精工武器＝Artificer Firearm",
+  "Victrix Honour Guard｜连队勇士＝Chapter Champion",
+  "Victrix Honour Guard｜连队旗手＝Chapter Ancient",
+  "Wardens of Ultramar｜偏移力场＝Displacer Field",
+  "Brotherhood Terminator Squad｜战团旗帜＝Ancient’s Banner",
+  "Brotherhood Terminator Squad｜持像者＝Brotherhood Terminator Squad",
+  "Grand Master In Nemesis Dreadknight｜升华炮＝Sublimator",
+  "Purifier Squad｜明焰骑士＝Purifier Squad",
+  "Hernkyn Yaegirs｜猎手头领＝Yaegir Theyn",
+  "Hernkyn Yaegirs｜远行者猎手＝Hernkyn Yaegirs",
+  "Breacher Team｜守护者兵蜂*＝Guardian Drone",
+  "Breacher Team｜盾蜂＝Shield Drone",
+  "Broadside Battlesuits｜导弹蜂＝Missile Drone",
+  "Cadre Fireblade｜枪蜂＝Gun Drone",
+  "Crisis Sunforge Battlesuits｜枪蜂＝Gun Drone",
+  "Crisis Sunforge Battlesuits｜标记蜂＝Marker Drone",
+  "Crisis Sunforge Battlesuits｜盾蜂＝Shield Drone",
+  "Kroot Carnivores｜长棘＝Kroot Carnivores",
+  "Pathfinder Team｜盾蜂＝Shield Drone",
+  "Bladeguard Ancient｜战斗圣物＝Relics of Battle",
+  "High Marshal Helbrecht｜热忱＝Ferocity",
+  "Dominion Squad｜帝国圣像＝Simulacrum Imperialis",
+  "Sisters Novitiate Squad｜帝国圣像＝Simulacrum Imperialis",
+  "Chaos Terminators｜吞世者终结者勇士＝Terminator Squad",
+  "Slaughterbound｜撕裂剑和恶魔刃＝Lacerator and daemonic claw",
+  "Achilles Ridgerunners｜侦测预警员＝Survey Augur",
+  "Acolyte Hybrids With Hand Flamers｜教徒领袖＝Acolyte Hybrids With Hand Flamers",
+  "Acolyte Hybrids With Hand Flamers｜混血教徒＝Acolyte Hybrids With Hand Flamers",
+  "Neophyte Hybrids｜教徒枪支＝Hybrid firearm",
+  "Neophyte Hybrids｜教徒领袖＝Neophyte Hybrids",
+  "Wardens of Ultramar｜偏移力场＝Displacer Field",
+  "Lychguard｜折射盾＝Dispersion Shield",
+  "Skorpekh Destroyers｜等离子虫＝Plasmacyte",
+  "Brotherhood Terminator Squad｜战团旗帜＝Ancient’s Banner",
+  "Watch Captain Artemis｜终极地狱火＝Hellfire Extremis",
+  "Breacher Team｜守护者兵蜂*＝Guardian Drone",
+  "Breacher Team｜盾蜂＝Shield Drone",
+  "Broadside Battlesuits｜导弹蜂＝Missile Drone",
+  "Broadside Battlesuits｜集束导弹仓＝High-yield missile pods",
+  "Cadre Fireblade｜枪蜂＝Gun Drone",
+  "Crisis Sunforge Battlesuits｜枪蜂＝Gun Drone",
+  "Crisis Sunforge Battlesuits｜标记蜂＝Marker Drone",
+  "Crisis Sunforge Battlesuits｜盾蜂＝Shield Drone",
+  "Devilfish｜挂载爆裂速射炮＝Accelerator burst cannon",
+  "Pathfinder Team｜反重力兵蜂＝Grav-inhibitor Drone",
+  "Pathfinder Team｜盾蜂＝Shield Drone",
+  "Stealth Battlesuits｜枪蜂＝Gun Drone",
+  "Stealth Battlesuits｜标记蜂＝Marker Drone",
+  "Stealth Battlesuits｜潜行夏司‘瓦＝Stealth Battlesuits",
+  "Stealth Battlesuits｜潜行夏司‘钨＝Stealth Battlesuits",
+  "The Twin Lance｜散华＝模型名（猜）",
+  "The Twin Lance｜阳灼＝模型名（猜）",
+  "Khorne Berzerkers｜狂战士链锯刃＝Chainblade",
+  "Plasmancer｜离子长枪＝Plasmic lance",
+  "Sorcerer In Terminator Armour｜燃烧烈焰＝Gaze of Hate（千子版的靈能攻擊，照位置猜）"
+ ]
+}

@@ -41,7 +41,7 @@ ROW2 = re.compile(r'^(\S.*?)\s+(近战|\d+"?|N/A)\s+(D?\d+(?:D\d+)?(?:\+\d+)?|D\
 # 黑圖書館軍表實測時對不上、手動對照的（2026-11-27，照英文資料卡武器名；⚠️＝照意思猜的）
 MANUAL_GLOBAL = {'自动手枪': 'Autopistol', '野蛮近战武器': 'Brutal assault weapon', '重型近战武器': 'Heavy melee weapon', '防御阵列': 'Defensive Array',
                  '诅咒武器': 'Accursed weapon', '等离子手枪': 'Plasma pistol', '爆矢手枪': 'Bolt pistol', '爆弹手枪': 'Bolt pistol', '激光手枪': 'Laspistol',
-                 '格斗武器': 'Close combat weapon', '热熔枪': 'Meltagun', '等离子枪': 'Plasma gun'}
+                 '格斗武器': 'Close combat weapon', '近战武器': 'Close combat weapon', '动力武器': 'Power weapon', '热熔枪': 'Meltagun', '等离子枪': 'Plasma gun'}
 MANUAL = {
     'Land Speeder': {'焚焰炮': 'Pyrecannon'},
     'Lychguard': {'超相位剑': 'Hyperphase sword'},
@@ -60,6 +60,12 @@ MANUAL = {
     'Lord Discordant on Helstalker': {'地狱爬行者自动炮': 'Helstalker autocannon', '科技病毒注射器': 'Techno-virus injector', '钢铁利爪': 'Bladed limbs',   # ⚠️ 钢铁利爪＝Bladed limbs 照意思
                                       '穿刺者长刀': 'Impaler chainglaive'},
 }
+# 二號 11/27 從黑圖書館「军表广场」匯出的 12 陣營實測軍表裡對不上的單位名（照分數、武器對資料卡）
+MANUAL_UNITS = {'献祭者坦克': 'Immolator', '终结者护甲千子巫师': 'Sorcerer In Terminator Armour', '吞世者终结者小队': 'Chaos Terminators',
+                '吞世者行刑大师': 'Master of Executions', '附魔战狂': 'Slaughterbound', '传疫者': 'Biophagus', '圣祝者': 'Benefictus',
+                '新血教徒': 'Neophyte Hybrids', '混血侍僧装备手持火焰喷射器': 'Acolyte Hybrids With Hand Flamers', '混血侍僧装备自动手枪': 'Acolyte Hybrids With Autopistols',
+                '畸变主宰': 'Abominant', '守望连长阿耳忒弥斯': 'Watch Captain Artemis', '魔鬼鱼': 'Devilfish', '潜行战斗服小队': 'Stealth Battlesuits',
+                '炮击战斗服小队': 'Broadside Battlesuits', '黑色圣堂豪侠型角斗士战车': 'Gladiator Valiant'}
 GEAR = {'折射盾': 'Dispersion Shield', '虚无石力场生成器': 'Nullstone Field Generator (Aura)', '等离子虫': 'Plasmacyte', '混沌圣旗': 'Chaos Icon', '复活宝珠': 'Resurrection Orb'}
 
 KW_WORDS = {'反步兵', '速射', '致命一击', '爆炸', '手枪', '热熔', '重型', '突击', '持续命中', '毁灭伤害', '精准', '忽视掩体', '喷射', '双联', '间接火力', '危险', '反载具', '反巨兽', '额外攻击', '骑枪', '无', '技能'}
@@ -227,6 +233,22 @@ def main():
             weap.setdefault(s['name'], {}).update(m)
         else:
             print('手動對照的資料卡找不到', sh)
+    # 黑圖書館實測軍表的武器／模型／裝備對照（tools/bl_manual.json，2026-11-27）：資料卡名對不到就印出來
+    blm = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bl_manual.json'), encoding='utf-8'))
+    mdl = {}
+    for key, dst in (('weap', weap), ('mdl', mdl)):
+        for sh, m in blm[key].items():
+            ss = db.sheets_named(sh)                     # 同名資料卡可能有好幾張（混沌的 Master Of Executions／吞世者的 Master of Executions）
+            for s in ss:
+                dst.setdefault(s['name'], {}).update(m)   # 實測對過的，蓋過自動抓的
+            if not ss:
+                print('bl_manual 的資料卡找不到', sh)
+    gear = dict(blm['gear'], **GEAR)
+    for zh, en in MANUAL_UNITS.items():
+        if db.sheets_named(en):
+            units[zh] = [en]
+        else:
+            print('手動單位名找不到資料卡', zh, en)
     for zh, ens in alias.items():
         if zh not in units and len(ens) == 1:
             units[zh] = sorted(ens)
@@ -238,7 +260,7 @@ def main():
         s2t_map = {c: s2t(c) for c in sorted(chars) if s2t(c) != c}
     except Exception:
         pass
-    json.dump(dict(src='~/warhammer-zh/rules-txt 社群中文規則書（只取名字）', s2t=s2t_map, units=units, weap=weap, gw=glob_w, fw=fw, det=det, enh=enh, gear=GEAR),
+    json.dump(dict(src='~/warhammer-zh/rules-txt 社群中文規則書（只取名字）', s2t=s2t_map, units=units, weap=weap, gw=glob_w, fw=fw, det=det, enh=enh, gear=gear, mdl=mdl),
               open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
     print(f"翻譯批次來的：武器 {len(fw)}、分隊 {len(det)}、強化 {len(enh)}；全域武器名 {len(glob_w)}；單位 {len(units)} 個中文名；武器列 {rows}，對上 {mapped}，武器名 {sum(map(len, weap.values()))}")
     for k, v in per.items():
