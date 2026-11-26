@@ -87,8 +87,8 @@ td.c{cursor:pointer}
 非官方工具，與 Games Workshop 無關；Warhammer 40,000 及相關名稱是 Games Workshop 的商標。
 </p>
 </main>
-<script src="browser.js?v=202611261524"></script>
-<script src="lists.js?v=202611261524" data-page="matchup"></script>
+<script src="browser.js?v=202611261540"></script>
+<script src="lists.js?v=202611261540" data-page="matchup"></script>
 <script>
 const $=id=>document.getElementById(id);
 let R=null, mode='both', tsort='score', pv='points', over={a:{},b:{}}, last={a:'',b:''}, P=null, view='sum', SC={rev:false,melee:false,att:[],tgt:[],goal:'points'}, SR=null;
@@ -366,6 +366,56 @@ function sideMini(s,cls,tag,sum){
   if((s.warn||[]).length) h+=`<p class="warn">⚠️ ${s.warn.map(esc).join('<br>⚠️ ')}</p>`;
   return h+'</div>';
 }
+// 印對戰報告（2026-11-26，網站計畫 ②：像 Kill Grid 的 dossier）：開新視窗排成 A4 橫印。
+// 第 1 頁 A 的目標＋A 該先打誰＋這回合怎麼打；第 2 頁同樣是 B 的；第 3 頁兩張熱度表（射擊＋近戰合算）。
+function dossier(){
+  if(!R) return;
+  const opts=[['half','半射程內'],['cover','目標有掩體'],['charge','近戰是衝鋒'],['still','沒移動']].filter(([k])=>$(k).checked).map(([,t])=>t);
+  const both=c=>1-(1-c[0])*(1-c[1]);
+  const heat=v=>v<.03?'#fff':`hsl(${v>=.5?140:v>=.25?75:v>=.1?45:0} 70% ${88-v*28}%)`;
+  const short=s=>{s=String(s);return s.length>18?s.slice(0,17)+'…':s};
+  const eff=x=>x>=10?Math.round(x)+'×':x.toFixed(x>=1?1:2)+'×';
+  // 每個打的單位：射擊、近戰各挑「殺分最多」的目標
+  const targets=(att,def,m)=>att.units.map((u,i)=>{
+    const best=ph=>{let b=null;m[i].forEach((c,j)=>{const p=c[ph]*def.units[j].points;if(c[ph]>0.005&&(!b||p>b.p))b={j,v:c[ph],p}});return b};
+    return {u,s:best(0),m:best(1)};
+  });
+  const tcell=(def,x,ap)=>x?`${esc(short(def.units[x.j].name))} <b>${pct(x.v)}%</b> <small>${Math.round(x.p)} 分・${eff(x.p/Math.max(1,ap))}</small>`:'<span class="mu">—</span>';
+  const side=(tag,foeTag,att,def,m,thr)=>{
+    const tg=targets(att,def,m);
+    const rows=tg.map(x=>`<tr><td>${esc(short(x.u.name))} <small>${x.u.points}</small></td><td>${tcell(def,x.s,x.u.points)}</td><td>${tcell(def,x.m,x.u.points)}</td></tr>`).join('');
+    const tr=[...thr].sort((x,y)=>y.score-x.score||y.threat-x.threat), TOP=14;
+    // 同名單位合併成「名字 ×2」，讓表格擠在一頁
+    const uniq=xs=>{const m=new Map();xs.forEach(k=>{const n=short(k.unit),o=m.get(n);if(o)o.c++;else m.set(n,{c:1,p:k.pct})});return [...m].map(([n,o])=>esc(n)+(o.c>1?' ×'+o.c:'')+(o.p!==undefined?' '+pct(o.p)+'%':''))};
+    const trows=tr.slice(0,TOP).map((t,n)=>`<tr><td>${n+1}</td><td>${esc(short(t.unit))} <small>${t.points}</small></td><td><b>${t.threat}</b></td><td>${uniq(t.kills).slice(0,3).join('、')||'<span class="mu">沒有</span>'}</td><td>${t.can?uniq(t.used.map(k=>({unit:k.unit}))).join('、'):'<span class="mu">一輪打不掉（最多 '+pct(t.max_pct)+'%）</span>'}</td><td><b>${t.score}</b></td></tr>`).join('')+(tr.length>TOP?`<tr><td colspan="6" class="mu">其餘 ${tr.length-TOP} 個威脅較低，見網頁</td></tr>`:'');
+    const {out,cur}=plan(att,def,m,thr);
+    // 同名單位、同樣打法的合併成一行（×幾個）
+    const plm=new Map();
+    att.units.forEach((u,i)=>{const c=x=>x?esc(short(def.units[x.j].name))+' '+pct(x.p)+'%':'—';const k=`<b>${esc(short(u.name))}</b>{n}：射 ${c(out[i].s)}｜近 ${c(out[i].m)}`;plm.set(k,(plm.get(k)||0)+1)});
+    const pl=[...plm].map(([k,n])=>'<li>'+k.replace('{n}',n>1?' ×'+n:'')+'</li>').join('');
+    const pts=Math.round(def.units.reduce((n,u,j)=>n+Math.min(1,cur[j])*u.points,0));
+    return `<section class="pg"><h1><span class="${tag==='A'?'la':'lb'}">${tag}</span> ${esc(att.name||'（沒名字）')} <small>${esc(att.faction)} ${att.points} 分</small> 對 ${esc(def.name||'（沒名字）')} <small>${esc(def.faction)} ${def.points} 分</small></h1>
+    <div class="two"><div><h2>${tag} 的目標（每個單位最賺打誰）</h2><table><tr><th>${tag} 的單位</th><th>射擊</th><th>近戰</th></tr>${rows}</table><p class="mu">% ＝ 平均一輪打掉目標幾成；分＝打掉的分數；× ＝ 打掉的分數 ÷ 自己的分數（1× 就是打平）。</p>
+    <h2>${tag} 這一回合怎麼打：預計打掉 ${foeTag} 約 ${pts} 分 <small>（自動分配，${pv==='threat'?'打掉最多威脅':'打掉最多分數'}）</small></h2><ul class="plan">${pl}</ul></div>
+    <div><h2>${tag} 該先打誰（${foeTag} 的威脅）</h2><table><tr><th>#</th><th>${foeTag} 的單位</th><th>威脅</th><th>一輪能帶走我的</th><th>打掉它要派</th><th>優先</th></tr>${trows}</table><p class="mu">威脅＝它一輪平均殺我幾分；優先＝威脅 ÷ 打掉它要花的火力 × 100。</p></div></div></section>`;
+  };
+  const grid=(title,att,def,m)=>`<h2>${title}</h2><table class="hm"><tr><th></th>${def.units.map(u=>`<th class="v"><span>${esc(short(u.name))}</span></th>`).join('')}</tr>${att.units.map((u,i)=>`<tr><th class="r">${esc(short(u.name))} <small>${u.points}</small></th>${m[i].map(c=>{const v=both(c);return `<td style="background:${heat(v)}">${v<.005?'':pct(v)}</td>`}).join('')}</tr>`).join('')}</table>`;
+  const css=`@page{size:A4 landscape;margin:7mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;font:8.5pt/1.35 "PingFang TC","Noto Sans CJK TC","Noto Sans TC",sans-serif;color:#000;background:#fff}
+  .pg{page-break-after:always;break-after:page}.pg:last-child{page-break-after:auto}h1{font-size:13pt;margin:0 0 4px}h1 small,h2 small{font-weight:normal;color:#555}h2{font-size:10pt;margin:6px 0 3px}
+  .la{background:#1f5fbf;color:#fff;padding:0 6px;border-radius:3px}.lb{background:#b3402a;color:#fff;padding:0 6px;border-radius:3px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}table{border-collapse:collapse;width:100%;font-size:7.8pt}th,td{border:1px solid #bbb;padding:0 3px;text-align:left;vertical-align:top}th{background:#eee}small,.mu{color:#555}.mu{font-size:7.5pt}
+  .plan{columns:2;margin:0;padding-left:14px;font-size:7.5pt}.hm{width:auto;font-size:7pt}.hm td{text-align:center;min-width:20px;padding:0 1px}.hm th.v{height:90px;vertical-align:bottom;padding:2px 0}.hm th.v span{writing-mode:vertical-rl;transform:rotate(180deg);white-space:nowrap}.hm th.r{white-space:nowrap;font-weight:normal}
+  .head{font-size:8pt;color:#555;margin-bottom:4px}`;
+  const head=`<div class="head">40K 軍表工具・對戰報告｜資料更新到 ${esc(R.data_updated)}｜條件：${opts.length?opts.join('、'):'都沒勾'}｜平均值，沒算射程、視線、移動和運氣</div>`;
+  const html=`<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>對戰報告 ${esc(R.a.name||'A')} vs ${esc(R.b.name||'B')}</title><style>${css}</style></head><body>
+  ${head}${side('A','B',R.a,R.b,R.ab,R.thr_a)}${head}${side('B','A',R.b,R.a,R.ba,R.thr_b)}
+  <section class="pg">${head}<div class="two">${'<div>'+grid('A 打 B（射擊＋近戰合算，一輪打掉幾 %）',R.a,R.b,R.ab)+'</div><div>'+grid('B 打 A（射擊＋近戰合算，一輪打掉幾 %）',R.b,R.a,R.ba)+'</div>'}</div></section></body></html>`;
+  const w=window.open('','_blank');
+  if(!w){$('msg').textContent='瀏覽器擋了新視窗，請允許這個網站開新視窗再按一次。';return}
+  w.document.write(html);
+  w.document.close();
+  setTimeout(()=>w.print(),500);
+}
 // 單位測試（2026-11-15，使用者：「兩隊終結者可以射擊 對面是太陽領主和科技技師 我要怎麼分槍」）
 function testCard(){
   const me=SC.rev?R.b:R.a, foe=SC.rev?R.a:R.b, mt=SC.rev?'B':'A', ft=SC.rev?'A':'B';
@@ -408,7 +458,7 @@ function render(){
   if(ok){const x=changed(R.ab,pab),y=changed(R.ba,pba);
     note=`<div class="note">${x+y?`跟上一次比：「A 打 B」有 <b>${x}</b> 格變了、「B 打 A」有 <b>${y}</b> 格變了（粗框的格子，▲▼ 是變了幾個百分點）。`:'跟上一次比：沒有任何格子改變。可能是這個能力對這些目標沒作用，或它的條件沒成立（標「衝鋒時／半射程內／沒移動時」的，要同時勾最上面那個選項）。'}</div>`}
   const seg=`<div class="card"><div class="opts seg"><span>表格顯示：</span>${[['both','射擊＋近戰'],['shoot','只看射擊'],['melee','只看近戰']].map(([k,t])=>`<button data-m="${k}" class="${mode===k?'on':''}">${t}</button>`).join('')}<small>格子＝平均一輪殺掉目標幾 %（點一下格子看射擊／近戰各多少）</small></div></div>`;
-  const tabs=`<div class="card"><div class="opts seg">${[['sum','總覽'],['test','單位測試（分槍）'],['data','規則和數據']].map(([k,t])=>`<button data-v="${k}" class="${view===k?'on':''}">${t}</button>`).join('')}</div></div>`;
+  const tabs=`<div class="card"><div class="opts seg">${[['sum','總覽'],['test','單位測試（分槍）'],['data','規則和數據']].map(([k,t])=>`<button data-v="${k}" class="${view===k?'on':''}">${t}</button>`).join('')}<button id="dossier" style="margin-left:auto">🖨 印對戰報告</button></div></div>`;
   let body='';
   if(view==='sum') body=`<div class="grid">${sideMini(R.a,'la','A',R.sum_ab)}${sideMini(R.b,'lb','B',R.sum_ba)}</div>
   ${planCard('A','la','B',R.a,R.b,R.ab,R.thr_a)}${planCard('B','lb','A',R.b,R.a,R.ba,R.thr_b)}
@@ -424,6 +474,7 @@ function render(){
   ${seg}${note}
   ${matrix('A 打 B','la',R.a,R.b,R.ab,pab,R.hz_ab)}${matrix('B 打 A','lb',R.b,R.a,R.ba,pba,R.hz_ba)}`;
   $('out').innerHTML=tabs+body;
+  $('dossier').onclick=dossier;
   $('upd').textContent='（更新到 '+R.data_updated+'）';
   document.querySelectorAll('td[data-tip]').forEach(c=>c.onclick=()=>{const t=$('tip');t.textContent=c.dataset.tip;t.style.display='block';clearTimeout(window._tt);window._tt=setTimeout(()=>t.style.display='none',c.dataset.tip.length>80?9000:4000)});
   document.querySelectorAll('.seg button[data-m]').forEach(b=>b.onclick=()=>{mode=b.dataset.m;render()});
