@@ -1,5 +1,5 @@
 {
- "_note": "黑圖書館 12 陣營實測軍表（二號 11/27 匯出）的中文名對照；Sonnet 從資料卡清單挑、主機器人抽查 30 筆＋全部 guess 看過。guess 的值前面不加記號，清單在 guess 欄。",
+ "_note": "黑圖書館 12 陣營實測軍表（二號 11/27 匯出）的中文名對照；Sonnet 從資料卡清單挑、主機器人抽查 30 筆＋全部 guess 看過。guess 的值前面不加記號，清單在 guess 欄。 confirmed：猜的對照用黑圖書館小程式資料卡的武器數值逐項對過 Wahapedia（射程/A/技能/S/AP/D 全同），2026-11-27；結果 ~/tasks/黑圖書館數值對照-結果.tsv。",
  "weap": {
   "Canoness": {
    "地狱火手枪": "Inferno pistol",
@@ -75,12 +75,18 @@
   },
   "Goremongers": {
    "近战格斗武器": "Close combat weapon",
-   "链近战格斗武器锯刃": "Chainblade"
+   "链近战格斗武器锯刃": "Chainblade",
+   "链锯刃": "Chainblade",
+   "格斗武器": "Close combat weapon",
+   "自动手枪": "Autopistol",
+   "血肉穿刺者": "Blood harpoon"
   },
   "Jakhals": {
    "碎颅者": "Skullsmasher and mangler",
    "重拳链锯刃": "Mauler chainblade",
-   "裂伤者链锯刃": "Chainblades"
+   "裂伤者链锯刃": "Chainblades",
+   "自动手枪": "Autopistol",
+   "蒙羞者链锯刃": "Paired manglers"
   },
   "Aberrants": {
    "畸变体武器": "Aberrant weapons"
@@ -144,7 +150,11 @@
    "单分子杖剑": "Monomolecular cane-rapier",
    "死亡教派动力剑": "Death Cult power blade",
    "雷射手枪": "Laspistol",
-   "飞镖面具": "Dartmask"
+   "飞镖面具": "Dartmask",
+   "传家宝手枪": "Household pistol",
+   "毒标面具": "Dartmask",
+   "激光手枪": "Laspistol",
+   "格斗武器": "Close combat weapon"
   },
   "Sisters of Battle Immolator": {
    "献祭者火焰喷射器": "Immolation flamers"
@@ -232,7 +242,16 @@
   },
   "Grand Master In Nemesis Dreadknight": {
    "升华炮": "Sublimator",
-   "天罚屠魔巨锤": "Nemesis daemon greathammer"
+   "天罚屠魔巨锤": "Nemesis daemon greathammer",
+   "加特林消灵炮": "Gatling psilencer",
+   "焚化炮": "Heavy incinerator",
+   "重型灵能炮": "Heavy psycannon",
+   "破片榴弹发射器": "Fragstorm grenade launcher",
+   "恐惧铁拳": "Dreadfists",
+   "天罚巨剑": "Nemesis greatsword",
+   "天罚链枷": "Nemesis flail",
+   "天罚战锤": "Nemesis mace",
+   "破片风暴榴弹发射器": "Fragstorm grenade launcher"
   },
   "Interceptor Squad": {
    "天罚灵能武器": "Nemesis force weapon"
@@ -311,7 +330,8 @@
    "粉碎冲撞": "Crushing bulk",
    "重型磁轨枪": "Heavy rail rifle",
    "并联智能导弹系统": "Twin smart missile system",
-   "集束导弹仓": "High-yield missile pods"
+   "集束导弹仓": "High-yield missile pods",
+   "并联等离子步枪": "Twin plasma rifle"
   },
   "Cadre Fireblade": {
    "火刃脉冲步枪": "Fireblade pulse rifle"
@@ -402,7 +422,16 @@
    "投网枪": "Webber",
    "教徒枪支": "Hybrid firearm",
    "采矿用激光": "Mining laser",
-   "榴弹发射器": "Grenade launcher"
+   "榴弹发射器": "Grenade launcher",
+   "受膏手枪": "Anointed pistol",
+   "自动手枪": "Autopistol",
+   "火焰喷射器": "Flamer",
+   "重机枪": "Heavy stubber",
+   "采矿激光": "Mining laser",
+   "地震炮": "Seismic cannon",
+   "近战武器": "Close combat weapon",
+   "链锯剑": "Chainsword",
+   "动力武器": "Power weapon"
   },
   "Watch Captain Artemis": {
    "终极地狱火": "Hellfire Extremis"
@@ -421,11 +450,14 @@
   "Sorcerer In Terminator Armour": {
    "地狱火复合武器": "Inferno combi-weapon",
    "灵能武器": "Force weapon",
-   "燃烧烈焰": "Gaze of Hate"
+   "燃烧烈焰": "Gaze of Hate",
+   "憎恨凝视": "Gaze of Hate",
+   "地狱火复合爆矢枪": "Inferno combi-bolter"
   },
   "Khorne Berzerkers": {
    "恐虐开膛刃": "Khornate eviscerator",
-   "狂战士链锯刃": "Chainblade"
+   "狂战士链锯刃": "Chainblade",
+   "爆矢手枪": "Bolt pistol"
   },
   "Victrix Honour Guard": {
    "大师级爆弹卡宾枪": "Master-crafted Bolt Carbine"
@@ -755,28 +787,21 @@
  "guess": [
   "Goremongers｜洒血狂特工＝Goremonger",
   "Goremongers｜洒血狂鲜血使者＝Goremonger",
-  "Goremongers｜链近战格斗武器锯刃＝Chainblade",
-  "Jakhals｜碎颅者＝Skullsmasher and mangler",
-  "Jakhals｜蒙羞者＝Jakhals",
   "Jakhals｜裂伤者＝Jakhals",
   "Jakhals｜裂伤者首领＝Jakhals",
-  "Jakhals｜重拳链锯刃＝Mauler chainblade",
   "Aberrants｜超畸变体＝Aberrants",
   "Achilles Ridgerunners｜侦测预警员＝Survey Augur",
   "Inquisitorial Agents｜枪炮奴工＝Inquisitorial Agents",
   "Rogue Trader Entourage｜书记学士＝OTHER MODELS",
-  "Rogue Trader Entourage｜传家手枪＝Household pistol",
   "Rogue Trader Entourage｜活力恢复专家＝OTHER MODELS",
   "Subductor Squad｜赛博獒犬＝Subductor Squad",
   "Company Heroes｜连队老兵A＝Company veteran with bolt rifle",
   "Company Heroes｜连队老兵B＝Company Veteran with heavy bolter",
-  "Sternguard Veteran Squad｜精工武器＝Artificer Firearm",
   "Victrix Honour Guard｜连队勇士＝Chapter Champion",
   "Victrix Honour Guard｜连队旗手＝Chapter Ancient",
   "Wardens of Ultramar｜偏移力场＝Displacer Field",
   "Brotherhood Terminator Squad｜战团旗帜＝Ancient’s Banner",
   "Brotherhood Terminator Squad｜持像者＝Brotherhood Terminator Squad",
-  "Grand Master In Nemesis Dreadknight｜升华炮＝Sublimator",
   "Purifier Squad｜明焰骑士＝Purifier Squad",
   "Hernkyn Yaegirs｜猎手头领＝Yaegir Theyn",
   "Hernkyn Yaegirs｜远行者猎手＝Hernkyn Yaegirs",
@@ -789,31 +814,24 @@
   "Crisis Sunforge Battlesuits｜盾蜂＝Shield Drone",
   "Kroot Carnivores｜长棘＝Kroot Carnivores",
   "Pathfinder Team｜盾蜂＝Shield Drone",
-  "Bladeguard Ancient｜战斗圣物＝Relics of Battle",
-  "High Marshal Helbrecht｜热忱＝Ferocity",
   "Dominion Squad｜帝国圣像＝Simulacrum Imperialis",
   "Sisters Novitiate Squad｜帝国圣像＝Simulacrum Imperialis",
   "Chaos Terminators｜吞世者终结者勇士＝Terminator Squad",
-  "Slaughterbound｜撕裂剑和恶魔刃＝Lacerator and daemonic claw",
   "Achilles Ridgerunners｜侦测预警员＝Survey Augur",
   "Acolyte Hybrids With Hand Flamers｜教徒领袖＝Acolyte Hybrids With Hand Flamers",
   "Acolyte Hybrids With Hand Flamers｜混血教徒＝Acolyte Hybrids With Hand Flamers",
-  "Neophyte Hybrids｜教徒枪支＝Hybrid firearm",
   "Neophyte Hybrids｜教徒领袖＝Neophyte Hybrids",
   "Wardens of Ultramar｜偏移力场＝Displacer Field",
   "Lychguard｜折射盾＝Dispersion Shield",
   "Skorpekh Destroyers｜等离子虫＝Plasmacyte",
   "Brotherhood Terminator Squad｜战团旗帜＝Ancient’s Banner",
-  "Watch Captain Artemis｜终极地狱火＝Hellfire Extremis",
   "Breacher Team｜守护者兵蜂*＝Guardian Drone",
   "Breacher Team｜盾蜂＝Shield Drone",
   "Broadside Battlesuits｜导弹蜂＝Missile Drone",
-  "Broadside Battlesuits｜集束导弹仓＝High-yield missile pods",
   "Cadre Fireblade｜枪蜂＝Gun Drone",
   "Crisis Sunforge Battlesuits｜枪蜂＝Gun Drone",
   "Crisis Sunforge Battlesuits｜标记蜂＝Marker Drone",
   "Crisis Sunforge Battlesuits｜盾蜂＝Shield Drone",
-  "Devilfish｜挂载爆裂速射炮＝Accelerator burst cannon",
   "Pathfinder Team｜反重力兵蜂＝Grav-inhibitor Drone",
   "Pathfinder Team｜盾蜂＝Shield Drone",
   "Stealth Battlesuits｜枪蜂＝Gun Drone",
@@ -821,9 +839,25 @@
   "Stealth Battlesuits｜潜行夏司‘瓦＝Stealth Battlesuits",
   "Stealth Battlesuits｜潜行夏司‘钨＝Stealth Battlesuits",
   "The Twin Lance｜散华＝模型名（猜）",
-  "The Twin Lance｜阳灼＝模型名（猜）",
-  "Khorne Berzerkers｜狂战士链锯刃＝Chainblade",
-  "Plasmancer｜离子长枪＝Plasmic lance",
-  "Sorcerer In Terminator Armour｜燃烧烈焰＝Gaze of Hate（千子版的靈能攻擊，照位置猜）"
+  "The Twin Lance｜阳灼＝模型名（猜）"
+ ],
+ "confirmed": [
+  "Goremongers｜链近战格斗武器锯刃＝Chainblade（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Jakhals｜碎颅者＝Skullsmasher and mangler（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Jakhals｜蒙羞者＝Jakhals（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Jakhals｜重拳链锯刃＝Mauler chainblade（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Rogue Trader Entourage｜传家手枪＝Household pistol（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Sternguard Veteran Squad｜精工武器＝Artificer Firearm（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Grand Master In Nemesis Dreadknight｜升华炮＝Sublimator（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Bladeguard Ancient｜战斗圣物＝Relics of Battle（2026-11-27 對黑圖書館資料卡數值確認）",
+  "High Marshal Helbrecht｜热忱＝Ferocity（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Slaughterbound｜撕裂剑和恶魔刃＝Lacerator and daemonic claw（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Neophyte Hybrids｜教徒枪支＝Hybrid firearm（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Watch Captain Artemis｜终极地狱火＝Hellfire Extremis（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Broadside Battlesuits｜集束导弹仓＝High-yield missile pods（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Devilfish｜挂载爆裂速射炮＝Accelerator burst cannon（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Khorne Berzerkers｜狂战士链锯刃＝Chainblade（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Plasmancer｜离子长枪＝Plasmic lance（2026-11-27 對黑圖書館資料卡數值確認）",
+  "Sorcerer In Terminator Armour｜燃烧烈焰＝Gaze of Hate（2026-11-27 對黑圖書館資料卡數值確認）"
  ]
 }
