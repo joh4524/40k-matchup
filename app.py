@@ -49,6 +49,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.reply(200, (HERE / "dice.html").read_bytes(), "text/html; charset=utf-8")
         if self.path.split("?")[0] == "/leaderboards.html":   # 單位排行（2026-11-24）
             return self.reply(200, (HERE / "leaderboards.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path.split("?")[0] == "/paints.html":   # 顏料配對和配色（2026-11-26，計畫 ⑪⑫）
+            return self.reply(200, (HERE / "paints.html").read_bytes(), "text/html; charset=utf-8")
+        if self.path.split("?")[0] == "/data/paints.json":
+            return self.reply(200, (HERE / "data" / "paints.json").read_bytes())
         if self.path.split("?")[0] == "/data/leaderboard.json":
             return self.reply(200, (HERE / "data" / "leaderboard.json").read_bytes())
         # 全陣營 meta 表網頁（~/metamerge/site，2026-11-22 使用者：「接在原本的網站上」）

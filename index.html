@@ -32,7 +32,7 @@ nav .s{display:none}
   <nav id="tabs"></nav>
 </header>
 <div id="frames"></div>
-<script src="browser.js?v=202611261214"></script>
+<script src="browser.js?v=202611261524"></script>
 <script>
 // 首頁＝分頁殼（2026-11-24）：每個工具還是原本的 .html，放在 iframe 裡，第一次點到才載入，切換時結果留著。
 // 計算程式（公開版的 Pyodide）只在這一層載入一次，各分頁透過 lists.js 共用。
@@ -43,6 +43,7 @@ const TABS = [
   ['dice', '骰子機率', 'dice.html', '骰子'],
   ['leaderboards', '單位排行', 'leaderboards.html', '排行'],
   ['print', '印軍表', 'print.html', '列印'],
+  ['paints', '顏料配對', 'paints.html', '顏料'],
   ['meta', 'Meta 表', 'metalists/', 'Meta']
 ];
 const nav = document.getElementById('tabs'), box = document.getElementById('frames'), frames = {};

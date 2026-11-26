@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>顏料配對</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#dcdad4;--a:#1f5fbf;--b:#b3402a;--warn:#8a5a00;--hi:#eef3fb}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--card:#222226;--ink:#ececee;--mute:#9a9aa2;--line:#3a3a40;--a:#7fb0ff;--b:#ff9a85;--warn:#e0b050;--hi:#263040}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif}
+main{max-width:1100px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:4px 0 12px}
+h2{font-size:16px;margin:0 0 8px}
+a{color:var(--a)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.sub{display:flex;gap:6px;margin-bottom:12px}
+.sub button{font:inherit;padding:6px 14px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer}
+.sub button.on{background:var(--a);border-color:var(--a);color:#fff}
+input[type=text],select,textarea{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+input[type=text]{width:100%;max-width:420px}
+textarea{width:100%;min-height:110px}
+.row{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:6px 0}
+.chk{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px}
+.opt{display:block;font-size:13px;margin-top:4px}
+select{max-width:100%}
+.sw{display:inline-block;width:18px;height:18px;border-radius:4px;border:1px solid rgba(128,128,128,.5);vertical-align:-4px;margin-right:6px;flex:none}
+.list{max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px;margin-top:6px}
+.list div{display:flex;align-items:center;padding:4px 8px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px}
+.list div:hover{background:var(--hi)}
+small,.mute{color:var(--mute)}
+.big{display:flex;gap:12px;align-items:center;margin-bottom:10px}
+.big .sw{width:56px;height:56px;border-radius:10px}
+.brands{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.brands .card{margin:0;padding:10px}
+.m{display:flex;align-items:center;font-size:13px;padding:2px 0}
+.m b{font-weight:600}
+.de{margin-left:auto;padding-left:8px;font-size:12px;white-space:nowrap;color:var(--mute)}
+.g1{color:#2e7d32}.g2{color:#558b2f}.g3{color:var(--warn)}.g4{color:var(--b)}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}
+.grid{display:flex;flex-wrap:wrap;gap:3px}
+.grid span{width:26px;height:26px;border-radius:5px;cursor:pointer;border:1px solid rgba(128,128,128,.4)}
+.grid span.on{outline:3px solid var(--a);outline-offset:1px}
+.tri{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:760px){.tri{grid-template-columns:1fr}}
+.tri .card{margin:0}
+.ideal{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mute);margin-bottom:6px}
+.bar{display:flex;height:46px;border-radius:10px;overflow:hidden;margin:10px 0;border:1px solid var(--line)}
+.note{font-size:12px;color:var(--mute);margin-top:14px}
+button.s{font:inherit;font-size:13px;padding:3px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);color:var(--ink);cursor:pointer}
+</style>
+<script src="lists.js?v=202611261524" data-page="paints"></script>
+</head>
+<body>
+<main>
+<h1>顏料配對 <small>找替代色・配色</small> <a href="./" style="font-size:14px;font-weight:normal;margin-left:8px">← 軍表對戰計算</a></h1>
+<div class="sub"><button id="tbm" class="on">找替代色</button><button id="tbt">配色（60·30·10）</button></div>
+<div id="vm">
+  <div class="card">
+    <h2>選一支漆</h2>
+    <input type="text" id="q" placeholder="打名稱或色號，例如 Mephiston Red、72.011、Leadbelcher" autocomplete="off">
+    <div class="list" id="hits" hidden></div>
+    <div class="row chk" id="brf"></div>
+    <label class="opt"><input type="checkbox" id="spec"> 也列出洗色、Contrast、Speedpaint 這類特殊漆（選的是特殊漆時自動列）</label>
+    <label class="opt"><input type="checkbox" id="oth"> 也列出其他系列（噴筆用 Air、噴罐、工藝漆、D&amp;D 套組這些）</label>
+  </div>
+  <div class="card" id="res" hidden></div>
+  <div class="card">
+    <h2>一次換一整串</h2>
+    <div class="mute" style="font-size:13px">一行一支，前面的 2x、後面的 18ml 這類會自動忽略，最多 500 行。或直接選一個系列，整個系列換到另一個品牌。</div>
+    <textarea id="paste" placeholder="Mephiston Red&#10;2x Abaddon Black&#10;Leadbelcher 12ml"></textarea>
+    <div class="row">
+      <label>或整個系列 <select id="setsel"><option value="">（不用）</option></select></label>
+      <label>換成 <select id="tgt"></select></label>
+      <button class="s" id="go">換</button>
+    </div>
+    <div class="scroll" id="conv"></div>
+  </div>
+</div>
+<div id="vt" hidden>
+  <div class="card">
+    <h2>選主色</h2>
+    <div class="mute" style="font-size:13px">點一個顏色當主色（模型大部分的顏色，例如盔甲）。程式在色輪上往兩邊各轉 120°，保留同樣的明暗和鮮豔度，再從同一個系列裡找最接近的漆當輔色和點綴色。只用不透明漆，洗色、Contrast 這類不算。</div>
+    <div class="row">
+      <label>系列 <select id="rng"></select></label>
+      <input type="text" id="tq" placeholder="篩選名稱" style="max-width:220px" autocomplete="off">
+    </div>
+    <div class="grid" id="sws"></div>
+    <div class="mute" style="font-size:12px;margin:8px 0 4px">黑白灰、金屬色（沒有色相，不能當主色，但可以搭配用）</div>
+    <div class="grid" id="neu"></div>
+  </div>
+  <div id="tres"></div>
+</div>
+<div class="note">色碼資料：<a href="https://github.com/Arcturus5404/miniature-paints" target="_blank" rel="noopener">Arcturus5404/miniature-paints</a>（MIT 授權），是螢幕上的近似色。實際的漆色、光澤和遮蓋力會不一樣，買之前最好看實品或色卡。色差用 CIEDE2000 算，配色用 OKLCh 色輪。</div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const BR = ["Citadel", "AK 3代", "AK 舊系列", "Vallejo", "Army Painter", "Scale75", "P3", "Reaper", "Mr.Hobby", "Tamiya"];
+let P = [], SETS = [];
+
+// ---- 顏色換算 ----
+// 色碼 → 0～1 的 sRGB
+function rgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255];
+}
+const lin = (c) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+const unlin = (c) => c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+// 線性 sRGB → CIE Lab（D65）
+function labLin(r, g, b) {
+  const x = (0.4124564 * r + 0.3575761 * g + 0.1804375 * b) / 0.95047;
+  const y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+  const z = (0.0193339 * r + 0.1191920 * g + 0.9503041 * b) / 1.08883;
+  const f = (t) => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+  const fx = f(x), fy = f(y), fz = f(z);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+// 線性 sRGB → OKLab
+function okLin(r, g, b) {
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s];
+}
+// OKLab → 線性 sRGB
+function okInv(L, a, b) {
+  const l = Math.pow(L + 0.3963377774 * a + 0.2158037573 * b, 3);
+  const m = Math.pow(L - 0.1055613458 * a - 0.0638541728 * b, 3);
+  const s = Math.pow(L - 0.0894841775 * a - 1.2914855480 * b, 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s, -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s];
+}
+// OKLCh → 螢幕畫得出來的線性 sRGB（超出範圍就把鮮豔度往下調）
+function lchToLin(L, C, H) {
+  const ok = (c) => okInv(L, c * Math.cos(H), c * Math.sin(H));
+  const inG = (v) => v.every((x) => x >= -1e-4 && x <= 1 + 1e-4);
+  if (inG(ok(C))) return ok(C).map((x) => Math.min(1, Math.max(0, x)));
+  let lo = 0, hi = C;
+  for (let i = 0; i < 24; i++) { const mid = (lo + hi) / 2; if (inG(ok(mid))) lo = mid; else hi = mid; }
+  return ok(lo).map((x) => Math.min(1, Math.max(0, x)));
+}
+const hexLin = (v) => "#" + v.map((x) => Math.round(unlin(x) * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+// CIEDE2000 色差
+function de2000(A, B) {
+  const [L1, a1, b1] = A, [L2, a2, b2] = B, rad = Math.PI / 180;
+  const C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cm = (C1 + C2) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Math.pow(Cm, 7) / (Math.pow(Cm, 7) + Math.pow(25, 7))));
+  const a1p = (1 + G) * a1, a2p = (1 + G) * a2;
+  const C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2);
+  const hp = (b, a) => { if (!a && !b) return 0; const h = Math.atan2(b, a) / rad; return h < 0 ? h + 360 : h; };
+  const h1p = hp(b1, a1p), h2p = hp(b2, a2p);
+  const dL = L2 - L1, dC = C2p - C1p;
+  let dh = 0;
+  if (C1p * C2p) { dh = h2p - h1p; if (dh > 180) dh -= 360; else if (dh < -180) dh += 360; }
+  const dH = 2 * Math.sqrt(C1p * C2p) * Math.sin(dh * rad / 2);
+  const Lm = (L1 + L2) / 2, Cmp = (C1p + C2p) / 2;
+  let hm = h1p + h2p;
+  if (C1p * C2p) { if (Math.abs(h1p - h2p) > 180) hm += h1p + h2p < 360 ? 360 : -360; hm /= 2; }
+  const T = 1 - 0.17 * Math.cos((hm - 30) * rad) + 0.24 * Math.cos(2 * hm * rad) + 0.32 * Math.cos((3 * hm + 6) * rad) - 0.20 * Math.cos((4 * hm - 63) * rad);
+  const dTh = 30 * Math.exp(-Math.pow((hm - 275) / 25, 2));
+  const RC = 2 * Math.sqrt(Math.pow(Cmp, 7) / (Math.pow(Cmp, 7) + Math.pow(25, 7)));
+  const SL = 1 + 0.015 * Math.pow(Lm - 50, 2) / Math.sqrt(20 + Math.pow(Lm - 50, 2));
+  const SC = 1 + 0.045 * Cmp, SH = 1 + 0.015 * Cmp * T, RT = -Math.sin(2 * dTh * rad) * RC;
+  return Math.sqrt(Math.pow(dL / SL, 2) + Math.pow(dC / SC, 2) + Math.pow(dH / SH, 2) + RT * (dC / SC) * (dH / SH));
+}
+// 色差 → 文字評語
+function grade(d) {
+  if (d < 2) return ["g1", "幾乎一樣"];
+  if (d < 5) return ["g2", "很接近"];
+  if (d < 10) return ["g3", "接近"];
+  return ["g4", "只算同色系"];
+}
+
+// ---- 資料 ----
+// 品牌欄：AK 拆成 3 代和舊系列（使用者要 AK 3 代對應色）
+const brandOf = (b, s) => b === "AK Interactive" ? (/3rd Gen/.test(s) ? "AK 3代" : "AK 舊系列") : b;
+function prep(d) {
+  SETS = d.sets;
+  P = d.p.map(([si, n, c, h, met], i) => {
+    const [b, s, k, main] = d.sets[si], v = rgb(h).map(lin), ok = okLin(...v);
+    return {i, si, n, c, h, s, k, main, met, b: brandOf(b, s), lab: labLin(...v), L: ok[0], C: Math.hypot(ok[1], ok[2]), H: Math.atan2(ok[2], ok[1]), key: norm(n), ck: norm(c)};
+  });
+}
+const norm = (s) => String(s).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+// 編輯距離（打錯字也找得到）
+function lev(a, b) {
+  if (Math.abs(a.length - b.length) > 3) return 9;
+  let prev = Array.from({length: b.length + 1}, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+// 搜尋：完全一樣 > 開頭 > 包含 > 色號 > 打錯 1～2 個字
+function search(q, max) {
+  const k = norm(q);
+  if (!k) return [];
+  const sc = [];
+  for (const p of P) {
+    let s = p.key === k ? 0 : p.ck && p.ck === k ? 0.5 : p.key.startsWith(k) ? 1 : p.key.includes(k) ? 2 : p.ck && p.ck.includes(k) && k.length >= 3 ? 2.5 : 9;
+    if (s === 9 && k.length >= 5) { const d = lev(k, p.key); if (d <= (k.length >= 9 ? 2 : 1)) s = 3 + d; }
+    if (s < 9) sc.push([s + (p.k === "x" ? 0.3 : 0) + (p.main ? 0 : 0.4) + (p.b === "Citadel" ? 0 : 0.1), p]);
+  }
+  return sc.sort((a, b) => a[0] - b[0] || a[1].n.length - b[1].n.length).slice(0, max).map((x) => x[1]);
+}
+const tag = (p) => esc(p.b === "AK 3代" || p.b === "AK 舊系列" ? "AK " + p.s : p.b + " " + p.s) + (p.k === "x" ? "（停產）" : "") + (p.c ? " · " + esc(p.c) : "");
+const sw = (h) => '<span class="sw" style="background:' + h + '"></span>';
+// 在 pool 裡找跟 lab 最接近的 n 支（同名的只留一支；skip＝選的那支，同品牌同名的也跳過）
+function nearest(lab, pool, n, skip) {
+  const seen = new Set(), out = [];
+  const all = pool.filter((p) => p !== skip && !(skip && p.b === skip.b && p.key === skip.key)).map((p) => [de2000(lab, p.lab), p]).sort((a, b) => a[0] - b[0]);
+  for (const x of all) { if (seen.has(x[1].b + x[1].key)) continue; seen.add(x[1].b + x[1].key); out.push(x); if (out.length >= n) break; }
+  return out;
+}
+// 可以拿來配對的漆：不是停產、主系列（或勾了其他系列）、一般漆（或勾了特殊漆）、金屬配金屬
+const usable = (x, src, spec, oth) => x.k !== "x" && (oth || x.main) && (spec || x.k === "o") && x.met === src.met;
+const mline = ([d, p]) => { const [g, t] = grade(d); return '<div class="m">' + sw(p.h) + '<span><b>' + esc(p.n) + '</b> <small>' + tag(p) + '</small></span><span class="de ' + g + '">' + t + " " + d.toFixed(1) + "</span></div>"; };
+
+// ---- 找替代色 ----
+let cur = null;
+function showHits() {
+  const q = $("q").value, h = search(q, 40), box = $("hits");
+  box.hidden = !q.trim();
+  box.innerHTML = h.length ? h.map((p) => '<div data-i="' + p.i + '">' + sw(p.h) + esc(p.n) + ' <small style="margin-left:6px">' + tag(p) + "</small></div>").join("") : '<div class="mute">找不到，換個寫法試試</div>';
+}
+function pick(p) {
+  cur = p;
+  $("hits").hidden = true;
+  $("q").value = p.n;
+  renderMatch();
+}
+function renderMatch() {
+  const p = cur;
+  if (!p) return;
+  const on = [...document.querySelectorAll("#brf input:checked")].map((x) => x.value);
+  const spec = $("spec").checked || p.k === "t", oth = $("oth").checked;
+  const cards = BR.filter((b) => on.includes(b)).map((b) => {
+    const pool = P.filter((x) => x.b === b && usable(x, p, spec, oth));
+    if (!pool.length) return "";
+    return '<div class="card"><h2>' + esc(b) + "</h2>" + nearest(p.lab, pool, 3, p).map(mline).join("") + "</div>";
+  }).join("");
+  $("res").hidden = false;
+  $("res").innerHTML = '<div class="big">' + sw(p.h) + "<div><b style=\"font-size:18px\">" + esc(p.n) + "</b><br><small>" + tag(p) + " · " + p.h + "</small></div></div>" + (p.k === "x" ? '<div class="mute" style="font-size:13px;margin-bottom:8px">這是停產的舊色，下面是現在買得到、最接近的。</div>' : "") + '<div class="brands">' + cards + "</div>";
+}
+// 一行文字 → 去掉數量、容量
+const clean = (l) => l.replace(/^\s*[-*•]?\s*\d+\s*[x×]\s*/i, "").replace(/\s*[x×]\s*\d+\s*$/i, "").replace(/\(?\b\d+(\.\d+)?\s*ml\b\)?/ig, "").trim();
+function convert() {
+  const tb = $("tgt").value, si = $("setsel").value;
+  const pool = P.filter((x) => x.b === tb), oth = $("oth").checked;
+  let rows;
+  if (si !== "") {
+    rows = P.filter((p) => p.si === +si).map((p) => [p.n, p]);
+  } else {
+    rows = $("paste").value.split("\n").map(clean).filter(Boolean).slice(0, 500).map((l) => [l, search(l, 1)[0]]);
+  }
+  if (!rows.length) { $("conv").innerHTML = '<div class="mute">先貼上漆名或選一個系列</div>'; return; }
+  $("conv").innerHTML = "<table><tr><th>原本</th><th>認成</th><th>" + esc(tb) + " 最接近</th><th>第二接近</th></tr>" + rows.map(([l, p]) => {
+    if (!p) return "<tr><td>" + esc(l) + '</td><td colspan="3" class="mute">認不出來</td></tr>';
+    const pl = pool.filter((x) => usable(x, p, p.k === "t", oth)), nn = nearest(p.lab, pl, 2, p);
+    const cell = (x) => x ? mline(x) : "";
+    return "<tr><td>" + esc(l) + "</td><td>" + mline([0, p]).replace(/<span class="de[^"]*">[^<]*<\/span>/, "") + "</td><td>" + cell(nn[0]) + "</td><td>" + cell(nn[1]) + "</td></tr>";
+  }).join("") + "</table>";
+}
+
+// ---- 配色 ----
+// 各系列：只用不透明漆
+const RANGES = [
+  ["Citadel（Base＋Layer）", (p) => p.b === "Citadel" && /^(Base|Layer)$/.test(p.s)],
+  ["AK 3代（Standard、Intense、Figures、AFV、金屬）", (p) => p.b === "AK 3代" && p.k === "o" && p.main],
+  ["Vallejo Game Color", (p) => p.b === "Vallejo" && p.s === "Game Color"],
+  ["Vallejo Model Color", (p) => p.b === "Vallejo" && p.s === "Model Color"],
+  ["Army Painter Warpaints Fanatic", (p) => p.b === "Army Painter" && p.s === "Warpaints Fanatic"],
+  ["Scale75（Fantasy & Games＋Scale Color）", (p) => p.b === "Scale75" && /Fantasy|Scale Color/.test(p.s)],
+  ["全部品牌的不透明漆", (p) => p.k === "o" && p.main]
+];
+let dom = null, flip = false;
+const isNeu = (p) => p.C < 0.035 || p.met;
+function renderGrid() {
+  const f = RANGES[+$("rng").value][1], q = norm($("tq").value);
+  const pool = P.filter((p) => f(p) && (!q || p.key.includes(q)));
+  const cell = (p) => '<span data-i="' + p.i + '" title="' + esc(p.n + "（" + p.b + " " + p.s + "）") + '" style="background:' + p.h + '"' + (dom === p ? ' class="on"' : "") + "></span>";
+  $("sws").innerHTML = pool.filter((p) => !isNeu(p)).sort((a, b) => ((a.H + 7) % 6.2832) - ((b.H + 7) % 6.2832) || a.L - b.L).map(cell).join("") || '<span class="mute" style="width:auto;border:0">沒有符合的</span>';
+  $("neu").innerHTML = pool.filter(isNeu).sort((a, b) => a.L - b.L).map(cell).join("");
+}
+function renderTriad() {
+  const p = dom;
+  if (!p) { $("tres").innerHTML = ""; return; }
+  if (isNeu(p)) { $("tres").innerHTML = '<div class="card">' + esc(p.n) + " 是黑白灰或金屬色，沒有色相可以轉，請選一個有顏色的當主色。</div>"; return; }
+  const f = RANGES[+$("rng").value][1], pool = P.filter((x) => f(x) && !x.met);
+  const turn = (deg) => { const v = lchToLin(p.L, p.C, p.H + deg * Math.PI / 180); return {h: hexLin(v), lab: labLin(...v)}; };
+  const a = turn(flip ? -120 : 120), b = turn(flip ? 120 : -120);
+  const na = nearest(a.lab, pool, 3, p), nb = nearest(b.lab, pool, 3, p);
+  const col = (title, pct, ideal, list) => '<div class="card"><h2>' + title + " <small>" + pct + "</small></h2>" + (ideal ? '<div class="ideal">' + sw(ideal.h) + "理想色 " + ideal.h + "（下面是系列裡最接近的）</div>" : "") + list.map(mline).join("") + "</div>";
+  const name = (x) => esc(x[1].n);
+  $("tres").innerHTML = '<div class="card"><h2>' + esc(p.n) + " 的配色</h2>" +
+    '<div class="bar"><div style="flex:6;background:' + p.h + '"></div><div style="flex:3;background:' + na[0][1].h + '"></div><div style="flex:1;background:' + nb[0][1].h + '"></div></div>' +
+    '<div style="font-size:13px">主色 <b>' + esc(p.n) + "</b> 60％ ＋ 輔色 <b>" + name(na[0]) + "</b> 30％ ＋ 點綴 <b>" + name(nb[0]) + '</b> 10％ <button class="s" id="flip">輔色和點綴對調</button></div></div>' +
+    '<div class="tri">' + col("主色", "60％・盔甲、大面積", null, [[0, p]]) + col("輔色", "30％・披風、次要部位", a, na) + col("點綴", "10％・寶石、發光、小細節", b, nb) + "</div>";
+  $("flip").onclick = () => { flip = !flip; renderTriad(); };
+}
+
+// ---- 畫面 ----
+function tab(t) {
+  $("tbm").classList.toggle("on", t === "m");
+  $("tbt").classList.toggle("on", t === "t");
+  $("vm").hidden = t !== "m";
+  $("vt").hidden = t !== "t";
+  if (t === "t") renderGrid();
+}
+function init() {
+  $("brf").innerHTML = BR.map((b) => '<label><input type="checkbox" value="' + esc(b) + '"' + (b === "AK 舊系列" || b === "Mr.Hobby" || b === "Tamiya" ? "" : " checked") + "> " + esc(b) + "</label>").join("");
+  $("tgt").innerHTML = BR.map((b) => "<option" + (b === "AK 3代" ? " selected" : "") + ">" + esc(b) + "</option>").join("");
+  $("setsel").innerHTML += SETS.map((s, i) => [s, i]).filter(([s]) => s[2] !== "t").map(([s, i]) => '<option value="' + i + '">' + esc(s[0] + " " + s[1]) + "</option>").join("");
+  $("rng").innerHTML = RANGES.map((r, i) => '<option value="' + i + '">' + esc(r[0]) + "</option>").join("");
+  $("q").oninput = showHits;
+  $("q").onfocus = showHits;
+  $("hits").onclick = (e) => { const d = e.target.closest("[data-i]"); if (d) pick(P[+d.dataset.i]); };
+  $("brf").onchange = renderMatch;
+  $("spec").onchange = renderMatch;
+  $("oth").onchange = renderMatch;
+  $("go").onclick = convert;
+  $("tbm").onclick = () => tab("m");
+  $("tbt").onclick = () => tab("t");
+  $("rng").onchange = () => { dom = null; renderGrid(); renderTriad(); };
+  $("tq").oninput = renderGrid;
+  const gridClick = (e) => { const d = e.target.closest("[data-i]"); if (!d) return; dom = P[+d.dataset.i]; flip = false; renderGrid(); renderTriad(); $("tres").scrollIntoView({behavior: "smooth", block: "start"}); };
+  $("sws").onclick = gridClick;
+  $("neu").onclick = gridClick;
+}
+fetch("data/paints.json").then((r) => r.json()).then((d) => { prep(d); init(); }).catch((e) => { document.querySelector("main").insertAdjacentHTML("beforeend", '<div class="card">顏料資料載入失敗：' + esc(e) + "</div>"); });
+</script>
+</body>
+</html>
