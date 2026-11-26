@@ -6,6 +6,16 @@
 //    同一個代號的輸入框在各分頁之間同步（A＝我方，三個工具共用；B＝對戰的對方）
 (() => {
   const page = (document.currentScript && document.currentScript.dataset.page) || '';
+  // 按鈕的按壓回饋、計算中的進度條（2026-11-27 使用者「行 你試試」：照 Emil Kowalski 的動畫規則；只動 transform／opacity，減少動態時不動）
+  const fx = document.createElement('style');
+  fx.textContent = 'button{transition:transform 160ms cubic-bezier(0.23,1,0.32,1)}button:not(:disabled):active{transform:scale(0.97)}'
+    + 'button:disabled{opacity:.6;position:relative;overflow:hidden}'
+    + 'button:disabled::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;background:currentColor;animation:busy 900ms linear infinite}'
+    + '@keyframes busy{from{transform:translateX(-100%)}to{transform:translateX(100%)}}@keyframes busyfade{from{opacity:.3}to{opacity:1}}'
+    + '@media (prefers-reduced-motion:reduce){button:not(:disabled):active{transform:none;opacity:.8}button:disabled::after{animation:busyfade 1.2s ease-in-out infinite alternate}}';
+  document.head.appendChild(fx);
+  // iPhone Safari 要有 touchstart 才會套 :active
+  document.addEventListener('touchstart', () => {}, {passive: true});
   let embed = false;
   try { embed = window.parent !== window && !!window.parent.document; } catch (e) { embed = false; }
   if (!embed && page && !/[?&]solo=1/.test(location.search)) { location.replace('./#' + page); return; }

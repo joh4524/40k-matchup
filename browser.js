@@ -57,6 +57,8 @@ def _calc(s):
     ready = ready || boot(tell);
     let calc;
     try { calc = await ready; } catch (e) { ready = null; throw e; }
+    // 計算會卡住整個畫面幾秒：先讓「計算中」的樣子畫出來一格再算（2026-11-27 動畫健檢）
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     try { return JSON.parse(calc(JSON.stringify(req))); } catch (e) {
       throw new Error(String(e.message || e).trim().split('\n').pop());
     }
